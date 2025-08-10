@@ -1,8 +1,8 @@
-import Header from "../components/home/Header";
+import Header from "../components/Header";
 import HeroSection from "../components/home/HeroSection";
 import EcoTips from "../components/home/EcoTips";
 import CommunitySection from "../components/home/CommunitySection";
-import Footer from "../components/home/Footer";
+import Footer from "../components/Footer";
 
 export default function HomePage() {
   return (
