@@ -2,6 +2,7 @@ import React from "react";
 import Header from "../../../components/Header";
 import FilterBar from "../../../components/product/FilterBar";
 import ProductGrid from "../../../components/product/ProductGrid";
+import Footer from "../../../components/Footer";
 
 export default function EcoInventoryPage() {
   return (
@@ -28,6 +29,7 @@ export default function EcoInventoryPage() {
             <ProductGrid />
           </div>
         </main>
+        <Footer />
       </div>
     </div>
   );
