@@ -1,7 +1,7 @@
 import React from "react";
-import Header from "../components/Header";
-import TrendingCard from "../components/TrendingCard";
-import PostListItem from "../components/PostListItem";
+import Header from "../../../components/Header";
+import TrendingCard from "../../../components/community/TrendingCard";
+import PostListItem from "../../../components/community/PostListItem";
 
 export default function Home() {
   return (
