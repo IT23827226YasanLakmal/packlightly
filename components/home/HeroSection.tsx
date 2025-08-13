@@ -1,4 +1,22 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { auth } from '@/lib/firebaseClient'; // your Firebase config
+
 export default function HeroSection() {
+  const router = useRouter();
+
+  const handleStartPacking = () => {
+    const user = auth.currentUser;
+
+    if (user) {
+      
+      router.push('/dashboard');
+    } else {
+      router.push('/login');
+    }
+  };
+
   return (
     <section className="@container p-4">
       <div
@@ -16,7 +34,10 @@ export default function HeroSection() {
             Your intelligent packing assistant for eco-conscious journeys.
           </h2>
         </div>
-        <button className="bg-green-400 p-2 rounded-lg font-bold">
+        <button
+          onClick={handleStartPacking}
+          className="bg-green-400 p-2 rounded-lg font-bold hover:bg-green-500"
+        >
           Start Packing
         </button>
       </div>

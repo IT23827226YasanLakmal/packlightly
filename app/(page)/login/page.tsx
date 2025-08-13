@@ -30,6 +30,7 @@ export default function LoginPage() {
           Authorization: `Bearer ${idToken}`, // token in header
         },
       }
+      
     );
     } catch (error: unknown) {
       if (error instanceof Error) setErrorMsg(error.message);
@@ -46,7 +47,7 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
       const idToken = await userCredential.user.getIdToken();
-      // TODO: send token to backend
+      console.log(idToken);
     } catch (error: unknown) {
       if (error instanceof Error) setErrorMsg(error.message);
       else setErrorMsg("Google sign-in failed");

@@ -1,5 +1,6 @@
 import Logo from "@/public/images/PackLightlyLogo.svg";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Header() {
 
@@ -12,8 +13,11 @@ export default function Header() {
   return (
     <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#e7f3ec] px-10 py-3">
       <div className="flex items-center gap-4 text-[#0e1b13]">
-          <Image src={Logo} alt="PackLight Logo" width={25} height={25} />
-        <h2 className="text-lg font-bold tracking-[-0.015em]">PackLightly</h2>
+          <Link href="/" className="flex items-center justify-center gap-2">
+                    <Image src={Logo} alt="PackLight Logo" width={25} height={25} />
+
+            <h2 className="text-lg font-bold tracking-[-0.015em]">PackLightly</h2>
+          </Link>
       </div>
       <div className="flex flex-1 justify-end gap-8">
         <div className="flex items-center gap-9">
@@ -24,7 +28,9 @@ export default function Header() {
           ))}
         </div>
         <button className="px-4 py-2 rounded-lg bg-[#19e56b] text-sm font-bold">
-          Login / Sign Up
+          <Link href="/login">Login</Link>
+          /
+          <Link href="/signup">Sign Up</Link>
         </button>
       </div>
     </header>
