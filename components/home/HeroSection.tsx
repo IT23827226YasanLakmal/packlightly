@@ -16,7 +16,7 @@ export default function HeroSection() {
             Your intelligent packing assistant for eco-conscious journeys.
           </h2>
         </div>
-        <button className="flex min-w-[84px] h-10 px-4 @[480px]:h-12 @[480px]:px-5 rounded-xl bg-[#19e56b] text-sm font-bold tracking-[0.015em]">
+        <button className="bg-green-400 p-2 rounded-lg font-bold">
           Start Packing
         </button>
       </div>

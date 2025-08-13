@@ -1,12 +1,12 @@
 // components/Footer.jsx
 export default function Footer() {
   return (
-    <footer className="bg-gray-900 text-gray-300 py-10 mt-16">
+    <footer className=" bg-black text-white py-10 mt-16 shadow-md shadow-gray-500">
       <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-4 gap-8">
         
         {/* Brand */}
         <div>
-          <h2 className="text-2xl font-bold text-white">PackLight</h2>
+          <h2 className="text-2xl font-bold">PackLightly</h2>
           <p className="mt-3 text-sm">
             Your eco-conscious travel companion. Travel light, travel right.
           </p>
@@ -14,7 +14,7 @@ export default function Footer() {
 
         {/* Quick Links */}
         <div>
-          <h3 className="font-semibold text-white mb-3">Quick Links</h3>
+          <h3 className="font-semibold mb-3">Quick Links</h3>
           <ul className="space-y-2">
             <li><a href="#features" className="hover:text-white">Features</a></li>
             <li><a href="#community" className="hover:text-white">Community</a></li>
@@ -25,7 +25,7 @@ export default function Footer() {
 
         {/* Resources */}
         <div>
-          <h3 className="font-semibold text-white mb-3">Resources</h3>
+          <h3 className="font-semibold mb-3">Resources</h3>
           <ul className="space-y-2">
             <li><a href="#" className="hover:text-white">Blog</a></li>
             <li><a href="#" className="hover:text-white">Help Center</a></li>
@@ -36,7 +36,7 @@ export default function Footer() {
 
         {/* Newsletter */}
         <div>
-          <h3 className="font-semibold text-white mb-3">Stay Updated</h3>
+          <h3 className="font-semibold mb-3">Stay Updated</h3>
           <form className="flex flex-col sm:flex-row gap-3">
             <input
               type="email"
@@ -51,7 +51,7 @@ export default function Footer() {
       </div>
 
       {/* Bottom */}
-      <div className="border-t border-gray-700 mt-8 pt-6 text-center text-sm text-gray-400">
+      <div className="border-t mt-8 pt-6 text-center text-sm ">
         © {new Date().getFullYear()} PackLight. All rights reserved.
       </div>
     </footer>

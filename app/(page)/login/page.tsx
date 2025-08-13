@@ -7,6 +7,7 @@ import {
   GoogleAuthProvider,
 } from "firebase/auth";
 import { auth } from "../../../lib/firebaseClient";
+import axios from "axios";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -21,7 +22,15 @@ export default function LoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await userCredential.user.getIdToken();
-      // TODO: send token to backend
+      const response = await axios.post(
+      "https://localhost:5000/api/auth/profile",
+      { email }, // optional body data
+      {
+        headers: {
+          Authorization: `Bearer ${idToken}`, // token in header
+        },
+      }
+    );
     } catch (error: unknown) {
       if (error instanceof Error) setErrorMsg(error.message);
       else setErrorMsg("Login failed");
