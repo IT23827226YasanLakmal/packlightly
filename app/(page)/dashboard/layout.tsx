@@ -9,14 +9,26 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>
-  <Header />
-      <div className="min-h-screen bg-[#f8fcfa] flex">
+  return (
+    <div className="flex flex-col h-screen bg-[#f8fcfa]">
+      {/* Fixed Header */}
+      <Header />
 
-        <Sidebar onCreateTrip={() => console.log("Create trip clicked")} />
-              {children}
+      {/* Main area: sidebar + content */}
+      <div className="flex flex-1 overflow-hidden min-h-screen">
+        {/* Sidebar with independent scroll */}
+        <div className="w-80 overflow-auto border-r border-gray-200">
+          <Sidebar/>
+        </div>
 
-  </div>
-  <Footer />
-  </>;
+        {/* Main content scrolls independently */}
+        <main className="flex-1 overflow-auto p-6">
+          {children}
+        </main>
+      </div>
+
+      {/* Fixed Footer */}
+      <Footer />
+    </div>
+  );
 }
