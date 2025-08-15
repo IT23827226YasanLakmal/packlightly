@@ -8,12 +8,14 @@ import {
 } from "firebase/auth";
 import { auth } from "../../../lib/firebaseClient";
 import axios from "axios";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,16 +24,19 @@ export default function LoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await userCredential.user.getIdToken();
-      const response = await axios.post(
-      "https://localhost:5000/api/auth/profile",
-      { email }, // optional body data
-      {
-        headers: {
-          Authorization: `Bearer ${idToken}`, // token in header
-        },
-      }
-      
-    );
+
+      await axios.post(
+        "https://localhost:5000/api/auth/profile",
+        { email },
+        {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
+      );
+
+      // Redirect after login success
+      router.push("/dashboard");
     } catch (error: unknown) {
       if (error instanceof Error) setErrorMsg(error.message);
       else setErrorMsg("Login failed");
@@ -48,6 +53,9 @@ export default function LoginPage() {
       const userCredential = await signInWithPopup(auth, provider);
       const idToken = await userCredential.user.getIdToken();
       console.log(idToken);
+
+      // Redirect after Google login success
+      router.push("/dashboard/trips");
     } catch (error: unknown) {
       if (error instanceof Error) setErrorMsg(error.message);
       else setErrorMsg("Google sign-in failed");
@@ -55,6 +63,7 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
 
   const onEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);

@@ -11,7 +11,7 @@ export default function HeroSection() {
 
     if (user) {
       
-      router.push('/dashboard');
+      router.push('/dashboard/trips');
     } else {
       router.push('/login');
     }
