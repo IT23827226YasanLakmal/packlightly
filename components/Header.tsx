@@ -25,7 +25,7 @@ export default function Header() {
     { name: "Community", path: "/community" },
     { name: "Eco Products", path: "/eco-products" },
     { name: "News", path: "/news" },
-    { name: "About Us", path: "/about" },
+    { name: "About Us", path: "/about-us" },
   ];
 
   const handleDashboardClick = (e: React.MouseEvent) => {

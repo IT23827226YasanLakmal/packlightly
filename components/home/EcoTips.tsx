@@ -1,3 +1,4 @@
+// components/home/EcoTips.tsx
 interface Tip {
   title: string;
   description: string;
@@ -24,21 +25,31 @@ const tips: Tip[] = [
 
 export default function EcoTips() {
   return (
-    <section>
-      <h2 className="text-[22px] font-bold px-4 pt-5 pb-3">Featured Eco Tips</h2>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(158px,1fr))] gap-3 p-4">
-        {tips.map((tip, i) => (
-          <div key={i} className="flex flex-col gap-3 pb-3">
+    <section className="py-16 bg-gray-50">
+      <div className="max-w-6xl mx-auto px-6 text-center">
+        <h2 className="text-3xl font-bold text-gray-900 mb-4">Featured Eco Tips</h2>
+        <p className="text-gray-600 mb-10">
+          Practical tips to make your travels greener and smarter.
+        </p>
+
+        <div className="grid md:grid-cols-3 gap-8">
+          {tips.map((tip, i) => (
             <div
-              className="w-full aspect-square bg-cover rounded-xl"
-              style={{ backgroundImage: `url(${tip.image})` }}
-            />
-            <div>
-              <p className="text-base font-medium">{tip.title}</p>
-              <p className="text-[#4e976b] text-sm">{tip.description}</p>
+              key={i}
+              className="bg-white rounded-2xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition p-4 flex flex-col"
+            >
+              <div
+                className="w-full aspect-square rounded-xl bg-center bg-cover mb-4"
+                style={{ backgroundImage: `url(${tip.image})` }}
+              />
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">{tip.title}</h3>
+              <p className="text-green-600 text-sm mb-3">{tip.description}</p>
+              <button className="mt-auto text-green-600 font-medium hover:underline">
+                Learn More →
+              </button>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </section>
   );

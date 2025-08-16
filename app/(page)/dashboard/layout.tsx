@@ -17,12 +17,12 @@ export default function DashboardLayout({
       {/* Main area: sidebar + content */}
       <div className="flex flex-1 overflow-hidden min-h-screen">
         {/* Sidebar with independent scroll */}
-        <div className="w-80 overflow-auto border-r border-gray-200">
+        <div className="w-80 overflow-auto ">
           <Sidebar/>
         </div>
 
         {/* Main content scrolls independently */}
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-2">
           {children}
         </main>
       </div>

@@ -290,12 +290,7 @@ export default function PackingListOverviewPage() {
 
         {/* Left Section */}
         <div className="flex items-center gap-5 relative z-10">
-          <button
-            onClick={() => router.push('/dashboard/packinglists')}
-            className="px-5 py-2 bg-gradient-to-r from-green-400 to-teal-500 text-white font-semibold rounded-xl shadow-lg hover:scale-105 hover:shadow-2xl transition-transform duration-300 hover:animate-glow"
-          >
-            &larr; Dashboard
-          </button>
+          
           <div className="flex flex-col">
             <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 animate-slideIn animate-pulseGlow">
               {tripsSeed.find((t) => t.id === selectedTripId)?.name}
@@ -389,7 +384,7 @@ export default function PackingListOverviewPage() {
       `}</style>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col px-6 md:px-12 py-6 gap-6">
+      <main className="flex-1 flex flex-col">
         <AnimatePresence mode="wait">
           {/* Weather Tab */}
           {activeTab === 'weather' && (
