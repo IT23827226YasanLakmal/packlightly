@@ -48,31 +48,9 @@ export default function WeatherCard({
   }, [condition]);
 
   return (
-    <div className={`relative w-full h-screen overflow-hidden ${bgClass} flex flex-col justify-center px-6 md:px-20`}>
+    <div>
 
-      {/* Floating Particles / Animated Elements */}
-      <div className="absolute inset-0 pointer-events-none">
-        {/* Sunny Rays */}
-        {condition === "sunny" && (
-          <Sun size={140} className="absolute top-20 left-1/2 -translate-x-1/2 text-yellow-400 opacity-60 animate-pulse-slow" />
-        )}
-
-        {/* Rain Drops */}
-        {condition === "rainy" && [...Array(25)].map((_, i) => (
-          <div key={i} className="absolute w-1 h-6 bg-blue-300 rounded animate-fall" style={{ left: `${Math.random()*100}%`, top: `${Math.random()*100}%` }} />
-        ))}
-
-        {/* Clouds drifting */}
-        {condition === "cloudy" && [...Array(6)].map((_, i) => (
-          <Cloud key={i} size={100} className="absolute text-gray-300 opacity-80 animate-drift-slow" style={{ top: `${i*15+10}%`, left: `${i*15}%` }} />
-        ))}
-
-        {/* Snowflakes */}
-        {condition === "snowy" && [...Array(30)].map((_, i) => (
-          <Snowflake key={i} size={16} className="absolute text-white opacity-80 animate-fall-slow" style={{ left: `${Math.random()*100}%`, top: `${Math.random()*100}%` }} />
-        ))}
-      </div>
-
+      
       {/* Weather Info Card */}
       <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 bg-white/30 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
         

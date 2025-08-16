@@ -1,9 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Leaf } from "lucide-react";
-import Button from "@/components/dashboard/button";
 
 interface ChecklistItem {
+  id: string;
   label: string;
   completed?: boolean;
   eco?: boolean;
@@ -11,121 +11,179 @@ interface ChecklistItem {
 
 interface ChecklistSectionProps {
   title: string;
-  items: (string | ChecklistItem)[];
-  ecoItems?: string[]; // for highlighting eco items
 }
 
-export default function ChecklistSection({ title, items, ecoItems = [] }: ChecklistSectionProps) {
-  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>(
-    items.map((item) =>
-      typeof item === "string" ? { label: item, completed: false, eco: ecoItems.includes(item) } : item
-    )
-  );
-
+export default function ChecklistSection({ title }: ChecklistSectionProps) {
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [removedItems, setRemovedItems] = useState<ChecklistItem[]>([]);
   const [newItemLabel, setNewItemLabel] = useState("");
   const [newItemEco, setNewItemEco] = useState(false);
+  const [activeTab, setActiveTab] = useState<"all" | "eco" | "completed" | "removed">("all");
 
-  const toggleComplete = (index: number) => {
-    const updated = [...checklistItems];
-    updated[index].completed = !updated[index].completed;
-    setChecklistItems(updated);
+  // ✅ Fetch initial data from backend
+  useEffect(() => {
+    fetch("/api/checklist")
+      .then((res) => res.json())
+      .then((data) => setChecklistItems(data))
+      .catch((err) => console.error("Failed to load checklist:", err));
+  }, []);
+
+  // ✅ Toggle complete
+  const toggleComplete = async (item: ChecklistItem) => {
+    const updated = { ...item, completed: !item.completed };
+    setChecklistItems((prev) =>
+      prev.map((i) => (i.id === item.id ? updated : i))
+    );
+    try {
+      await fetch(`/api/checklist/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completed: updated.completed }),
+      });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const removeItem = (index: number) => {
-    const removed = checklistItems.splice(index, 1)[0];
-    setRemovedItems([removed, ...removedItems]);
-    setChecklistItems([...checklistItems]);
+  // ✅ Remove
+  const removeItem = async (item: ChecklistItem) => {
+    setRemovedItems([item, ...removedItems]);
+    setChecklistItems(checklistItems.filter((i) => i.id !== item.id));
+    try {
+      await fetch(`/api/checklist/${item.id}`, { method: "DELETE" });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const restoreItem = (index: number) => {
-    const restored = removedItems.splice(index, 1)[0];
-    setChecklistItems([restored, ...checklistItems]);
-    setRemovedItems([...removedItems]);
+  // ✅ Restore
+  const restoreItem = async (item: ChecklistItem) => {
+    setChecklistItems([item, ...checklistItems]);
+    setRemovedItems(removedItems.filter((i) => i.id !== item.id));
+    try {
+      await fetch(`/api/checklist/${item.id}/restore`, { method: "PATCH" });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const addItem = () => {
-    if (newItemLabel.trim() === "") return;
-    setChecklistItems([{ label: newItemLabel, completed: false, eco: newItemEco }, ...checklistItems]);
+  // ✅ Add new item
+  const addItem = async () => {
+    if (!newItemLabel.trim()) return;
+    const newItem = {
+      id: crypto.randomUUID(),
+      label: newItemLabel,
+      completed: false,
+      eco: newItemEco,
+    };
+    setChecklistItems([newItem, ...checklistItems]);
     setNewItemLabel("");
     setNewItemEco(false);
+    try {
+      await fetch("/api/checklist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newItem),
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // ✅ Filtered items
+  const filteredItems = () => {
+    switch (activeTab) {
+      case "eco":
+        return checklistItems.filter((item) => item.eco);
+      case "completed":
+        return checklistItems.filter((item) => item.completed);
+      case "removed":
+        return removedItems;
+      default:
+        return checklistItems;
+    }
   };
 
   return (
-    <div className="bg-white p-4 rounded-xl shadow flex flex-col gap-4 ">
-      <h3 className="font-bold text-[#0e1b13]">{title}</h3>
+    <div className="bg-white p-4 rounded-xl shadow flex flex-col gap-4">
+      <h3 className="font-bold text-[#0e1b13] text-lg">{title}</h3>
 
-      {/* Add New Item */}
-      <div className="flex gap-2 items-center">
-        <input
-          type="text"
-          placeholder="Add new item"
-          value={newItemLabel}
-          onChange={(e) => setNewItemLabel(e.target.value)}
-          className="flex-1 border border-gray-300 rounded px-2 py-1"
-        />
-        <label className="flex items-center gap-1 text-sm">
-          <input
-            type="checkbox"
-            checked={newItemEco}
-            onChange={() => setNewItemEco(!newItemEco)}
-          />
-          <Leaf size={16} className="text-green-600" />
-        </label>
-        <button
-          onClick={addItem}
-          className="px-3 py-1 bg-[#4e976b] text-white rounded hover:bg-green-700 transition"
-        >
-          Add
-        </button>
+      {/* Tabs */}
+      <div className="flex gap-2 mb-3 text-sm">
+        {["all", "eco", "completed", "removed"].map((tab) => (
+          <button
+            key={tab}
+            className={`px-3 py-1 rounded-full font-medium transition ${
+              activeTab === tab
+                ? "bg-green-600 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+            onClick={() => setActiveTab(tab as any)}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
       </div>
 
+      {/* Add New Item */}
+      {activeTab !== "removed" && (
+        <div className="flex gap-2 items-center">
+          <input
+            type="text"
+            placeholder="Add new item"
+            value={newItemLabel}
+            onChange={(e) => setNewItemLabel(e.target.value)}
+            className="flex-1 border border-gray-300 rounded px-2 py-1"
+          />
+          <label className="flex items-center gap-1 text-sm">
+            <input type="checkbox" checked={newItemEco} onChange={() => setNewItemEco(!newItemEco)} />
+            <Leaf size={16} className="text-green-600" />
+          </label>
+          <button
+            onClick={addItem}
+            className="px-3 py-1 bg-[#4e976b] text-white rounded hover:bg-green-700 transition"
+          >
+            Add
+          </button>
+        </div>
+      )}
+
       {/* Checklist Items */}
-      <div className="flex flex-col gap-2">
-        {checklistItems.map((item, idx) => (
-          <div key={idx} className="flex items-center justify-between gap-2">
+      <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
+        {filteredItems().length === 0 && <p className="text-gray-500 text-sm">No items to display</p>}
+        {filteredItems().map((item) => (
+          <div key={item.id} className="flex items-center justify-between gap-2 p-2 rounded hover:bg-gray-50 transition">
             <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={item.completed}
-                onChange={() => toggleComplete(idx)}
-              />
+              {activeTab !== "removed" && (
+                <input
+                  type="checkbox"
+                  checked={item.completed}
+                  onChange={() => toggleComplete(item)}
+                />
+              )}
               <span className={`text-sm ${item.completed ? "line-through text-gray-400" : ""}`}>
                 {item.label}
               </span>
               {item.eco && <Leaf size={16} className="text-green-600" />}
             </div>
-            <button
-              onClick={() => removeItem(idx)}
-              className="text-red-500 text-sm hover:underline"
-            >
-              Remove
-            </button>
+            {activeTab === "removed" ? (
+              <button
+                onClick={() => restoreItem(item)}
+                className="text-green-600 text-sm hover:underline"
+              >
+                Restore
+              </button>
+            ) : (
+              <button
+                onClick={() => removeItem(item)}
+                className="text-red-500 text-sm hover:underline"
+              >
+                Remove
+              </button>
+            )}
           </div>
         ))}
       </div>
-
-      {/* Removed Items */}
-      {removedItems.length > 0 && (
-        <div className="mt-2">
-          <h4 className="text-sm font-semibold text-gray-700 mb-1">Removed Items</h4>
-          <div className="flex flex-col gap-1">
-            {removedItems.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between gap-2">
-                <span className="text-sm">{item.label}</span>
-                <button
-                  onClick={() => restoreItem(idx)}
-                  className="text-green-600 text-sm hover:underline"
-                >
-                  Restore
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
     </div>
-
   );
 }

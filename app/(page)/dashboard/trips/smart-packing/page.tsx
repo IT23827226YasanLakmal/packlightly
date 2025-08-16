@@ -273,10 +273,21 @@ export default function PackingListOverviewPage() {
     chanceRain: '15%',
   };
 
+  const categoryIcons: Record<string, string> = {
+  Clothing: '👕',
+  Essentials: '🎒',
+  Toiletries: '🧴',
+  Electronics: '🔌',
+};
+
+const [activeCategory, setActiveCategory] = useState<string>(
+  Object.keys(checklistCats)[0] || ''
+);
+
   return (
-    <div className="relative flex min-h-screen flex-col bg-[#f5f8f6] text-gray-800">
+    <div className="relative flex min-h-screen flex-col bg-[#f5f8f6] text-gray-800 p-4">
       {/* Animated Header */}
-      <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-md border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-xl transition-shadow duration-500 hover:shadow-2xl overflow-hidden">
+      <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-md border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-xl transition-shadow duration-500 hover:shadow-2xl overflow-hidden mb-4 rounded-xl">
         {/* Background Floating Particles */}
         <div className="absolute inset-0 pointer-events-none">
           {[...Array(6)].map((_, i) => (
@@ -383,6 +394,7 @@ export default function PackingListOverviewPage() {
         .animate-gradient { background-size: 200% 200%; animation: gradientShift 4s ease infinite; }
       `}</style>
 
+
       {/* Main Content */}
       <main className="flex-1 flex flex-col">
         <AnimatePresence mode="wait">
@@ -400,87 +412,104 @@ export default function PackingListOverviewPage() {
           )}
 
           {/* Checklist Tab */}
-          {activeTab === 'checklist' && (
-            <motion.div
-              key="checklist"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-              className="flex flex-col gap-6"
+{activeTab === 'checklist' && (
+  <motion.div
+    key="checklist"
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    transition={{ duration: 0.3 }}
+    className="flex flex-col gap-6"
+  >
+    {/* Eco Score */}
+    <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-xl border border-gray-200">
+      <div className="flex items-center gap-2 font-bold text-[#0e1b13]">
+        <Leaf size={28} className="text-green-600" />
+        Eco Score
+      </div>
+      <div className="flex-1 h-5 bg-gray-200 rounded-full overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${ecoScore}%` }}
+          transition={{ duration: 1.2, ease: 'easeInOut' }}
+          className="h-full bg-gradient-to-r from-green-400 to-teal-500"
+        />
+      </div>
+      <p className="text-sm text-gray-700">{ecoScore}% eco items packed</p>
+    </div>
+
+    {/* Scrollable Category Navigation */}
+    <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
+      {Object.keys(checklistCats).map((cat) => {
+        const total = checklistCats[cat].length;
+        const ecoCount = checklistCats[cat].filter((i) => !removedItems.includes(i.label) && i.eco).length;
+        const isActive = cat === activeCategory;
+
+        return (
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-2xl font-semibold text-sm transition-all whitespace-nowrap
+              ${isActive
+                ? 'bg-gradient-to-r from-green-400 to-teal-500 text-white shadow-lg'
+                : 'bg-gray-100 text-gray-700 hover:bg-green-50 hover:text-green-700'}
+            `}
+          >
+            <span>{categoryIcons[cat] || '📌'}</span>
+            <span>{cat}</span>
+            <span className="text-xs font-medium bg-white/30 px-2 py-0.5 rounded-full">
+              {ecoCount}/{total} 🌿
+            </span>
+          </button>
+        );
+      })}
+    </div>
+
+    {/* Animated Category Content */}
+    <AnimatePresence mode="wait">
+      {activeCategory && (
+        <motion.div
+          key={activeCategory}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.25 }}
+          className="mt-4"
+        >
+          {/* Checklist Section */}
+          <ChecklistSection
+            title={titleCase(activeCategory)}
+            items={(checklistCats[activeCategory] || []).filter(
+              (i) => !removedItems.includes(i.label)
+            )}
+          />
+
+          {/* Inline Add New Item */}
+          <div className="flex gap-2 mt-2">
+            <input
+              className="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+              placeholder={`Add to ${titleCase(activeCategory)}...`}
+              value={newInputs[activeCategory] || ''}
+              onChange={(e) =>
+                setNewInputs((prev) => ({ ...prev, [activeCategory]: e.target.value }))
+              }
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddChecklistItem(activeCategory);
+              }}
+            />
+            <button
+              onClick={() => handleAddChecklistItem(activeCategory)}
+              className="px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 shadow"
             >
-              {/* Eco Score */}
-              <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-xl border border-gray-200">
-                <div className="flex items-center gap-2 font-bold text-[#0e1b13]">
-                  <Leaf size={28} className="text-green-600" />
-                  Eco Score
-                </div>
-                <div className="flex-1 h-5 bg-gray-200 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${ecoScore}%` }}
-                    transition={{ duration: 1.2, ease: 'easeInOut' }}
-                    className="h-full bg-gradient-to-r from-green-400 to-teal-500"
-                  />
-                </div>
-                <p className="text-sm text-gray-700">{ecoScore}% eco items packed</p>
-              </div>
+              <Plus size={18} />
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </motion.div>
+)}
 
-              {/* Checklist Sections */}
-              <div className="grid md:grid-cols-2 gap-6">
-                {Object.keys(checklistCats).map((cat) => (
-                  <div key={cat} className="space-y-3">
-                    {/* Your existing component (keeps original interactivity) */}
-                    <ChecklistSection
-                      title={titleCase(cat)}
-                      items={(checklistCats[cat] || []).filter((i) => !removedItems.includes(i.label))}
-                    />
-
-                    {/* Inline Add New Item */}
-                    <div className="flex gap-2">
-                      <input
-                        className="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                        placeholder={`Add to ${titleCase(cat)}...`}
-                        value={newInputs[cat] || ''}
-                        onChange={(e) => setNewInputs((prev) => ({ ...prev, [cat]: e.target.value }))}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleAddChecklistItem(cat);
-                        }}
-                      />
-                      <button
-                        onClick={() => handleAddChecklistItem(cat)}
-                        className="px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 shadow"
-                        title="Add Item"
-                      >
-                        <Plus size={18} />
-                      </button>
-                    </div>
-
-                    {/* Optional Hard Remove section (for truly deleting items instead of hide/remove via ChecklistSection) */}
-                    {(checklistCats[cat] || []).length > 0 && (
-                      <div className="text-xs text-gray-500">
-                        Tip: To permanently delete an item, use your list’s remove action in this page (not just “mark removed”).
-                      </div>
-                    )}
-
-                    {/* Render hard-remove buttons inline under list (tiny UI) */}
-                    <div className="flex flex-wrap gap-2">
-                      {(checklistCats[cat] || []).map((i) => (
-                        <button
-                          key={`hard-${cat}-${i.label}`}
-                          onClick={() => handleRemoveChecklistHard(cat, i.label)}
-                          className="text-[11px] px-2 py-1 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"
-                          title="Delete from list"
-                        >
-                          delete “{i.label}”
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
 
           {/* Smart Packing Tab */}
           {activeTab === 'smart' && (

@@ -22,7 +22,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Main content scrolls independently */}
-        <main className="flex-1 overflow-auto p-2">
+        <main className="flex-1 overflow-auto py-4">
           {children}
         </main>
       </div>
