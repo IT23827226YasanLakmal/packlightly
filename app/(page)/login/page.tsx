@@ -51,8 +51,8 @@ export default function LoginPage() {
     try {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
-      await userCredential.user.getIdToken();
-
+      const idToken = await userCredential.user.getIdToken();
+      console.log("Google ID Token:", idToken);
       // Redirect after Google login success
       router.push("/dashboard/trips");
     } catch (error: unknown) {
