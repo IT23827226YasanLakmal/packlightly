@@ -1,6 +1,22 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Leaf } from "lucide-react";
+import { getAuth } from "firebase/auth";
+
+
+async function apiFetch(url: string, options: RequestInit = {}) {
+  const auth = getAuth();
+  const token = await auth.currentUser?.getIdToken();
+
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+}
 
 interface ChecklistItem {
   id: string;
@@ -20,12 +36,17 @@ export default function ChecklistSection({ title }: ChecklistSectionProps) {
   const [newItemEco, setNewItemEco] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "eco" | "completed" | "removed">("all");
 
-  // ✅ Fetch initial data from backend
+ // ✅ Fetch initial data from backend
   useEffect(() => {
-    fetch("/api/checklist")
-      .then((res) => res.json())
-      .then((data) => setChecklistItems(data))
-      .catch((err) => console.error("Failed to load checklist:", err));
+    (async () => {
+      try {
+        const res = await apiFetch("https://localhost:5000/api/checklist");
+        const data = await res.json();
+        setChecklistItems(data);
+      } catch (err) {
+        console.error("Failed to load checklist:", err);
+      }
+    })();
   }, []);
 
   // ✅ Toggle complete
@@ -35,9 +56,8 @@ export default function ChecklistSection({ title }: ChecklistSectionProps) {
       prev.map((i) => (i.id === item.id ? updated : i))
     );
     try {
-      await fetch(`/api/checklist/${item.id}`, {
+      await apiFetch(`https://localhost:5000/api/checklist/${item.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ completed: updated.completed }),
       });
     } catch (err) {
@@ -50,7 +70,7 @@ export default function ChecklistSection({ title }: ChecklistSectionProps) {
     setRemovedItems([item, ...removedItems]);
     setChecklistItems(checklistItems.filter((i) => i.id !== item.id));
     try {
-      await fetch(`/api/checklist/${item.id}`, { method: "DELETE" });
+      await apiFetch(`https://localhost:5000/api/checklist/${item.id}`, { method: "DELETE" });
     } catch (err) {
       console.error(err);
     }
@@ -61,7 +81,7 @@ export default function ChecklistSection({ title }: ChecklistSectionProps) {
     setChecklistItems([item, ...checklistItems]);
     setRemovedItems(removedItems.filter((i) => i.id !== item.id));
     try {
-      await fetch(`/api/checklist/${item.id}/restore`, { method: "PATCH" });
+      await apiFetch(`https://localhost:5000/api/checklist/${item.id}/restore`, { method: "PATCH" });
     } catch (err) {
       console.error(err);
     }
@@ -80,9 +100,8 @@ export default function ChecklistSection({ title }: ChecklistSectionProps) {
     setNewItemLabel("");
     setNewItemEco(false);
     try {
-      await fetch("/api/checklist", {
+      await apiFetch("https://localhost:5000/api/checklist", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newItem),
       });
     } catch (err) {
