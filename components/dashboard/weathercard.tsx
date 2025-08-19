@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Sun, CloudRain, Cloud, Snowflake, Thermometer, Droplet, Wind, Umbrella } from "lucide-react";
 
-interface WeatherCardProps {
+interface Weather {
   location: string;
   tempRange: string;
   description: string;
@@ -14,22 +14,16 @@ interface WeatherCardProps {
   humidity?: string;
   chanceRain?: string;
 }
-
+interface WeatherCardProps {
+  weather: Weather;
+}
 export default function WeatherCard({
-  location,
-  tempRange,
-  description,
-  condition = "sunny",
-  highTemp = "28°C",
-  lowTemp = "22°C",
-  wind = "12 km/h",
-  humidity = "60%",
-  chanceRain = "10%",
+  weather
 }: WeatherCardProps) {
   const [bgClass, setBgClass] = useState("");
 
   useEffect(() => {
-    switch (condition) {
+    switch (weather?.condition) {
       case "sunny":
         setBgClass("bg-gradient-to-br from-yellow-300 via-yellow-200 to-orange-200");
         break;
@@ -45,7 +39,7 @@ export default function WeatherCard({
       default:
         setBgClass("bg-gradient-to-br from-yellow-300 via-yellow-200 to-orange-200");
     }
-  }, [condition]);
+  }, [weather?.condition]);
 
   return (
     <div>
@@ -56,35 +50,35 @@ export default function WeatherCard({
         
         {/* Left Info */}
         <div className="flex-1 flex flex-col gap-4">
-          <p className="text-4xl md:text-5xl font-extrabold text-gray-900 animate-slideIn">{location}</p>
-          <p className="text-xl font-medium text-green-700 animate-fadeIn">{description}</p>
-          <p className="text-3xl font-bold text-gray-900 animate-fadeIn">{tempRange}</p>
+          <p className="text-4xl md:text-5xl font-extrabold text-gray-900 animate-slideIn">{weather?.location}</p>
+          <p className="text-xl font-medium text-green-700 animate-fadeIn">{weather?.description}</p>
+          <p className="text-3xl font-bold text-gray-900 animate-fadeIn">{weather?.tempRange}</p>
 
           <div className="flex flex-wrap gap-6 mt-4 text-gray-800">
             <div className="flex items-center gap-2">
-              <Thermometer size={20} className="text-yellow-500 animate-bounce-slow" /> High: {highTemp}
+              <Thermometer size={20} className="text-yellow-500 animate-bounce-slow" /> High: {weather?.highTemp}
             </div>
             <div className="flex items-center gap-2">
-              <Thermometer size={20} className="text-blue-400 animate-bounce-slow" /> Low: {lowTemp}
+              <Thermometer size={20} className="text-blue-400 animate-bounce-slow" /> Low: {weather?.lowTemp}
             </div>
             <div className="flex items-center gap-2">
-              <Wind size={20} className="text-gray-500 animate-bounce-slow" /> Wind: {wind}
+              <Wind size={20} className="text-gray-500 animate-bounce-slow" /> Wind: {weather?.wind}
             </div>
             <div className="flex items-center gap-2">
-              <Droplet size={20} className="text-blue-500 animate-bounce-slow" /> Humidity: {humidity}
+              <Droplet size={20} className="text-blue-500 animate-bounce-slow" /> Humidity: {weather?.humidity}
             </div>
             <div className="flex items-center gap-2">
-              <Umbrella size={20} className="text-blue-600 animate-bounce-slow" /> Chance Rain: {chanceRain}
+              <Umbrella size={20} className="text-blue-600 animate-bounce-slow" /> Chance Rain: {weather?.chanceRain}
             </div>
           </div>
         </div>
 
         {/* Right Icon */}
         <div className="flex-1 flex items-center justify-center">
-          {condition === "sunny" && <Sun size={160} className="text-yellow-400 animate-spin-slow" />}
-          {condition === "rainy" && <CloudRain size={160} className="text-blue-400 animate-bounce" />}
-          {condition === "cloudy" && <Cloud size={160} className="text-gray-400 animate-pulse-slow" />}
-          {condition === "snowy" && <Snowflake size={160} className="text-white animate-bounce-slow" />}
+          {weather?.condition === "sunny" && <Sun size={160} className="text-yellow-400 animate-spin-slow" />}
+          {weather?.condition === "rainy" && <CloudRain size={160} className="text-blue-400 animate-bounce" />}
+          {weather?.condition === "cloudy" && <Cloud size={160} className="text-gray-400 animate-pulse-slow" />}
+          {weather?.condition === "snowy" && <Snowflake size={160} className="text-white animate-bounce-slow" />}
         </div>
       </div>
 

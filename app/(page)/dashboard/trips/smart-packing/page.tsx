@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Leaf, Plus } from 'lucide-react';
 import WeatherCard from '@/components/dashboard/weathercard';
 import ChecklistSection from '@/components/dashboard/checklistsection';
+import useSWR from 'swr';
+import { Types } from "mongoose";
+import { fetcherWithToken } from "../../../../../utils/fetcher";
 
 /** -----------------------------
  * Types
@@ -14,94 +16,64 @@ type Item = { label: string; eco?: boolean };
 type CategoryItems = Record<string, Item[]>;
 
 interface Trip {
-  id: string;
-  name: string;
-  destination: string;
-  startDate: string; // ISO
-  endDate: string;   // ISO
-  durationDays: number;
+  _id: Types.ObjectId,
+  title: string,
+  destination: string,
+  description: string,
+  startDate: Date,
+  endDate: Date,
+  durationDays: number,
+  ownerUid: string,
+  weather: {
+    location: string,
+    tempRange: string,
+    description: string,
+    condition: {
+      type: string,
+      enum: ['sunny', 'cloudy', 'rainy', 'stormy', 'snowy'], // restrict to common types
+      default: 'sunny'
+    },
+    highTemp: string,
+    lowTemp: string,
+    wind: string,
+    humidity: string,
+    chanceRain: string
+  }
 }
 
 interface PackingList {
-  id: string;
-  tripId: string;
-  name: string;
-  categories: CategoryItems;
+  _id?: Types.ObjectId; 
+  tripId?: Types.ObjectId; 
+  ownerUid: string;
+  title: string;
+  categories: {
+    name: "Clothing" | "Essentials" | "Toiletries" | "Electronics";
+    items: {
+      name: string;
+      qty?: number;
+      checked?: boolean;
+    }[];
+  }[];
+
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 /** -----------------------------
- * Mock Data (swap with API later)
+ * Hooks
  * ----------------------------*/
-const tripsSeed: Trip[] = [
-  {
-    id: 't1',
-    name: 'Paris Trip',
-    destination: 'Paris',
-    startDate: '2024-07-15',
-    endDate: '2024-07-22',
-    durationDays: 7,
-  },
-  {
-    id: 't2',
-    name: 'Tokyo Adventure',
-    destination: 'Tokyo',
-    startDate: '2024-09-05',
-    endDate: '2024-09-15',
-    durationDays: 10,
-  },
-];
+function useTrips() {
+  const { data, error } = useSWR('http://localhost:5000/api/trips', fetcherWithToken);
+  return { trips: data , loading: !data && !error, error };
+}
 
-const packingListsSeed: PackingList[] = [
-  {
-    id: 'pl1',
-    tripId: 't1',
-    name: 'Main Packing List',
-    categories: {
-      Clothing: [
-        { label: '3 x T-shirts (organic cotton)', eco: true },
-        { label: '1 x Lightweight jacket (recycled materials)', eco: true },
-        { label: '1 x Pair of jeans (water-efficient denim)' },
-        { label: '7 x Underwear (bamboo fabric)', eco: true },
-        { label: '7 x Socks (recycled polyester)', eco: true },
-      ],
-      Essentials: [
-        { label: 'Passport & travel documents' },
-        { label: 'Reusable water bottle', eco: true },
-        { label: 'Portable charger' },
-        { label: 'Travel adapter' },
-      ],
-      Toiletries: [
-        { label: 'Solid shampoo bar (eco-friendly)', eco: true },
-        { label: 'Refillable travel-sized containers', eco: true },
-        { label: 'Bamboo toothbrush', eco: true },
-        { label: 'Mineral sunscreen (reef-safe)', eco: true },
-      ],
-      Electronics: [{ label: 'Phone & charger' }],
-    },
-  },
-  {
-    id: 'pl2',
-    tripId: 't2',
-    name: 'Japan Essentials',
-    categories: {
-      Clothing: [
-        { label: '4 x Breathable tees (organic cotton)', eco: true },
-        { label: 'Packable rain jacket', eco: false },
-      ],
-      Essentials: [
-        { label: 'Passport & travel documents' },
-        { label: 'JR Pass / IC Card' },
-        { label: 'Reusable water bottle', eco: true },
-      ],
-      Toiletries: [{ label: 'Solid shampoo bar (eco-friendly)', eco: true }],
-      Electronics: [
-        { label: 'Phone & charger' },
-        { label: 'Universal adapter' },
-        { label: 'Power bank' },
-      ],
-    },
-  },
-];
+function usePackingLists(tripId: string) {
+  const { data, error } = useSWR('http://localhost:5000/api/packinglists', fetcherWithToken);
+  const lists = data
+    ? data.filter((pl: PackingList) => pl.tripId?.toString() === tripId)
+    : [];
+  return { lists, loading: !data && !error, error };
+}
 
 /** -----------------------------
  * Helpers
@@ -128,93 +100,121 @@ const countEco = (cats: CategoryItems, removed: string[]) => {
 };
 
 /** -----------------------------
- * Smart Suggestions (rule-based demo)
- * Swap with your real smart logic later
+ * Smart Suggestions
  * ----------------------------*/
-const generateSmartSuggestions = (trip: Trip): CategoryItems => {
-  // Basic weather/duration informed suggestions (mock)
-  const warmWeather = ['paris'].includes(trip.destination.toLowerCase());
+const generateSmartSuggestions = (trip?: Trip): CategoryItems => {
+  if (!trip) {
+    return {
+      Essentials: [],
+      Clothing: [],
+      Toiletries: [],
+      Electronics: []
+    };
+  }
+
+  const dest = trip.destination?.toLowerCase() || "";
+  const warmWeather = /(paris|dubai|bali|miami|colombo)/.test(dest);
+  const coldWeather = /(oslo|helsinki|zurich|moscow|reykjavik)/.test(dest);
   const longTrip = trip.durationDays >= 8;
 
-  const base: CategoryItems = {
+  return {
     Essentials: [
-      { label: 'Copy of documents (digital & paper)' },
-      { label: 'Reusable water bottle', eco: true },
-      { label: 'Reusable shopping tote', eco: true },
+      { label: "Copy of documents (digital & paper)" },
+      { label: "Reusable water bottle", eco: true },
+      { label: "Reusable shopping tote", eco: true }
     ],
     Clothing: [
-      { label: warmWeather ? 'Sun hat' : 'Beanie' },
-      { label: longTrip ? 'Laundry kit (eco detergent sheets)' : 'Compact laundry bar', eco: true },
-      { label: 'Packable rain jacket' },
+      { label: warmWeather ? "Sun hat" : coldWeather ? "Beanie & gloves" : "Light jacket" },
+      { label: longTrip ? "Laundry kit (eco detergent sheets)" : "Compact laundry bar", eco: true },
+      { label: "Packable rain jacket" }
     ],
     Toiletries: [
-      { label: 'Solid conditioner bar', eco: true },
-      { label: 'Safety razor (with guard)', eco: true },
-      { label: 'Refillable travel containers', eco: true },
+      { label: "Solid conditioner bar", eco: true },
+      { label: "Safety razor (with guard)", eco: true },
+      { label: "Refillable travel containers", eco: true }
     ],
     Electronics: [
-      { label: 'Universal travel adapter' },
-      { label: 'Power bank' },
-      { label: 'Cable organizer' },
-    ],
+      { label: "Universal travel adapter" },
+      { label: "Power bank" },
+      { label: "Cable organizer" }
+    ]
   };
-
-  return base;
 };
 
 /** -----------------------------
  * Component
  * ----------------------------*/
 export default function PackingListOverviewPage() {
-  const router = useRouter();
+  const { trips } = useTrips();
+  console.log(trips);
 
-  // Selection
+  // ------------------ UI state ------------------
   const [activeTab, setActiveTab] = useState<'weather' | 'checklist' | 'smart'>('weather');
-  const [selectedTripId, setSelectedTripId] = useState<string>(tripsSeed[0].id);
-  const [selectedListId, setSelectedListId] = useState<string>(
-    packingListsSeed.find((p) => p.tripId === tripsSeed[0].id)?.id || ''
-  );
+  const [selectedTripId, setSelectedTripId] = useState<string>('');
 
-  // Checklist state (per selected list)
-  const currentListSeed =
-    packingListsSeed.find((p) => p.id === selectedListId)?.categories || {};
-  const [checklistCats, setChecklistCats] = useState<CategoryItems>(
-    deepCloneCategories(currentListSeed)
-  );
+    /** ---------- Ensure selectedTripId initializes after trips load ---------- */
+  useEffect(() => {
+    if (trips && trips.length > 0 && !selectedTripId) {
+      setSelectedTripId(trips[0]._id.toString());
+    }
+  }, [trips, selectedTripId]);
 
-  // Removed items (ChecklistSection compatibility)
+  const { lists } = usePackingLists(selectedTripId);
+  const [selectedListId, setSelectedListId] = useState<string>('');
+
+
+  /** ---------- currentTrip ---------- */
+  const currentTrip = useMemo(() => {
+    if (!trips) return undefined;
+    return trips.find((t:Trip) => t._id.toString() === selectedTripId);
+  }, [trips, selectedTripId]);
+
+  /** ---------- selectedListId safe update ---------- */
+  useEffect(() => {
+    if (!lists || lists.length === 0) return;
+    const firstListForTrip = lists[0]._id?.toString() || '';
+    if (firstListForTrip && firstListForTrip !== selectedListId) {
+      setSelectedListId(firstListForTrip);
+    }
+  }, [lists, selectedListId]);
+
+  /** ---------- currentListSeed ---------- */
+  const currentListSeed = useMemo(() => {
+    const list = lists.find((p:PackingList) => p._id?.toString() === selectedListId);
+    if (!list?.categories) return {};
+    return list.categories.reduce((acc: CategoryItems, cat: PackingList['categories'][number]) => {
+      acc[cat.name] = cat.items.map((i) => ({ label: i.name }));
+      return acc;
+    }, {} as CategoryItems);
+  }, [lists, selectedListId]);
+
+  /** ---------- checklistCats ---------- */
+  const [checklistCats, setChecklistCats] = useState<CategoryItems>(deepCloneCategories(currentListSeed));
   const [removedItems, setRemovedItems] = useState<string[]>([]);
-
-  // New item inputs per category
   const [newInputs, setNewInputs] = useState<Record<string, string>>({});
 
-  // Eco score (auto computed)
-  const ecoScore = useMemo(() => countEco(checklistCats, removedItems).score, [checklistCats, removedItems]);
-
-  // Smart suggestions state (grouped by category) & removal
-  const currentTrip = useMemo(
-    () => tripsSeed.find((t) => t.id === selectedTripId)!,
-    [selectedTripId]
-  );
-  const [smartCats, setSmartCats] = useState<CategoryItems>(generateSmartSuggestions(currentTrip));
-  const [smartRemoved, setSmartRemoved] = useState<string[]>([]);
-
-  /** ---------- Effects ---------- */
-  // When trip changes: reset list options & smart suggestions
   useEffect(() => {
-    const firstListForTrip = packingListsSeed.find((p) => p.tripId === selectedTripId)?.id || '';
-    setSelectedListId(firstListForTrip);
-    setSmartCats(generateSmartSuggestions(currentTrip));
-    setSmartRemoved([]);
-  }, [selectedTripId]); // eslint-disable-line
-
-  // When list changes: load its categories
-  useEffect(() => {
-    const seed = packingListsSeed.find((p) => p.id === selectedListId)?.categories || {};
-    setChecklistCats(deepCloneCategories(seed));
+    setChecklistCats((prev) => {
+      const cloned = deepCloneCategories(currentListSeed);
+      if (JSON.stringify(prev) !== JSON.stringify(cloned)) return cloned;
+      return prev;
+    });
     setRemovedItems([]);
     setNewInputs({});
-  }, [selectedListId]);
+  }, []);
+
+  const ecoScore = useMemo(() => countEco(checklistCats, removedItems).score, [checklistCats, removedItems]);
+
+  /** ---------- Smart Suggestions ---------- */
+  const [smartCats, setSmartCats] = useState<CategoryItems>({});
+  const [smartRemoved, setSmartRemoved] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!currentTrip) return;
+    const newSuggestions = generateSmartSuggestions(currentTrip);
+    setSmartCats(newSuggestions);
+    setSmartRemoved([]);
+  }, [currentTrip?._id.toString()]);
 
   /** ---------- Actions ---------- */
   const handleAddChecklistItem = (category: string) => {
@@ -222,7 +222,6 @@ export default function PackingListOverviewPage() {
     if (!value) return;
     setChecklistCats((prev) => {
       const existing = prev[category] || [];
-      // avoid duplicates by label
       if (existing.some((i) => i.label.toLowerCase() === value.toLowerCase())) return prev;
       return { ...prev, [category]: [...existing, { label: value }] };
     });
@@ -234,7 +233,6 @@ export default function PackingListOverviewPage() {
       const existing = prev[category] || [];
       return { ...prev, [category]: existing.filter((i) => i.label !== label) };
     });
-    // Also clean from removedItems list (if it had been toggled there)
     setRemovedItems((prev) => prev.filter((l) => l !== label));
   };
 
@@ -250,41 +248,31 @@ export default function PackingListOverviewPage() {
     setSmartRemoved((prev) => (prev.includes(label) ? prev : [...prev, label]));
   };
 
-  // Derived: lists for selected trip
   const listsForTrip = useMemo(
-    () => packingListsSeed.filter((pl) => pl.tripId === selectedTripId),
-    [selectedTripId]
+    () => lists.filter((pl: PackingList) => pl.tripId?.toString() === selectedTripId),
+    [lists, selectedTripId]
   );
 
-  // For WeatherCard (mocked from current trip)
-  const weatherCardProps = {
-    location: currentTrip.destination,
-    tempRange: currentTrip.destination.toLowerCase() === 'paris' ? '22°C - 28°C' : '20°C - 27°C',
-    description:
-      currentTrip.destination.toLowerCase() === 'paris'
-        ? 'Sunny with occasional showers'
-        : 'Partly cloudy with light breeze',
-    condition:
-      currentTrip.destination.toLowerCase() === 'paris' ? ('sunny' as const) : ('cloudy' as const),
-    highTemp: '28°C',
-    lowTemp: '20°C',
-    wind: '12 km/h',
-    humidity: '60%',
-    chanceRain: '15%',
-  };
-
+  /** ---------- Category Navigation ---------- */
   const categoryIcons: Record<string, string> = {
-  Clothing: '👕',
-  Essentials: '🎒',
-  Toiletries: '🧴',
-  Electronics: '🔌',
-};
+    Clothing: '👕',
+    Essentials: '🎒',
+    Toiletries: '🧴',
+    Electronics: '🔌',
+  };
+  const [activeCategory, setActiveCategory] = useState<string>(Object.keys(checklistCats)[0] || '');
 
-const [activeCategory, setActiveCategory] = useState<string>(
-  Object.keys(checklistCats)[0] || ''
-);
+  /** ---------- Loading Check ---------- */
+  if (!currentTrip) return <div>Loading trip...</div>;
 
+  /** ---------- Weather Card Props ---------- */
+
+
+  if (!currentTrip) {
+  return <div>Loading trip...</div>; 
+}
   return (
+    
     <div className="relative flex min-h-screen flex-col bg-[#f5f8f6] text-gray-800 p-4">
       {/* Animated Header */}
       <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-md border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-xl transition-shadow duration-500 hover:shadow-2xl overflow-hidden mb-4 rounded-xl">
@@ -304,7 +292,7 @@ const [activeCategory, setActiveCategory] = useState<string>(
           
           <div className="flex flex-col">
             <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 animate-slideIn animate-pulseGlow">
-              {tripsSeed.find((t) => t.id === selectedTripId)?.name}
+              {trips.find((t: Trip) => t._id.toString() === selectedTripId)?.title}
             </h1>
             <p className="text-sm text-green-600 mt-1 animate-fadeIn">
               Destination: {currentTrip.destination} &nbsp;|&nbsp; {currentTrip.startDate} →{' '}
@@ -322,9 +310,9 @@ const [activeCategory, setActiveCategory] = useState<string>(
               onChange={(e) => setSelectedTripId(e.target.value)}
               className="px-4 py-2 rounded-xl bg-white/80 border border-gray-200 shadow-sm hover:bg-white transition"
             >
-              {tripsSeed.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
+              {trips.map((t:Trip) => (
+                <option key={t._id.toString()} value={t._id.toString()}>
+                  {t.title}
                 </option>
               ))}
             </select>
@@ -333,9 +321,9 @@ const [activeCategory, setActiveCategory] = useState<string>(
               onChange={(e) => setSelectedListId(e.target.value)}
               className="px-4 py-2 rounded-xl bg-white/80 border border-gray-200 shadow-sm hover:bg-white transition"
             >
-              {listsForTrip.map((pl) => (
-                <option key={pl.id} value={pl.id}>
-                  {pl.name}
+              {listsForTrip.map((pl:PackingList) => (
+                <option key={pl.tripId?.toString()} value={pl.title}>
+                  {pl.title}
                 </option>
               ))}
             </select>
@@ -407,7 +395,7 @@ const [activeCategory, setActiveCategory] = useState<string>(
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
             >
-              <WeatherCard {...weatherCardProps} />
+              <WeatherCard {...currentTrip.weather} />
             </motion.div>
           )}
 
@@ -476,13 +464,13 @@ const [activeCategory, setActiveCategory] = useState<string>(
           transition={{ duration: 0.25 }}
           className="mt-4"
         >
-          {/* Checklist Section */}
-          <ChecklistSection
-            title={titleCase(activeCategory)}
-            items={(checklistCats[activeCategory] || []).filter(
-              (i) => !removedItems.includes(i.label)
-            )}
-          />
+         <ChecklistSection
+  title={titleCase(activeCategory)}
+  items={checklistCats[activeCategory] || []}          // pass the current items
+  removedItems={removedItems}                          // pass removed items to handle hiding
+  onRemove={(label: string) => handleRemoveChecklistHard(activeCategory, label)} // proper callback
+/>
+
 
           {/* Inline Add New Item */}
           <div className="flex gap-2 mt-2">
