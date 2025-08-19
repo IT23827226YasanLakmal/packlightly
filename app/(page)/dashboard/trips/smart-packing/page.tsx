@@ -42,8 +42,8 @@ interface Trip {
 }
 
 interface PackingList {
-  _id?: Types.ObjectId; 
-  tripId?: Types.ObjectId; 
+  _id?: Types.ObjectId;
+  tripId?: Types.ObjectId;
   ownerUid: string;
   title: string;
   categories: {
@@ -64,7 +64,7 @@ interface PackingList {
  * ----------------------------*/
 function useTrips() {
   const { data, error } = useSWR('http://localhost:5000/api/trips', fetcherWithToken);
-  return { trips: data , loading: !data && !error, error };
+  return { trips: data, loading: !data && !error, error };
 }
 
 function usePackingLists(tripId: string) {
@@ -152,7 +152,7 @@ export default function PackingListOverviewPage() {
   const [activeTab, setActiveTab] = useState<'weather' | 'checklist' | 'smart'>('weather');
   const [selectedTripId, setSelectedTripId] = useState<string>('');
 
-    /** ---------- Ensure selectedTripId initializes after trips load ---------- */
+  /** ---------- Ensure selectedTripId initializes after trips load ---------- */
   useEffect(() => {
     if (trips && trips.length > 0 && !selectedTripId) {
       setSelectedTripId(trips[0]._id.toString());
@@ -166,7 +166,7 @@ export default function PackingListOverviewPage() {
   /** ---------- currentTrip ---------- */
   const currentTrip = useMemo(() => {
     if (!trips) return undefined;
-    return trips.find((t:Trip) => t._id.toString() === selectedTripId);
+    return trips.find((t: Trip) => t._id.toString() === selectedTripId);
   }, [trips, selectedTripId]);
 
   /** ---------- selectedListId safe update ---------- */
@@ -180,7 +180,7 @@ export default function PackingListOverviewPage() {
 
   /** ---------- currentListSeed ---------- */
   const currentListSeed = useMemo(() => {
-    const list = lists.find((p:PackingList) => p._id?.toString() === selectedListId);
+    const list = lists.find((p: PackingList) => p._id?.toString() === selectedListId);
     if (!list?.categories) return {};
     return list.categories.reduce((acc: CategoryItems, cat: PackingList['categories'][number]) => {
       acc[cat.name] = cat.items.map((i) => ({ label: i.name }));
@@ -269,10 +269,10 @@ export default function PackingListOverviewPage() {
 
 
   if (!currentTrip) {
-  return <div>Loading trip...</div>; 
-}
+    return <div>Loading trip...</div>;
+  }
   return (
-    
+
     <div className="relative flex min-h-screen flex-col bg-[#f5f8f6] text-gray-800 p-4">
       {/* Animated Header */}
       <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-md border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-xl transition-shadow duration-500 hover:shadow-2xl overflow-hidden mb-4 rounded-xl">
@@ -287,9 +287,9 @@ export default function PackingListOverviewPage() {
           ))}
         </div>
 
-        {/* Left Section */}
+        Left Section
         <div className="flex items-center gap-5 relative z-10">
-          
+
           <div className="flex flex-col">
             <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 animate-slideIn animate-pulseGlow">
               {trips.find((t: Trip) => t._id.toString() === selectedTripId)?.title}
@@ -310,7 +310,7 @@ export default function PackingListOverviewPage() {
               onChange={(e) => setSelectedTripId(e.target.value)}
               className="px-4 py-2 rounded-xl bg-white/80 border border-gray-200 shadow-sm hover:bg-white transition"
             >
-              {trips.map((t:Trip) => (
+              {trips.map((t: Trip) => (
                 <option key={t._id.toString()} value={t._id.toString()}>
                   {t.title}
                 </option>
@@ -321,8 +321,8 @@ export default function PackingListOverviewPage() {
               onChange={(e) => setSelectedListId(e.target.value)}
               className="px-4 py-2 rounded-xl bg-white/80 border border-gray-200 shadow-sm hover:bg-white transition"
             >
-              {listsForTrip.map((pl:PackingList) => (
-                <option key={pl.tripId?.toString()} value={pl.title}>
+              {listsForTrip.map((pl: PackingList) => (
+                <option key={pl._id?.toString()} value={pl._id?.toString()}>
                   {pl.title}
                 </option>
               ))}
@@ -340,10 +340,9 @@ export default function PackingListOverviewPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as typeof activeTab)}
                 className={`relative px-5 py-2 text-sm font-semibold rounded-full transition-all duration-500 whitespace-nowrap
-                  ${
-                    activeTab === tab.id
-                      ? 'bg-gradient-to-r from-green-400 via-teal-400 to-cyan-400 text-white shadow-xl animate-gradient'
-                      : 'bg-white text-gray-700 hover:bg-green-50 hover:text-green-700 shadow-sm'
+                  ${activeTab === tab.id
+                    ? 'bg-gradient-to-r from-green-400 via-teal-400 to-cyan-400 text-white shadow-xl animate-gradient'
+                    : 'bg-white text-gray-700 hover:bg-green-50 hover:text-green-700 shadow-sm'
                   }`}
               >
                 {tab.label}
@@ -400,103 +399,103 @@ export default function PackingListOverviewPage() {
           )}
 
           {/* Checklist Tab */}
-{activeTab === 'checklist' && (
-  <motion.div
-    key="checklist"
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -10 }}
-    transition={{ duration: 0.3 }}
-    className="flex flex-col gap-6"
-  >
-    {/* Eco Score */}
-    <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-xl border border-gray-200">
-      <div className="flex items-center gap-2 font-bold text-[#0e1b13]">
-        <Leaf size={28} className="text-green-600" />
-        Eco Score
-      </div>
-      <div className="flex-1 h-5 bg-gray-200 rounded-full overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${ecoScore}%` }}
-          transition={{ duration: 1.2, ease: 'easeInOut' }}
-          className="h-full bg-gradient-to-r from-green-400 to-teal-500"
-        />
-      </div>
-      <p className="text-sm text-gray-700">{ecoScore}% eco items packed</p>
-    </div>
-
-    {/* Scrollable Category Navigation */}
-    <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
-      {Object.keys(checklistCats).map((cat) => {
-        const total = checklistCats[cat].length;
-        const ecoCount = checklistCats[cat].filter((i) => !removedItems.includes(i.label) && i.eco).length;
-        const isActive = cat === activeCategory;
-
-        return (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-2xl font-semibold text-sm transition-all whitespace-nowrap
-              ${isActive
-                ? 'bg-gradient-to-r from-green-400 to-teal-500 text-white shadow-lg'
-                : 'bg-gray-100 text-gray-700 hover:bg-green-50 hover:text-green-700'}
-            `}
-          >
-            <span>{categoryIcons[cat] || '📌'}</span>
-            <span>{cat}</span>
-            <span className="text-xs font-medium bg-white/30 px-2 py-0.5 rounded-full">
-              {ecoCount}/{total} 🌿
-            </span>
-          </button>
-        );
-      })}
-    </div>
-
-    {/* Animated Category Content */}
-    <AnimatePresence mode="wait">
-      {activeCategory && (
-        <motion.div
-          key={activeCategory}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.25 }}
-          className="mt-4"
-        >
-         <ChecklistSection
-  title={titleCase(activeCategory)}
-  items={checklistCats[activeCategory] || []}          // pass the current items
-  removedItems={removedItems}                          // pass removed items to handle hiding
-  onRemove={(label: string) => handleRemoveChecklistHard(activeCategory, label)} // proper callback
-/>
-
-
-          {/* Inline Add New Item */}
-          <div className="flex gap-2 mt-2">
-            <input
-              className="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-              placeholder={`Add to ${titleCase(activeCategory)}...`}
-              value={newInputs[activeCategory] || ''}
-              onChange={(e) =>
-                setNewInputs((prev) => ({ ...prev, [activeCategory]: e.target.value }))
-              }
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAddChecklistItem(activeCategory);
-              }}
-            />
-            <button
-              onClick={() => handleAddChecklistItem(activeCategory)}
-              className="px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 shadow"
+          {activeTab === 'checklist' && (
+            <motion.div
+              key="checklist"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="flex flex-col gap-6"
             >
-              <Plus size={18} />
-            </button>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  </motion.div>
-)}
+              {/* Eco Score */}
+              <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-xl border border-gray-200">
+                <div className="flex items-center gap-2 font-bold text-[#0e1b13]">
+                  <Leaf size={28} className="text-green-600" />
+                  Eco Score
+                </div>
+                <div className="flex-1 h-5 bg-gray-200 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${ecoScore}%` }}
+                    transition={{ duration: 1.2, ease: 'easeInOut' }}
+                    className="h-full bg-gradient-to-r from-green-400 to-teal-500"
+                  />
+                </div>
+                <p className="text-sm text-gray-700">{ecoScore}% eco items packed</p>
+              </div>
+
+              {/* Scrollable Category Navigation */}
+              <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
+                {Object.keys(checklistCats).map((cat) => {
+                  const total = checklistCats[cat].length;
+                  const ecoCount = checklistCats[cat].filter((i) => !removedItems.includes(i.label) && i.eco).length;
+                  const isActive = cat === activeCategory;
+
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setActiveCategory(cat)}
+                      className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-2xl font-semibold text-sm transition-all whitespace-nowrap
+              ${isActive
+                          ? 'bg-gradient-to-r from-green-400 to-teal-500 text-white shadow-lg'
+                          : 'bg-gray-100 text-gray-700 hover:bg-green-50 hover:text-green-700'}
+            `}
+                    >
+                      <span>{categoryIcons[cat] || '📌'}</span>
+                      <span>{cat}</span>
+                      <span className="text-xs font-medium bg-white/30 px-2 py-0.5 rounded-full">
+                        {ecoCount}/{total} 🌿
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Animated Category Content */}
+              <AnimatePresence mode="wait">
+                {activeCategory && (
+                  <motion.div
+                    key={activeCategory}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.25 }}
+                    className="mt-4"
+                  >
+                    <ChecklistSection
+                      title={titleCase(activeCategory)}
+                      items={checklistCats[activeCategory] || []}          // pass the current items
+                      removedItems={removedItems}                          // pass removed items to handle hiding
+                      onRemove={(label: string) => handleRemoveChecklistHard(activeCategory, label)} // proper callback
+                    />
+
+
+                    {/* Inline Add New Item */}
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        className="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                        placeholder={`Add to ${titleCase(activeCategory)}...`}
+                        value={newInputs[activeCategory] || ''}
+                        onChange={(e) =>
+                          setNewInputs((prev) => ({ ...prev, [activeCategory]: e.target.value }))
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleAddChecklistItem(activeCategory);
+                        }}
+                      />
+                      <button
+                        onClick={() => handleAddChecklistItem(activeCategory)}
+                        className="px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 shadow"
+                      >
+                        <Plus size={18} />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
 
 
           {/* Smart Packing Tab */}
