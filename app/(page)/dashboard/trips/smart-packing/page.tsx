@@ -267,10 +267,10 @@ export default function PackingListOverviewPage() {
 
   /** ---------- Weather Card Props ---------- */
 
-
   if (!currentTrip) {
     return <div>Loading trip...</div>;
   }
+  
   return (
 
     <div className="relative flex min-h-screen flex-col bg-[#f5f8f6] text-gray-800 p-4">
@@ -287,7 +287,6 @@ export default function PackingListOverviewPage() {
           ))}
         </div>
 
-        Left Section
         <div className="flex items-center gap-5 relative z-10">
 
           <div className="flex flex-col">
@@ -394,7 +393,7 @@ export default function PackingListOverviewPage() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
             >
-              <WeatherCard {...currentTrip.weather} />
+              <WeatherCard  weather={currentTrip.weather} />
             </motion.div>
           )}
 

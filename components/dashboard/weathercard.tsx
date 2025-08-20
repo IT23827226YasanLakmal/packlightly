@@ -21,7 +21,7 @@ export default function WeatherCard({
   weather
 }: WeatherCardProps) {
   const [bgClass, setBgClass] = useState("");
-
+console.log(weather);
   useEffect(() => {
     switch (weather?.condition) {
       case "sunny":
