@@ -69,9 +69,7 @@ function useTrips() {
 
 function usePackingLists(tripId: string) {
   const { data, error } = useSWR('http://localhost:5000/api/packinglists', fetcherWithToken);
-  const lists = data
-    ? data.filter((pl: PackingList) => pl.tripId?.toString() === tripId)
-    : [];
+  const lists = data ? data.filter((pl: PackingList) => pl.tripId?.toString() === tripId) : [];
   return { lists, loading: !data && !error, error };
 }
 
@@ -146,7 +144,6 @@ const generateSmartSuggestions = (trip?: Trip): CategoryItems => {
  * ----------------------------*/
 export default function PackingListOverviewPage() {
   const { trips } = useTrips();
-  console.log(trips);
 
   // ------------------ UI state ------------------
   const [activeTab, setActiveTab] = useState<'weather' | 'checklist' | 'smart'>('weather');
@@ -162,7 +159,7 @@ export default function PackingListOverviewPage() {
   const { lists } = usePackingLists(selectedTripId);
   const [selectedListId, setSelectedListId] = useState<string>('');
 
-
+  console.log("PackingLists :", lists);
   /** ---------- currentTrip ---------- */
   const currentTrip = useMemo(() => {
     if (!trips) return undefined;
@@ -179,14 +176,25 @@ export default function PackingListOverviewPage() {
   }, [lists, selectedListId]);
 
   /** ---------- currentListSeed ---------- */
-  const currentListSeed = useMemo(() => {
-    const list = lists.find((p: PackingList) => p._id?.toString() === selectedListId);
-    if (!list?.categories) return {};
-    return list.categories.reduce((acc: CategoryItems, cat: PackingList['categories'][number]) => {
-      acc[cat.name] = cat.items.map((i) => ({ label: i.name }));
-      return acc;
-    }, {} as CategoryItems);
-  }, [lists, selectedListId]);
+const currentListSeed = useMemo(() => {
+  const list = lists.find(
+    (p: PackingList) => p._id?.toString() === selectedListId?.toString()
+  );
+
+  if (!list?.categories) {
+    return { Clothing: [], Essentials: [], Toiletries: [], Electronics: [] };
+  }
+
+  return list.categories.reduce((acc: CategoryItems, cat) => {
+    acc[cat.name] = cat.items.map((i) => ({
+      label: i.name,
+      qty: i.qty,
+      checked: i.checked,
+    }));
+    return acc;
+  }, {} as CategoryItems);
+}, [lists, selectedListId]);
+
 
   /** ---------- checklistCats ---------- */
   const [checklistCats, setChecklistCats] = useState<CategoryItems>(deepCloneCategories(currentListSeed));
@@ -495,7 +503,6 @@ export default function PackingListOverviewPage() {
               </AnimatePresence>
             </motion.div>
           )}
-
 
           {/* Smart Packing Tab */}
           {activeTab === 'smart' && (
