@@ -1,45 +1,64 @@
 "use client";
 import { useState, useMemo } from "react";
 import { Leaf } from "lucide-react";
-
-export interface Item {
-  name: string;
-  qty?: number;
-  checked?: boolean;
-  eco?: boolean;
-}
+import { useChecklistStore, Item } from "@/store/checklistStore";
 
 interface ChecklistSectionProps {
   title: string;
-  items: Item[];                        // Items from parent
-  removedItems: string[];               // Removed items from parent
-  onRemove: (label: string) => void;    // Remove callback
-  onToggleItem?: (label:string) => void;         // Optional toggle callback
+  category: string; // The category key (e.g., "Clothing")
+  listId: string;   // The ID of the packing list
 }
 
 export default function ChecklistSection({
   title,
-  items,
-  removedItems,
-  onRemove,
-  onToggleItem
+  category,
+  listId,
 }: ChecklistSectionProps) {
   const [newItemLabel, setNewItemLabel] = useState("");
+  
+  // Get state and actions from the store
+  const {
+    checklistCats,
+    removedItems,
+    toggleItem,
+    removeItem,
+    addItem,
+    saveToServer
+  } = useChecklistStore();
 
-  // console.log("Items: ", items);
+  // Get items for this category
+  const items = checklistCats[category] || [];
+  
   // Filter out removed items
   const visibleItems = useMemo(
     () => items.filter((i) => !removedItems.includes(i.name)),
     [items, removedItems]
   );
 
-
   const handleAdd = () => {
     const name = newItemLabel.trim();
-    if (!name || !onToggleItem) return;
-    const newItem: Item = { name };
-    onToggleItem(name);
+    if (!name) return;
+    
+    const newItem: Item = { name, checked: false, eco: false };
+    addItem(category, newItem);
     setNewItemLabel("");
+    
+    // Save to server
+    saveToServer(listId, category);
+  };
+
+  const handleToggle = (itemName: string, checked: boolean) => {
+    toggleItem(category, itemName, checked);
+    
+    // Save to server
+    saveToServer(listId, category);
+  };
+
+  const handleRemove = (itemName: string) => {
+    removeItem(category, itemName);
+    
+    // Save to server
+    saveToServer(listId, category);
   };
 
   return (
@@ -47,26 +66,24 @@ export default function ChecklistSection({
       <h3 className="font-bold text-[#0e1b13] text-lg">{title}</h3>
 
       {/* Add New Item */}
-      {onToggleItem && (
-        <div className="flex gap-2 items-center">
-          <input
-            type="text"
-            placeholder={`Add to ${title}...`}
-            value={newItemLabel}
-            onChange={(e) => setNewItemLabel(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleAdd();
-            }}
-            className="flex-1 border border-gray-300 rounded px-2 py-1"
-          />
-          <button
-            onClick={handleAdd}
-            className="px-3 py-1 bg-[#4e976b] text-white rounded hover:bg-green-700 transition"
-          >
-            Add
-          </button>
-        </div>
-      )}
+      <div className="flex gap-2 items-center">
+        <input
+          type="text"
+          placeholder={`Add to ${title}...`}
+          value={newItemLabel}
+          onChange={(e) => setNewItemLabel(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleAdd();
+          }}
+          className="flex-1 border border-gray-300 rounded px-2 py-1"
+        />
+        <button
+          onClick={handleAdd}
+          className="px-3 py-1 bg-[#4e976b] text-white rounded hover:bg-green-700 transition"
+        >
+          Add
+        </button>
+      </div>
 
       {/* Checklist Items */}
       <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
@@ -77,11 +94,17 @@ export default function ChecklistSection({
             className="flex items-center justify-between gap-2 p-2 rounded hover:bg-gray-50 transition"
           >
             <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={item.checked || false}
+                onChange={(e) => handleToggle(item.name, e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              />
               <span className="text-sm">{item.name}</span>
               {item.eco && <Leaf size={16} className="text-green-600" />}
             </div>
             <button
-              onClick={() => onRemove(item.name)}
+              onClick={() => handleRemove(item.name)}
               className="text-red-500 text-sm hover:underline"
             >
               Remove

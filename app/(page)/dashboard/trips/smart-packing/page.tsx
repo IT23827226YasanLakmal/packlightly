@@ -1,33 +1,15 @@
 'use client';
-
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Leaf, Plus, Check, CheckCheck } from 'lucide-react';
 import WeatherCard from '@/components/dashboard/weathercard';
 import ChecklistSection from '@/components/dashboard/checklistsection';
+import { useChecklistStore } from '@/store/checklistStore';
+
+// ... other imports
 import useSWR from 'swr';
 import { Types } from "mongoose";
 import { fetcherWithToken } from "../../../../../utils/fetcher";
-
-/** -----------------------------
- * Types
- * ----------------------------*/
-type Item = {
-  name: string,
-  qty?: number,
-  checked: boolean,
-  eco: boolean
-};
-
-type Category = {
-  name: string;
-  items: Item[];
-  _id: Types.ObjectId;
-}
-
-type CategoryItems = {
-  [key: string]: Item[];
-};
 
 interface Trip {
   _id: Types.ObjectId,
@@ -55,6 +37,23 @@ interface Trip {
   }
 }
 
+type Item = {
+  name: string,
+  qty?: number,
+  checked?: boolean, // Make checked optional to match the store type
+  eco?: boolean      // Make eco optional to match the store type
+};
+
+type Category = {
+  name: string;
+  items: Item[];
+  _id: Types.ObjectId;
+}
+
+type CategoryItems = {
+  [key: string]: Item[];
+};
+
 interface PackingList {
   _id?: Types.ObjectId;
   tripId?: Types.ObjectId;
@@ -74,58 +73,14 @@ interface PackingList {
   updatedAt?: Date;
 }
 
-/** -----------------------------
- * Hooks
- * ----------------------------*/
-function useTrips() {
-  const { data, error } = useSWR('http://localhost:5000/api/trips', fetcherWithToken);
-  return { trips: data, loading: !data && !error, error };
-}
 
-function usePackingLists(tripId: string) {
-  const { data, error } = useSWR('http://localhost:5000/api/packinglists', fetcherWithToken);
-  const lists = data ? data.filter((pl: PackingList) => pl.tripId?.toString() === tripId) : [];
-  return { lists, loading: !data && !error, error };
-}
+
+
 
 /** -----------------------------
  * Helpers
  * ----------------------------*/
 const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
-
-const deepCloneCategories = (src: CategoryItems): CategoryItems =>
-  Object.fromEntries(
-    Object.entries(src).map(([k, arr]) => [k, arr.map((i) => ({ ...i }))])
-  );
-
-const countEco = (cats: CategoryItems, removed: string[]) => {
-  let ecoItems = 0;
-  let total = 0;
-  Object.values(cats).forEach((arr) => {
-    arr.forEach((i) => {
-      if (!removed.includes(i.name)) {
-        total += 1;
-        if (i.eco) ecoItems += 1;
-      }
-    });
-  });
-  return { ecoItems, total, score: total ? Math.round((ecoItems / total) * 100) : 0 };
-};
-
-// New helper to count checked items
-const countCheckedItems = (cats: CategoryItems, removed: string[]) => {
-  let checked = 0;
-  let total = 0;
-  Object.values(cats).forEach((arr) => {
-    arr.forEach((i) => {
-      if (!removed.includes(i.name)) {
-        total += 1;
-        if (i.checked) checked += 1;
-      }
-    });
-  });
-  return { checked, total, progress: total ? Math.round((checked / total) * 100) : 0 };
-};
 
 const generateSmartSuggestions = (trip?: Trip): CategoryItems => {
   if (!trip) return { Essentials: [], Clothing: [], Toiletries: [], Electronics: [] };
@@ -157,11 +112,41 @@ const generateSmartSuggestions = (trip?: Trip): CategoryItems => {
   };
 };
 
-/** -----------------------------
- * Component
- * ----------------------------*/
+
 export default function PackingListOverviewPage() {
-  const { trips } = useTrips();
+  // Get state and actions from the store
+  const {
+    checklistCats,
+    removedItems,
+    newInputs,
+    activeCategory,
+    savingStatus,
+    setChecklistCats,
+    setRemovedItems,
+    setNewInputs,
+    setActiveCategory,
+    addItem,
+    checkAllCategory,
+    uncheckAllCategory,
+    saveToServer
+  } = useChecklistStore();
+
+  
+
+  // ... other state and hooks (trips, lists, etc.)
+  function useTrips() {
+  const { data, error } = useSWR('http://localhost:5000/api/trips', fetcherWithToken);
+  return { trips: data, loading: !data && !error, error };
+}
+
+function usePackingLists(tripId: string) {
+  const { data, error } = useSWR('http://localhost:5000/api/packinglists', fetcherWithToken);
+  const lists = data ? data.filter((pl: PackingList) => pl.tripId?.toString() === tripId) : [];
+  return { lists, loading: !data && !error, error };
+}
+
+
+   const { trips } = useTrips();
 
   /** UI State */
   const [activeTab, setActiveTab] = useState<'weather' | 'checklist' | 'smart'>('weather');
@@ -209,37 +194,55 @@ export default function PackingListOverviewPage() {
     [currentListSeed]
   );
 
-  /** Checklist State */
-  const [checklistCats, setChecklistCats] = useState<CategoryItems>({});
-  const [removedItems, setRemovedItems] = useState<string[]>([]);
-  const [newInputs, setNewInputs] = useState<Record<string, string>>({});
-  const [activeCategory, setActiveCategory] = useState<string>('');
+ 
 
   const listsForTrip = useMemo(() => lists.filter((pl: PackingList) => pl.tripId?.toString() === selectedTripId), [lists, selectedTripId]);
 
-  /** Initialize checklistCats safely - FIXED: Use string reference */
+
+  // Initialize checklistCats from the current list
   useEffect(() => {
     if (!currentListSeedString) return;
     
-    // Parse back to object
     const seedData = JSON.parse(currentListSeedString);
-    setChecklistCats(deepCloneCategories(seedData));
+    setChecklistCats(seedData);
     setRemovedItems([]);
     setNewInputs({});
     const firstCat = Object.keys(seedData)[0];
     if (firstCat) setActiveCategory(firstCat);
-  }, [currentListSeedString]); // Now depends on string, not object
+  }, [currentListSeedString, setChecklistCats, setRemovedItems, setNewInputs, setActiveCategory]);
 
-  /** Eco Score */
-  const ecoScore = useMemo(() => countEco(checklistCats, removedItems).score, [checklistCats, removedItems]);
+  // Eco Score calculation
+  const ecoScore = useMemo(() => {
+    let ecoItems = 0;
+    let total = 0;
+    Object.values(checklistCats).forEach((arr) => {
+      arr.forEach((i) => {
+        if (!removedItems.includes(i.name)) {
+          total += 1;
+          if (i.eco) ecoItems += 1;
+        }
+      });
+    });
+    return total ? Math.round((ecoItems / total) * 100) : 0;
+  }, [checklistCats, removedItems]);
 
-  /** Packing Progress */
-  const packingProgress = useMemo(() => 
-    countCheckedItems(checklistCats, removedItems), 
-    [checklistCats, removedItems]
-  );
+  // Packing Progress calculation
+  const packingProgress = useMemo(() => {
+    let checked = 0;
+    let total = 0;
+    Object.values(checklistCats).forEach((arr) => {
+      arr.forEach((i) => {
+        if (!removedItems.includes(i.name)) {
+          total += 1;
+          if (i.checked) checked += 1;
+        }
+      });
+    });
+    return { checked, total, progress: total ? Math.round((checked / total) * 100) : 0 };
+  }, [checklistCats, removedItems]);
 
-  /** Smart Suggestions */
+
+    /** Smart Suggestions */
   const [smartCats, setSmartCats] = useState<CategoryItems>({});
   const [smartRemoved, setSmartRemoved] = useState<string[]>([]);
 
@@ -253,62 +256,53 @@ export default function PackingListOverviewPage() {
     setSmartRemoved([]);
   }, [currentTripId]); // Only depend on ID, not the whole trip object
 
-  /** Actions */
-  const handleAddChecklistItem = useCallback((category: string) => {
+
+  // Handle adding items
+  const handleAddChecklistItem = (category: string) => {
     const value = (newInputs[category] || '').trim();
     if (!value) return;
-    setChecklistCats((prev) => {
-      const existing = prev[category] || [];
-      if (existing.some((i) => i.name.toLowerCase() === value.toLowerCase())) return prev;
-      return { ...prev, [category]: [...existing, { name: value, checked: false, eco: false }] };
-    });
-    setNewInputs((prev) => ({ ...prev, [category]: '' }));
-  }, [newInputs]);
+    
+    addItem(category, { name: value, checked: false, eco: false });
+    setNewInputs({ ...newInputs, [category]: '' });
+    
+    // Save to server
+    saveToServer(selectedListId, category);
+  };
 
-  const handleRemoveChecklistHard = useCallback((category: string, name: string) => {
-    setChecklistCats((prev) => ({ ...prev, [category]: (prev[category] || []).filter(i => i.name !== name) }));
-    setRemovedItems((prev) => prev.filter((l) => l !== name));
-  }, []);
+  // Handle removing items
+  const handleRemoveChecklistHard = (category: string, name: string) => {
+    // This is handled by the store now
+    // But we need to save to server
+    saveToServer(selectedListId, category);
+  };
+
+  // NewlADded
 
   // NEW: Toggle item checked state
   const handleToggleItem = useCallback((category: string, itemName: string) => {
-    setChecklistCats((prev) => ({
-      ...prev,
-      [category]: (prev[category] || []).map(item =>
-        item.name === itemName
-          ? { ...item, checked: !item.checked }
-          : item
-      )
-    }));
+    const item = (checklistCats[category] || []).find((i) => i.name === itemName);
+    if (!item) return;
+    // Use store action for type safety
+    useChecklistStore.getState().toggleItem(category, itemName, !(item.checked ?? false));
   }, []);
 
   // NEW: Check all items in category
   const handleCheckAllCategory = useCallback((category: string) => {
-    setChecklistCats((prev) => ({
-      ...prev,
-      [category]: (prev[category] || []).map(item => ({
-        ...item,
-        checked: true
-      }))
-    }));
-  }, []);
+    checkAllCategory(category);
+  }, [checkAllCategory]);
 
   // NEW: Uncheck all items in category
   const handleUncheckAllCategory = useCallback((category: string) => {
-    setChecklistCats((prev) => ({
-      ...prev,
-      [category]: (prev[category] || []).map(item => ({
-        ...item,
-        checked: false
-      }))
-    }));
-  }, []);
+    uncheckAllCategory(category);
+  }, [uncheckAllCategory]);
 
   const handleAddSuggestionToChecklist = useCallback((category: string, item: Item) => {
-    setChecklistCats((prev) => {
-      const existing = prev[category] || [];
-      if (existing.find((i) => i.name.toLowerCase() === item.name.toLowerCase())) return prev;
-      return { ...prev, [category]: [...existing, item] };
+    setChecklistCats({
+      ...checklistCats,
+      [category]: [
+        ...(checklistCats[category] || []),
+        ...(checklistCats[category]?.find((i: Item) => i.name.toLowerCase() === item.name.toLowerCase()) ? [] : [item])
+      ]
     });
   }, []);
 
@@ -557,45 +551,41 @@ export default function PackingListOverviewPage() {
               {/* Animated Category Content */}
               <AnimatePresence mode="wait">
                 {activeCategory && (
-                  <motion.div
+                    <motion.div
                     key={activeCategory}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.25 }}
                     className="mt-4"
-                  >
+                    >
                     <ChecklistSection
                       title={titleCase(activeCategory)}
-                      items={(checklistCats[activeCategory] || []).filter(
-                        i => !removedItems.includes(i.name)
-                      )}
-                      removedItems={removedItems}
-                      onRemove={(label: string) => handleRemoveChecklistHard(activeCategory, label)}
-                      onToggleItem={(label: string) => handleToggleItem(activeCategory, label)} // NEW: Added toggle handler
+                      category={activeCategory}
+                      listId={selectedListId}
                     />
 
                     {/* Inline Add New Item */}
                     <div className="flex gap-2 mt-2">
                       <input
-                        className="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                        placeholder={`Add to ${titleCase(activeCategory)}...`}
-                        value={newInputs[activeCategory] || ''}
-                        onChange={(e) =>
-                          setNewInputs((prev) => ({ ...prev, [activeCategory]: e.target.value }))
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleAddChecklistItem(activeCategory);
-                        }}
+                      className="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      placeholder={`Add to ${titleCase(activeCategory)}...`}
+                      value={newInputs[activeCategory] || ''}
+                      onChange={(e) =>
+                        setNewInputs({ ...newInputs, [activeCategory]: e.target.value })
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddChecklistItem(activeCategory);
+                      }}
                       />
                       <button
-                        onClick={() => handleAddChecklistItem(activeCategory)}
-                        className="px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 shadow"
+                      onClick={() => handleAddChecklistItem(activeCategory)}
+                      className="px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 shadow"
                       >
-                        <Plus size={18} />
+                      <Plus size={18} />
                       </button>
                     </div>
-                  </motion.div>
+                    </motion.div>
                 )}
               </AnimatePresence>
             </motion.div>
@@ -711,4 +701,5 @@ export default function PackingListOverviewPage() {
       </main>
     </div>
   );
+
 }
