@@ -14,7 +14,7 @@ export async function fetcherWithToken(url: string) {
 }
 
 // Example: if using Firebase
-async function getToken() {
+export async function getToken() {
   const user = (await import("firebase/auth")).getAuth().currentUser;
   if (user) {
     return user.getIdToken();

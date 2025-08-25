@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Leaf, Plus, Check, CheckCheck } from 'lucide-react';
+import { Leaf, Check, CheckCheck } from 'lucide-react';
 import WeatherCard from '@/components/dashboard/weathercard';
 import ChecklistSection from '@/components/dashboard/checklistsection';
 import { useChecklistStore } from '@/store/checklistStore';
@@ -9,7 +9,7 @@ import { useChecklistStore } from '@/store/checklistStore';
 // ... other imports
 import useSWR from 'swr';
 import { Types } from "mongoose";
-import { fetcherWithToken } from "../../../../../utils/fetcher";
+import { fetcherWithToken, getToken } from "../../../../../utils/fetcher";
 
 interface Trip {
   _id: Types.ObjectId,
@@ -114,21 +114,18 @@ const generateSmartSuggestions = (trip?: Trip): CategoryItems => {
 
 
 export default function PackingListOverviewPage() {
+
   // Get state and actions from the store
   const {
     checklistCats,
     removedItems,
-    newInputs,
     activeCategory,
-    savingStatus,
     setChecklistCats,
     setRemovedItems,
     setNewInputs,
     setActiveCategory,
-    addItem,
     checkAllCategory,
     uncheckAllCategory,
-    saveToServer
   } = useChecklistStore();
 
   
@@ -256,27 +253,6 @@ function usePackingLists(tripId: string) {
     setSmartRemoved([]);
   }, [currentTripId]); // Only depend on ID, not the whole trip object
 
-
-  // Handle adding items
-  const handleAddChecklistItem = (category: string) => {
-    const value = (newInputs[category] || '').trim();
-    if (!value) return;
-    
-    addItem(category, { name: value, checked: false, eco: false });
-    setNewInputs({ ...newInputs, [category]: '' });
-    
-    // Save to server
-    saveToServer(selectedListId, category);
-  };
-
-  // Handle removing items
-  const handleRemoveChecklistHard = (category: string, name: string) => {
-    // This is handled by the store now
-    // But we need to save to server
-    saveToServer(selectedListId, category);
-  };
-
-  // NewlADded
 
   // NEW: Toggle item checked state
   const handleToggleItem = useCallback((category: string, itemName: string) => {
@@ -564,27 +540,7 @@ function usePackingLists(tripId: string) {
                       category={activeCategory}
                       listId={selectedListId}
                     />
-
-                    {/* Inline Add New Item */}
-                    <div className="flex gap-2 mt-2">
-                      <input
-                      className="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                      placeholder={`Add to ${titleCase(activeCategory)}...`}
-                      value={newInputs[activeCategory] || ''}
-                      onChange={(e) =>
-                        setNewInputs({ ...newInputs, [activeCategory]: e.target.value })
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleAddChecklistItem(activeCategory);
-                      }}
-                      />
-                      <button
-                      onClick={() => handleAddChecklistItem(activeCategory)}
-                      className="px-3 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 shadow"
-                      >
-                      <Plus size={18} />
-                      </button>
-                    </div>
+                    
                     </motion.div>
                 )}
               </AnimatePresence>
