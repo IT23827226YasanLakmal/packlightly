@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Leaf, Plus } from 'lucide-react';
+import { Leaf, Plus, Check, CheckCheck } from 'lucide-react';
 import WeatherCard from '@/components/dashboard/weathercard';
 import ChecklistSection from '@/components/dashboard/checklistsection';
 import useSWR from 'swr';
@@ -12,8 +12,22 @@ import { fetcherWithToken } from "../../../../../utils/fetcher";
 /** -----------------------------
  * Types
  * ----------------------------*/
-type Item = { label: string; eco?: boolean };
-type CategoryItems = Record<string, Item[]>;
+type Item = {
+  name: string,
+  qty?: number,
+  checked: boolean,
+  eco: boolean
+};
+
+type Category = {
+  name: string;
+  items: Item[];
+  _id: Types.ObjectId;
+}
+
+type CategoryItems = {
+  [key: string]: Item[];
+};
 
 interface Trip {
   _id: Types.ObjectId,
@@ -30,7 +44,7 @@ interface Trip {
     description: string,
     condition: {
       type: string,
-      enum: ['sunny', 'cloudy', 'rainy', 'stormy', 'snowy'], // restrict to common types
+      enum: ['sunny', 'cloudy', 'rainy', 'stormy', 'snowy'],
       default: 'sunny'
     },
     highTemp: string,
@@ -52,9 +66,10 @@ interface PackingList {
       name: string;
       qty?: number;
       checked?: boolean;
+      eco?: boolean;
     }[];
+    _id: Types.ObjectId;
   }[];
-
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -88,7 +103,7 @@ const countEco = (cats: CategoryItems, removed: string[]) => {
   let total = 0;
   Object.values(cats).forEach((arr) => {
     arr.forEach((i) => {
-      if (!removed.includes(i.label)) {
+      if (!removed.includes(i.name)) {
         total += 1;
         if (i.eco) ecoItems += 1;
       }
@@ -97,19 +112,23 @@ const countEco = (cats: CategoryItems, removed: string[]) => {
   return { ecoItems, total, score: total ? Math.round((ecoItems / total) * 100) : 0 };
 };
 
-/** -----------------------------
- * Smart Suggestions
- * ----------------------------*/
-const generateSmartSuggestions = (trip?: Trip): CategoryItems => {
-  if (!trip) {
-    return {
-      Essentials: [],
-      Clothing: [],
-      Toiletries: [],
-      Electronics: []
-    };
-  }
+// New helper to count checked items
+const countCheckedItems = (cats: CategoryItems, removed: string[]) => {
+  let checked = 0;
+  let total = 0;
+  Object.values(cats).forEach((arr) => {
+    arr.forEach((i) => {
+      if (!removed.includes(i.name)) {
+        total += 1;
+        if (i.checked) checked += 1;
+      }
+    });
+  });
+  return { checked, total, progress: total ? Math.round((checked / total) * 100) : 0 };
+};
 
+const generateSmartSuggestions = (trip?: Trip): CategoryItems => {
+  if (!trip) return { Essentials: [], Clothing: [], Toiletries: [], Electronics: [] };
   const dest = trip.destination?.toLowerCase() || "";
   const warmWeather = /(paris|dubai|bali|miami|colombo)/.test(dest);
   const coldWeather = /(oslo|helsinki|zurich|moscow|reykjavik)/.test(dest);
@@ -117,24 +136,23 @@ const generateSmartSuggestions = (trip?: Trip): CategoryItems => {
 
   return {
     Essentials: [
-      { label: "Copy of documents (digital & paper)" },
-      { label: "Reusable water bottle", eco: true },
-      { label: "Reusable shopping tote", eco: true }
+      { name: "Reusable water bottle", qty: 1, checked: false, eco: true },
+      { name: "Reusable shopping tote", qty: 1, checked: false, eco: true }
     ],
     Clothing: [
-      { label: warmWeather ? "Sun hat" : coldWeather ? "Beanie & gloves" : "Light jacket" },
-      { label: longTrip ? "Laundry kit (eco detergent sheets)" : "Compact laundry bar", eco: true },
-      { label: "Packable rain jacket" }
+      { name: warmWeather ? "Sun hat" : coldWeather ? "Beanie & gloves" : "Light jacket", qty: 1, checked: false, eco: true },
+      { name: longTrip ? "Laundry kit (eco detergent sheets)" : "Compact laundry bar", qty: 1, checked: false, eco: true },
+      { name: "Packable rain jacket", qty: 1, checked: false, eco: true }
     ],
     Toiletries: [
-      { label: "Solid conditioner bar", eco: true },
-      { label: "Safety razor (with guard)", eco: true },
-      { label: "Refillable travel containers", eco: true }
+      { name: "Solid conditioner bar", qty: 1, checked: false, eco: true },
+      { name: "Safety razor (with guard)", qty: 1, checked: false, eco: true },
+      { name: "Refillable travel containers", qty: 1, checked: false, eco: true }
     ],
     Electronics: [
-      { label: "Universal travel adapter" },
-      { label: "Power bank" },
-      { label: "Cable organizer" }
+      { name: "Universal travel adapter", qty: 1, checked: false, eco: true },
+      { name: "Power bank", qty: 1, checked: false, eco: true },
+      { name: "Cable organizer", qty: 1, checked: false, eco: true }
     ]
   };
 };
@@ -145,142 +163,172 @@ const generateSmartSuggestions = (trip?: Trip): CategoryItems => {
 export default function PackingListOverviewPage() {
   const { trips } = useTrips();
 
-  // ------------------ UI state ------------------
+  /** UI State */
   const [activeTab, setActiveTab] = useState<'weather' | 'checklist' | 'smart'>('weather');
   const [selectedTripId, setSelectedTripId] = useState<string>('');
+  const [selectedListId, setSelectedListId] = useState<string>('');
 
-  /** ---------- Ensure selectedTripId initializes after trips load ---------- */
+  /** Selected Trip */
+  const currentTrip = useMemo(() => trips?.find((t: Trip) => t._id.toString() === selectedTripId), [trips, selectedTripId]);
+
+  /** Initialize selectedTripId */
   useEffect(() => {
     if (trips && trips.length > 0 && !selectedTripId) {
       setSelectedTripId(trips[0]._id.toString());
     }
-  }, [trips, selectedTripId]);
+  }, [trips]);
 
+  /** Packing Lists */
   const { lists } = usePackingLists(selectedTripId);
-  const [selectedListId, setSelectedListId] = useState<string>('');
 
-  console.log("PackingLists :", lists);
-  /** ---------- currentTrip ---------- */
-  const currentTrip = useMemo(() => {
-    if (!trips) return undefined;
-    return trips.find((t: Trip) => t._id.toString() === selectedTripId);
-  }, [trips, selectedTripId]);
-
-  /** ---------- selectedListId safe update ---------- */
+  /** Initialize selectedListId */
   useEffect(() => {
-    if (!lists || lists.length === 0) return;
-    const firstListForTrip = lists[0]._id?.toString() || '';
-    if (firstListForTrip && firstListForTrip !== selectedListId) {
-      setSelectedListId(firstListForTrip);
+    if (lists && lists.length > 0 && !selectedListId) {
+      setSelectedListId(lists[0]._id?.toString() || '');
     }
+  }, [lists]);
+
+  /** currentListSeed - FIXED: Use stringified version for comparison */
+  const currentListSeed = useMemo(() => {
+    const list = lists.find((p:PackingList) => p._id?.toString() === selectedListId);
+    if (!list?.categories) return { Clothing: [], Essentials: [], Toiletries: [], Electronics: [] };
+    return list.categories.reduce((acc: CategoryItems, cat: Category) => {
+      acc[cat.name] = cat.items.map((i) => ({
+        name: i.name,
+        qty: i.qty ?? 1,
+        checked: i.checked ?? false,
+        eco: i.eco ?? false
+      }));
+      return acc;
+    }, {} as CategoryItems);
   }, [lists, selectedListId]);
 
-  /** ---------- currentListSeed ---------- */
-const currentListSeed = useMemo(() => {
-  const list = lists.find(
-    (p: PackingList) => p._id?.toString() === selectedListId?.toString()
+  // Create a stable reference for comparison
+  const currentListSeedString = useMemo(() => 
+    JSON.stringify(currentListSeed), 
+    [currentListSeed]
   );
 
-  if (!list?.categories) {
-    return { Clothing: [], Essentials: [], Toiletries: [], Electronics: [] };
-  }
-
-  return list.categories.reduce((acc: CategoryItems, cat) => {
-    acc[cat.name] = cat.items.map((i) => ({
-      label: i.name,
-      qty: i.qty,
-      checked: i.checked,
-    }));
-    return acc;
-  }, {} as CategoryItems);
-}, [lists, selectedListId]);
-
-
-  /** ---------- checklistCats ---------- */
-  const [checklistCats, setChecklistCats] = useState<CategoryItems>(deepCloneCategories(currentListSeed));
+  /** Checklist State */
+  const [checklistCats, setChecklistCats] = useState<CategoryItems>({});
   const [removedItems, setRemovedItems] = useState<string[]>([]);
   const [newInputs, setNewInputs] = useState<Record<string, string>>({});
+  const [activeCategory, setActiveCategory] = useState<string>('');
 
+  const listsForTrip = useMemo(() => lists.filter((pl: PackingList) => pl.tripId?.toString() === selectedTripId), [lists, selectedTripId]);
+
+  /** Initialize checklistCats safely - FIXED: Use string reference */
   useEffect(() => {
-    setChecklistCats((prev) => {
-      const cloned = deepCloneCategories(currentListSeed);
-      if (JSON.stringify(prev) !== JSON.stringify(cloned)) return cloned;
-      return prev;
-    });
+    if (!currentListSeedString) return;
+    
+    // Parse back to object
+    const seedData = JSON.parse(currentListSeedString);
+    setChecklistCats(deepCloneCategories(seedData));
     setRemovedItems([]);
     setNewInputs({});
-  }, []);
+    const firstCat = Object.keys(seedData)[0];
+    if (firstCat) setActiveCategory(firstCat);
+  }, [currentListSeedString]); // Now depends on string, not object
 
+  /** Eco Score */
   const ecoScore = useMemo(() => countEco(checklistCats, removedItems).score, [checklistCats, removedItems]);
 
-  /** ---------- Smart Suggestions ---------- */
+  /** Packing Progress */
+  const packingProgress = useMemo(() => 
+    countCheckedItems(checklistCats, removedItems), 
+    [checklistCats, removedItems]
+  );
+
+  /** Smart Suggestions */
   const [smartCats, setSmartCats] = useState<CategoryItems>({});
   const [smartRemoved, setSmartRemoved] = useState<string[]>([]);
+
+  // Create stable trip reference
+  const currentTripId = currentTrip?._id?.toString();
 
   useEffect(() => {
     if (!currentTrip) return;
     const newSuggestions = generateSmartSuggestions(currentTrip);
     setSmartCats(newSuggestions);
     setSmartRemoved([]);
-  }, [currentTrip?._id.toString()]);
+  }, [currentTripId]); // Only depend on ID, not the whole trip object
 
-  /** ---------- Actions ---------- */
-  const handleAddChecklistItem = (category: string) => {
+  /** Actions */
+  const handleAddChecklistItem = useCallback((category: string) => {
     const value = (newInputs[category] || '').trim();
     if (!value) return;
     setChecklistCats((prev) => {
       const existing = prev[category] || [];
-      if (existing.some((i) => i.label.toLowerCase() === value.toLowerCase())) return prev;
-      return { ...prev, [category]: [...existing, { label: value }] };
+      if (existing.some((i) => i.name.toLowerCase() === value.toLowerCase())) return prev;
+      return { ...prev, [category]: [...existing, { name: value, checked: false, eco: false }] };
     });
     setNewInputs((prev) => ({ ...prev, [category]: '' }));
-  };
+  }, [newInputs]);
 
-  const handleRemoveChecklistHard = (category: string, label: string) => {
+  const handleRemoveChecklistHard = useCallback((category: string, name: string) => {
+    setChecklistCats((prev) => ({ ...prev, [category]: (prev[category] || []).filter(i => i.name !== name) }));
+    setRemovedItems((prev) => prev.filter((l) => l !== name));
+  }, []);
+
+  // NEW: Toggle item checked state
+  const handleToggleItem = useCallback((category: string, itemName: string) => {
+    setChecklistCats((prev) => ({
+      ...prev,
+      [category]: (prev[category] || []).map(item =>
+        item.name === itemName
+          ? { ...item, checked: !item.checked }
+          : item
+      )
+    }));
+  }, []);
+
+  // NEW: Check all items in category
+  const handleCheckAllCategory = useCallback((category: string) => {
+    setChecklistCats((prev) => ({
+      ...prev,
+      [category]: (prev[category] || []).map(item => ({
+        ...item,
+        checked: true
+      }))
+    }));
+  }, []);
+
+  // NEW: Uncheck all items in category
+  const handleUncheckAllCategory = useCallback((category: string) => {
+    setChecklistCats((prev) => ({
+      ...prev,
+      [category]: (prev[category] || []).map(item => ({
+        ...item,
+        checked: false
+      }))
+    }));
+  }, []);
+
+  const handleAddSuggestionToChecklist = useCallback((category: string, item: Item) => {
     setChecklistCats((prev) => {
       const existing = prev[category] || [];
-      return { ...prev, [category]: existing.filter((i) => i.label !== label) };
-    });
-    setRemovedItems((prev) => prev.filter((l) => l !== label));
-  };
-
-  const handleAddSuggestionToChecklist = (category: string, item: Item) => {
-    setChecklistCats((prev) => {
-      const existing = prev[category] || [];
-      if (existing.find((i) => i.label.toLowerCase() === item.label.toLowerCase())) return prev;
+      if (existing.find((i) => i.name.toLowerCase() === item.name.toLowerCase())) return prev;
       return { ...prev, [category]: [...existing, item] };
     });
-  };
+  }, []);
 
-  const handleRemoveSmart = (label: string) => {
+  const handleRemoveSmart = useCallback((label: string) => {
     setSmartRemoved((prev) => (prev.includes(label) ? prev : [...prev, label]));
-  };
+  }, []);
 
-  const listsForTrip = useMemo(
-    () => lists.filter((pl: PackingList) => pl.tripId?.toString() === selectedTripId),
-    [lists, selectedTripId]
-  );
-
-  /** ---------- Category Navigation ---------- */
+  /** Category Icons */
   const categoryIcons: Record<string, string> = {
     Clothing: '👕',
     Essentials: '🎒',
     Toiletries: '🧴',
     Electronics: '🔌',
   };
-  const [activeCategory, setActiveCategory] = useState<string>(Object.keys(checklistCats)[0] || '');
 
-  /** ---------- Loading Check ---------- */
+  
+  /** Loading Check */
   if (!currentTrip) return <div>Loading trip...</div>;
 
-  /** ---------- Weather Card Props ---------- */
-
-  if (!currentTrip) {
-    return <div>Loading trip...</div>;
-  }
-  
   return (
-
     <div className="relative flex min-h-screen flex-col bg-[#f5f8f6] text-gray-800 p-4">
       {/* Animated Header */}
       <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-md border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-xl transition-shadow duration-500 hover:shadow-2xl overflow-hidden mb-4 rounded-xl">
@@ -296,7 +344,6 @@ const currentListSeed = useMemo(() => {
         </div>
 
         <div className="flex items-center gap-5 relative z-10">
-
           <div className="flex flex-col">
             <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 animate-slideIn animate-pulseGlow">
               {trips.find((t: Trip) => t._id.toString() === selectedTripId)?.title}
@@ -388,7 +435,6 @@ const currentListSeed = useMemo(() => {
         .animate-gradient { background-size: 200% 200%; animation: gradientShift 4s ease infinite; }
       `}</style>
 
-
       {/* Main Content */}
       <main className="flex-1 flex flex-col">
         <AnimatePresence mode="wait">
@@ -401,7 +447,7 @@ const currentListSeed = useMemo(() => {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
             >
-              <WeatherCard  weather={currentTrip.weather} />
+              <WeatherCard weather={currentTrip.weather} />
             </motion.div>
           )}
 
@@ -415,49 +461,98 @@ const currentListSeed = useMemo(() => {
               transition={{ duration: 0.3 }}
               className="flex flex-col gap-6"
             >
-              {/* Eco Score */}
-              <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-xl border border-gray-200">
-                <div className="flex items-center gap-2 font-bold text-[#0e1b13]">
-                  <Leaf size={28} className="text-green-600" />
-                  Eco Score
+              {/* Progress & Eco Score Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Packing Progress */}
+                <div className="bg-white p-5 rounded-2xl shadow-xl border border-gray-200">
+                  <div className="flex items-center gap-2 font-bold text-[#0e1b13] mb-2">
+                    <CheckCheck size={28} className="text-blue-600" />
+                    Packing Progress
+                  </div>
+                  <div className="flex-1 h-5 bg-gray-200 rounded-full overflow-hidden mb-2">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${packingProgress.progress}%` }}
+                      transition={{ duration: 1.2, ease: 'easeInOut' }}
+                      className="h-full bg-gradient-to-r from-blue-400 to-cyan-500"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-700">
+                    {packingProgress.checked}/{packingProgress.total} items packed ({packingProgress.progress}%)
+                  </p>
                 </div>
-                <div className="flex-1 h-5 bg-gray-200 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${ecoScore}%` }}
-                    transition={{ duration: 1.2, ease: 'easeInOut' }}
-                    className="h-full bg-gradient-to-r from-green-400 to-teal-500"
-                  />
+
+                {/* Eco Score */}
+                <div className="bg-white p-5 rounded-2xl shadow-xl border border-gray-200">
+                  <div className="flex items-center gap-2 font-bold text-[#0e1b13] mb-2">
+                    <Leaf size={28} className="text-green-600" />
+                    Eco Score
+                  </div>
+                  <div className="flex-1 h-5 bg-gray-200 rounded-full overflow-hidden mb-2">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${ecoScore}%` }}
+                      transition={{ duration: 1.2, ease: 'easeInOut' }}
+                      className="h-full bg-gradient-to-r from-green-400 to-teal-500"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-700">{ecoScore}% eco items packed</p>
                 </div>
-                <p className="text-sm text-gray-700">{ecoScore}% eco items packed</p>
               </div>
 
               {/* Scrollable Category Navigation */}
               <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
                 {Object.keys(checklistCats).map((cat) => {
                   const total = checklistCats[cat].length;
-                  const ecoCount = checklistCats[cat].filter((i) => !removedItems.includes(i.label) && i.eco).length;
+                  const checkedCount = checklistCats[cat].filter((i) => !removedItems.includes(i.name) && i.checked).length;
+                  const ecoCount = checklistCats[cat].filter((i) => !removedItems.includes(i.name) && i.eco).length;
                   const isActive = cat === activeCategory;
+                  const allChecked = total > 0 && checkedCount === total;
 
                   return (
                     <button
                       key={cat}
                       onClick={() => setActiveCategory(cat)}
                       className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-2xl font-semibold text-sm transition-all whitespace-nowrap
-              ${isActive
+                        ${isActive
                           ? 'bg-gradient-to-r from-green-400 to-teal-500 text-white shadow-lg'
                           : 'bg-gray-100 text-gray-700 hover:bg-green-50 hover:text-green-700'}
-            `}
+                      `}
                     >
                       <span>{categoryIcons[cat] || '📌'}</span>
                       <span>{cat}</span>
-                      <span className="text-xs font-medium bg-white/30 px-2 py-0.5 rounded-full">
-                        {ecoCount}/{total} 🌿
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        allChecked ? 'bg-green-500 text-white' : 'bg-white/30'
+                      }`}>
+                        {checkedCount}/{total} ✓
                       </span>
+                      {ecoCount > 0 && (
+                        <span className="text-xs font-medium bg-emerald-500 text-white px-2 py-0.5 rounded-full">
+                          {ecoCount} 🌿
+                        </span>
+                      )}
                     </button>
                   );
                 })}
               </div>
+
+              {/* Category Actions */}
+              {activeCategory && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleCheckAllCategory(activeCategory)}
+                    className="px-3 py-1 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+                  >
+                    Check All
+                  </button>
+                  <button
+                    onClick={() => handleUncheckAllCategory(activeCategory)}
+                    className="px-3 py-1 text-xs bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition"
+                  >
+                    Uncheck All
+                  </button>
+                </div>
+              )}
 
               {/* Animated Category Content */}
               <AnimatePresence mode="wait">
@@ -472,11 +567,13 @@ const currentListSeed = useMemo(() => {
                   >
                     <ChecklistSection
                       title={titleCase(activeCategory)}
-                      items={checklistCats[activeCategory] || []}          // pass the current items
-                      removedItems={removedItems}                          // pass removed items to handle hiding
-                      onRemove={(label: string) => handleRemoveChecklistHard(activeCategory, label)} // proper callback
+                      items={(checklistCats[activeCategory] || []).filter(
+                        i => !removedItems.includes(i.name)
+                      )}
+                      removedItems={removedItems}
+                      onRemove={(label: string) => handleRemoveChecklistHard(activeCategory, label)}
+                      onToggleItem={(label: string) => handleToggleItem(activeCategory, label)} // NEW: Added toggle handler
                     />
-
 
                     {/* Inline Add New Item */}
                     <div className="flex gap-2 mt-2">
@@ -514,30 +611,51 @@ const currentListSeed = useMemo(() => {
               transition={{ duration: 0.3 }}
               className="flex flex-col gap-6"
             >
-              {/* Header + Eco */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+              {/* Header + Progress + Eco */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 md:col-span-2">
                   Smart Packing Suggestions
                 </h2>
-                <div className="flex items-center gap-2 text-sm text-green-700 font-semibold">
-                  <Leaf size={24} /> Eco Score: {ecoScore}%
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-sm text-blue-700 font-semibold">
+                    <CheckCheck size={20} /> Progress: {packingProgress.progress}%
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-green-700 font-semibold">
+                    <Leaf size={20} /> Eco Score: {ecoScore}%
+                  </div>
                 </div>
               </div>
 
-              {/* Eco Progress Bar */}
-              <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${ecoScore}%` }}
-                  transition={{ duration: 1.2, ease: 'easeInOut' }}
-                  className="h-full bg-gradient-to-r from-green-400 to-teal-500"
-                />
+              {/* Progress Bars */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Packing Progress</p>
+                  <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${packingProgress.progress}%` }}
+                      transition={{ duration: 1.2, ease: 'easeInOut' }}
+                      className="h-full bg-gradient-to-r from-blue-400 to-cyan-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Eco Progress</p>
+                  <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${ecoScore}%` }}
+                      transition={{ duration: 1.2, ease: 'easeInOut' }}
+                      className="h-full bg-gradient-to-r from-green-400 to-teal-500"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Suggestions grouped by category */}
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {Object.keys(smartCats).map((cat) => {
-                  const items = (smartCats[cat] || []).filter((i) => !smartRemoved.includes(i.label));
+                  const items = (smartCats[cat] || []).filter((i) => !smartRemoved.includes(i.name));
                   if (!items.length) return null;
                   return (
                     <div key={`smart-${cat}`} className="bg-white rounded-2xl p-4 shadow border border-gray-100">
@@ -545,16 +663,28 @@ const currentListSeed = useMemo(() => {
                       <ul className="space-y-2">
                         {items.map((it) => (
                           <li
-                            key={`sug-${cat}-${it.label}`}
+                            key={`sug-${cat}-${it.name}`}
                             className="flex items-center justify-between gap-3 bg-emerald-50/60 rounded-xl px-3 py-2"
                           >
-                            <div className="flex flex-col">
-                              <span className="text-sm font-semibold text-gray-800">{it.label}</span>
-                              {it.eco && <span className="text-xs text-emerald-700">Eco-friendly</span>}
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleToggleItem(cat, it.name)}
+                                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all
+                                  ${it.checked 
+                                    ? 'bg-green-500 border-green-500 text-white' 
+                                    : 'border-gray-300 hover:border-green-400'
+                                  }`}
+                              >
+                                {it.checked && <Check size={14} />}
+                              </button>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-semibold text-gray-800">{it.name}</span>
+                                {it.eco && <span className="text-xs text-emerald-700">Eco-friendly</span>}
+                              </div>
                             </div>
                             <div className="flex gap-2">
                               <button
-                                onClick={() => handleRemoveSmart(it.label)}
+                                onClick={() => handleRemoveSmart(it.name)}
                                 className="text-red-500 hover:text-red-600 text-xs"
                                 title="Hide suggestion"
                               >

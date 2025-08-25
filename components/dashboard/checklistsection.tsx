@@ -3,7 +3,9 @@ import { useState, useMemo } from "react";
 import { Leaf } from "lucide-react";
 
 export interface Item {
-  label: string;
+  name: string;
+  qty?: number;
+  checked?: boolean;
   eco?: boolean;
 }
 
@@ -12,7 +14,7 @@ interface ChecklistSectionProps {
   items: Item[];                        // Items from parent
   removedItems: string[];               // Removed items from parent
   onRemove: (label: string) => void;    // Remove callback
-  onAdd?: (item: Item) => void;         // Optional add callback
+  onToggleItem?: (label:string) => void;         // Optional toggle callback
 }
 
 export default function ChecklistSection({
@@ -20,21 +22,23 @@ export default function ChecklistSection({
   items,
   removedItems,
   onRemove,
-  onAdd,
+  onToggleItem
 }: ChecklistSectionProps) {
   const [newItemLabel, setNewItemLabel] = useState("");
 
+  // console.log("Items: ", items);
   // Filter out removed items
   const visibleItems = useMemo(
-    () => items.filter((i) => !removedItems.includes(i.label)),
+    () => items.filter((i) => !removedItems.includes(i.name)),
     [items, removedItems]
   );
 
+
   const handleAdd = () => {
-    const label = newItemLabel.trim();
-    if (!label || !onAdd) return;
-    const newItem: Item = { label };
-    onAdd(newItem);
+    const name = newItemLabel.trim();
+    if (!name || !onToggleItem) return;
+    const newItem: Item = { name };
+    onToggleItem(name);
     setNewItemLabel("");
   };
 
@@ -43,7 +47,7 @@ export default function ChecklistSection({
       <h3 className="font-bold text-[#0e1b13] text-lg">{title}</h3>
 
       {/* Add New Item */}
-      {onAdd && (
+      {onToggleItem && (
         <div className="flex gap-2 items-center">
           <input
             type="text"
@@ -69,15 +73,15 @@ export default function ChecklistSection({
         {visibleItems.length === 0 && <p className="text-gray-500 text-sm">No items</p>}
         {visibleItems.map((item) => (
           <div
-            key={item.label}
+            key={item.name}
             className="flex items-center justify-between gap-2 p-2 rounded hover:bg-gray-50 transition"
           >
             <div className="flex items-center gap-2">
-              <span className="text-sm">{item.label}</span>
+              <span className="text-sm">{item.name}</span>
               {item.eco && <Leaf size={16} className="text-green-600" />}
             </div>
             <button
-              onClick={() => onRemove(item.label)}
+              onClick={() => onRemove(item.name)}
               className="text-red-500 text-sm hover:underline"
             >
               Remove
