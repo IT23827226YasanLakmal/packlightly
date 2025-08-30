@@ -63,7 +63,7 @@ export default function CreateNewTripPage() {
     const createdTrip = await api.createTrip(tripData);
 
     const defaultLists = generatePackingLists(tripData);
-    for (let list of defaultLists) {
+    for (const list of defaultLists) {
       await api.createPackingList({ ...list, tripId: createdTrip.id });
     }
 
