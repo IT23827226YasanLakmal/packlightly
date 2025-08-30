@@ -5,75 +5,9 @@ import { Leaf, Check, CheckCheck } from 'lucide-react';
 import WeatherCard from '@/components/dashboard/weathercard';
 import ChecklistSection from '@/components/dashboard/checklistsection';
 import { useChecklistStore } from '@/store/checklistStore';
-
-// ... other imports
 import useSWR from 'swr';
-import { Types } from "mongoose";
-import { fetcherWithToken, getToken } from "../../../../../utils/fetcher";
-
-interface Trip {
-  _id: Types.ObjectId,
-  title: string,
-  destination: string,
-  description: string,
-  startDate: Date,
-  endDate: Date,
-  durationDays: number,
-  ownerUid: string,
-  weather: {
-    location: string,
-    tempRange: string,
-    description: string,
-    condition: {
-      type: string,
-      enum: ['sunny', 'cloudy', 'rainy', 'stormy', 'snowy'],
-      default: 'sunny'
-    },
-    highTemp: string,
-    lowTemp: string,
-    wind: string,
-    humidity: string,
-    chanceRain: string
-  }
-}
-
-type Item = {
-  name: string,
-  qty?: number,
-  checked?: boolean, // Make checked optional to match the store type
-  eco?: boolean      // Make eco optional to match the store type
-};
-
-type Category = {
-  name: string;
-  items: Item[];
-  _id: Types.ObjectId;
-}
-
-type CategoryItems = {
-  [key: string]: Item[];
-};
-
-interface PackingList {
-  _id?: Types.ObjectId;
-  tripId?: Types.ObjectId;
-  ownerUid: string;
-  title: string;
-  categories: {
-    name: "Clothing" | "Essentials" | "Toiletries" | "Electronics";
-    items: {
-      name: string;
-      qty?: number;
-      checked?: boolean;
-      eco?: boolean;
-    }[];
-    _id: Types.ObjectId;
-  }[];
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-
+import { fetcherWithToken } from "@/utils/fetcher";
+import { Trip, Item, CategoryItems, PackingList, Category } from '@/types';
 
 
 

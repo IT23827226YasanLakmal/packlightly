@@ -23,17 +23,18 @@ export const Sidebar = () => {
   };
 
   const menuItems = [
-    { label: "Create New Trip", path: "/dashboard/create-new-trip", icon: <FolderPlus size={24} /> },
     {
       label: "Trips",
       path: "/dashboard/trips",
       icon: <List size={24} />,
       children: [
         { label: "All Trips", path: "/dashboard/trips" },
-        { label: "Packing Lists", path: "/dashboard/trips/packinglists" },
-        { label: "Smart Packing", path: "/dashboard/trips/smart-packing" },
+        { label: "Create New Trip", path: "/dashboard/trips/create-new-trip", icon: <FolderPlus size={24} /> },
+
       ],
     },
+    { label: "Packing Lists", path: "/dashboard/packinglists" },
+    { label: "Smart Packing", path: "/dashboard/smart-packing" },
     { label: "Posts", path: "/dashboard/posts", icon: <Newspaper size={24} /> },
   ];
 
