@@ -1,52 +1,48 @@
-'use client';
-
-import { useRouter } from 'next/navigation';
-import { auth } from '@/lib/firebaseClient';
+"use client";
+import { motion } from "framer-motion";
 
 export default function HeroSection() {
-  const router = useRouter();
-
-  const handleStartPacking = () => {
-    const user = auth.currentUser;
-    if (user) {
-      router.push('/dashboard/trips');
-    } else {
-      router.push('/login');
-    }
-  };
-
   return (
-    <section className="relative w-full min-h-[550px] flex items-center justify-center overflow-hidden">
-      {/* Background Image */}
-      <div
-        className="absolute inset-0 bg-cover bg-center rounded-xl"
-        style={{
-          backgroundImage:
-            'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDC3RSnWYgNhWorocS8eAd8h46L1worM_mmzm3CeUmOgZId8S4cLB7SXQLN7uNkkOca613F36CuQDPDYfHJtxbggmbWYFBaXxoi1E5kR70AlxR2EsBVb5wMCYVdAYZPuqQlpqvFa4mIH1ZFyNHCkqtHlk56hkWSZzunf0l4l35RwJyCEBYWnzEBNG4k_0J6yNT8_xKY-dzLaFZhZ6R9j6uN1MTCJDhLdy6qLkIlg2tfelX5j7SdDaCn51VHZYT4oMd1O-JgDhl_6fhN")',
-        }}
+    <section className="relative flex flex-col items-center text-center gap-6 py-20 overflow-hidden">
+      {/* Floating leaves */}
+      <svg className="absolute top-0 left-10 w-32 h-32 animate-bounce-slow opacity-30" viewBox="0 0 64 64" fill="none">
+        <path d="M32 0C24 16 48 16 32 64" stroke="#34D399" strokeWidth="2"/>
+      </svg>
+      <svg className="absolute bottom-0 right-10 w-40 h-40 animate-spin-slow opacity-20" viewBox="0 0 64 64" fill="none">
+        <circle cx="32" cy="32" r="30" stroke="#10B981" strokeWidth="3"/>
+      </svg>
+
+      <motion.h1
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 1 }}
+        className="text-5xl md:text-6xl font-extrabold text-emerald-900"
       >
-        <div className="absolute inset-0 bg-black/30"></div> {/* Overlay */}
-      </div>
+        Travel Green, Travel Smart 🌿
+      </motion.h1>
 
-      {/* Floating Shapes */}
-      <div className="absolute top-10 left-10 w-20 h-20 rounded-full bg-green-400/30 animate-pulse-slow"></div>
-      <div className="absolute bottom-20 right-20 w-28 h-28 rounded-full bg-green-300/25 animate-bounce-slow"></div>
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="text-lg md:text-xl text-emerald-800 max-w-2xl"
+      >
+        Explore sustainable destinations, eco-friendly tips, and connect with a global community of conscious travelers.
+      </motion.p>
 
-      {/* Content */}
-      <div className="relative z-10 text-center px-6 flex flex-col items-center gap-6">
-        <h1 className="text-white text-4xl md:text-5xl font-extrabold tracking-tight drop-shadow-lg">
-          Pack Smart. Travel Green.
-        </h1>
-        <p className="text-white text-sm md:text-base max-w-lg drop-shadow-md">
-          Your intelligent packing assistant for eco-conscious journeys.
-        </p>
-        <button
-          onClick={handleStartPacking}
-          className="mt-4 px-6 py-3 rounded-xl bg-green-400 text-white font-bold text-lg shadow-lg hover:bg-green-500 hover:scale-105 transform transition duration-300"
-        >
-          Start Packing
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.8 }}
+        className="flex gap-4 mt-6"
+      >
+        <button className="px-6 py-3 bg-gradient-to-r from-green-400 to-emerald-600 text-white font-semibold rounded-full shadow hover:scale-105 transition">
+          Explore Tips
         </button>
-      </div>
+        <button className="px-6 py-3 border border-green-400 text-green-800 rounded-full shadow hover:bg-green-100 transition">
+          Join Community
+        </button>
+      </motion.div>
     </section>
   );
 }

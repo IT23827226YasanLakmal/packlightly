@@ -2,12 +2,13 @@
 import React, { useState } from "react";
 import {
   List,
-  Newspaper,
   ChevronLeft,
   ChevronRight,
-  FolderPlus,
   Layers,
   ChevronDown,
+  Plane,
+  Sparkles,
+  Newspaper
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -23,18 +24,9 @@ export const Sidebar = () => {
   };
 
   const menuItems = [
-    {
-      label: "Trips",
-      path: "/dashboard/trips",
-      icon: <List size={24} />,
-      children: [
-        { label: "All Trips", path: "/dashboard/trips" },
-        { label: "Create New Trip", path: "/dashboard/trips/create-new-trip", icon: <FolderPlus size={24} /> },
-
-      ],
-    },
-    { label: "Packing Lists", path: "/dashboard/packinglists" },
-    { label: "Smart Packing", path: "/dashboard/smart-packing" },
+    {label: "Trips",path: "/dashboard/trips",icon: <Plane size={24} />},
+    { label: "Packing Lists", path: "/dashboard/packinglists", icon:<List size={24} /> },
+    { label: "Smart Packing", path: "/dashboard/smart-packing", icon:<Sparkles size={24} /> },
     { label: "Posts", path: "/dashboard/posts", icon: <Newspaper size={24} /> },
   ];
 

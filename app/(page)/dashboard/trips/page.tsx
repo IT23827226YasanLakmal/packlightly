@@ -1,276 +1,454 @@
-'use client';
+"use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Plus, Trash2, Leaf, MapPin, ChevronDown, Search } from "lucide-react";
+import { Trash2, Leaf, MapPin, Plus } from "lucide-react";
+import { useTripStore } from "@/store/tripStore";
+import { usePackingListStore } from "@/store/packingListStore";
 
-interface Trip {
-  id: string;
-  name: string;
-  destination: string;
-  startDate: string;
-  endDate: string;
-  packingLists?: PackingList[];
-  createdAt: string;
-}
+import { Trip } from '@/types/index';
 
-interface PackingList {
-  id: string;
-  title: string;
-  itemsCount: number;
-}
+export default function AllTripsTable() {
+  const { trips, loading, selectedTripId, error, fetchTrips, setSelectedTripId } = useTripStore();
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [openDrawer, setOpenDrawer] = useState(false);
+  const [openCreateModal, setOpenCreateModal] = useState(false);
+  const [showGeneratePrompt, setShowGeneratePrompt] = useState(false);
+  const { packingLists, fetchPackingLists, addPackingList } = usePackingListStore();
 
-export default function AllTripsPage() {
-  const router = useRouter();
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState("newest");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [openSortDropdown, setOpenSortDropdown] = useState(false);
-  const itemsPerPage = 6;
 
-  useEffect(() => {
-    // Mock API fetch
-    const fetchedTrips: Trip[] = [
-      {
-        id: "1",
-        name: "Paris Trip",
-        destination: "Paris, France",
-        startDate: "2024-07-15",
-        endDate: "2024-07-22",
-        createdAt: "2024-07-01",
-        packingLists: [
-          { id: "p1", title: "Clothing", itemsCount: 12 },
-          { id: "p2", title: "Essentials", itemsCount: 8 },
-        ],
-      },
-      {
-        id: "2",
-        name: "Beach Holiday",
-        destination: "Maldives",
-        startDate: "2024-08-10",
-        endDate: "2024-08-17",
-        createdAt: "2024-07-05",
-        packingLists: [{ id: "p3", title: "Summer Essentials", itemsCount: 10 }],
-      },
-      {
-        id: "3",
-        name: "Tokyo Adventure",
-        destination: "Tokyo, Japan",
-        startDate: "2024-09-01",
-        endDate: "2024-09-10",
-        createdAt: "2024-08-01",
-        packingLists: [],
-      },
-      // Add more trips as needed
-    ];
-    setTrips(fetchedTrips);
-  }, []);
 
-  const handleDeleteTrip = (tripId: string) => {
-    setTrips((prev) => prev.filter((trip) => trip.id !== tripId));
-  };
-
-  // Filter + Search
-  let filteredTrips = trips.filter(
-    (trip) =>
-      trip.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      trip.destination.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Sort
-  filteredTrips = [...filteredTrips].sort((a, b) => {
-    if (sortBy === "newest") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    if (sortBy === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    if (sortBy === "nameAsc") return a.name.localeCompare(b.name);
-    if (sortBy === "nameDesc") return b.name.localeCompare(a.name);
-    return 0;
+  const [newTrip, setNewTrip] = useState<Trip>({
+    ownerUid: "",
+    title: "",
+    name: "",
+    type: "Solo",
+    destination: "",
+    startDate: new Date().toISOString().slice(0, 10),
+    endDate: new Date().toISOString().slice(0, 10),
+    durationDays: 0,
+    passengers: { adults: 0, children: 0, total: 1 },
+    budget: 0,
+    weather: {
+      location: "",
+      tempRange: "",
+      description: "",
+      condition: "",
+      highTemp: "",
+      lowTemp: "",
+      wind: "",
+      humidity: "",
+      chanceRain: "",
+    },
+    packingLists: [],
   });
 
-  // Pagination
-  const totalPages = Math.ceil(filteredTrips.length / itemsPerPage);
-  const paginatedTrips = filteredTrips.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  useEffect(() => {
+    fetchTrips().catch(console.error);
+  }, [fetchTrips]);
 
-  const goToPage = (page: number) => {
-    if (page < 1 || page > totalPages) return;
-    setCurrentPage(page);
+    useEffect(() => {
+    if (selectedTripId) {
+      fetchPackingLists(selectedTripId).catch(console.error);
+    }
+  }, [selectedTripId, fetchPackingLists]);
+
+
+  // DELETE TRIP
+  const handleDeleteTrip = (tripId: string) => {
+    const confirmed = confirm("Are you sure you want to delete this trip?");
+    if (!confirmed) return;
+
+    // Update store directly
+    useTripStore.setState({
+      trips: trips.filter((trip) => trip._id !== tripId),
+    });
+
+    if (selectedTrip?._id === tripId) setSelectedTrip(null);
   };
 
+  // CREATE TRIP
+  const handleCreateTrip = () => {
+    const createdTrip: Trip = {
+      ...newTrip,
+      _id: String(Date.now()),
+    };
+
+    useTripStore.setState({
+      trips: [createdTrip, ...trips],
+    });
+
+    setNewTrip({
+      ownerUid: "",
+      title: "",
+      name: "",
+      type: "Solo",
+      destination: "",
+      startDate: new Date().toISOString().slice(0, 10),
+      endDate: new Date().toISOString().slice(0, 10),
+      durationDays: 0,
+      passengers: { adults: 0, children: 0, total: 1 },
+      budget: 0,
+      weather: {
+        location: "",
+        tempRange: "",
+        description: "",
+        condition: "",
+        highTemp: "",
+        lowTemp: "",
+        wind: "",
+        humidity: "",
+        chanceRain: "",
+      },
+      packingLists: [],
+    });
+
+    setOpenCreateModal(false);
+    setSelectedTrip(createdTrip);
+    setShowGeneratePrompt(true);
+  };
+
+  const handleGeneratePackingList = (trip: Trip) => {
+  addPackingList(trip._id?.toString() || "", "Smart Packing List");
+
+  // Refresh local state
+  fetchPackingLists(trip._id?.toString() || "").catch(console.error);
+
+  setShowGeneratePrompt(false);
+};
+
+  if (loading) return <p>Loading trips...</p>;
+  if (error) return <p className="text-red-500">{error}</p>;
+
   return (
-    <div className="min-h-screen p-6 bg-gradient-to-br from-green-50 via-white to-green-100">
+    <div className="min-h-screen p-6 bg-white/60">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-        <h1 className="text-4xl font-extrabold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
-          All Trips
-        </h1>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="Search trips..."
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-emerald-400 bg-white/80 backdrop-blur-md"
-            />
-          </div>
-
-          {/* Sort Dropdown */}
-          <div className="relative">
-            <button onClick={() => setOpenSortDropdown(!openSortDropdown)} className="flex items-center gap-2 px-4 py-2 bg-white/90 rounded-xl border shadow-sm hover:shadow transition">
-              Sort: <span className="font-medium capitalize">
-                {sortBy === "newest" ? "Newest" : sortBy === "oldest" ? "Oldest" : sortBy === "nameAsc" ? "Name A→Z" : "Name Z→A"}
-              </span>
-              <ChevronDown size={16} />
-            </button>
-            <AnimatePresence>
-              {openSortDropdown && (
-                <motion.ul
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border p-2 z-20"
-                >
-                  {[
-                    { key: "newest", label: "Newest" },
-                    { key: "oldest", label: "Oldest" },
-                    { key: "nameAsc", label: "Name A→Z" },
-                    { key: "nameDesc", label: "Name Z→A" },
-                  ].map((option) => (
-                    <li
-                      key={option.key}
-                      onClick={() => { setSortBy(option.key); setOpenSortDropdown(false); setCurrentPage(1); }}
-                      className={`px-3 py-2 rounded-lg cursor-pointer hover:bg-emerald-50 ${sortBy === option.key ? "bg-emerald-100 font-medium" : ""}`}
-                    >
-                      {option.label}
-                    </li>
-                  ))}
-                </motion.ul>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* New Trip */}
-          <button
-            onClick={() => router.push("/dashboard/create-new-trip")}
-            className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-green-600 to-emerald-500 text-white font-medium rounded-xl shadow hover:from-green-700 hover:to-emerald-600 transition"
-          >
-            <Plus size={18} /> New Trip
-          </button>
-        </div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-extrabold text-black">All Trips</h1>
+        <button
+          onClick={() => setOpenCreateModal(true)}
+          className="flex items-center gap-2 px-5 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition"
+        >
+          <Plus size={16} /> New Trip
+        </button>
       </div>
 
-      {/* Trip Cards */}
-      {paginatedTrips.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <AnimatePresence>
-            {paginatedTrips.map((trip) => (
-              <motion.div
-                key={trip.id}
-                className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md hover:shadow-xl p-6 flex flex-col justify-between cursor-pointer transition-transform hover:-translate-y-1"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                onClick={() => router.push(`/dashboard/trips/packinglist-overview?id=${trip.id}`)}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h2 className="text-2xl font-semibold text-gray-900">{trip.name}</h2>
-                    <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
-                      <MapPin size={16} /> {trip.destination}
+      {/* Trips Table */}
+      <div className="overflow-x-auto rounded-xl shadow-md border border-green-200">
+        <table className="w-full text-left">
+          <thead className="bg-green-50">
+            <tr>
+              <th className="px-4 py-3">Name</th>
+              <th className="px-4 py-3">Destination</th>
+              <th className="px-4 py-3">Dates</th>
+              <th className="px-4 py-3">Packing Lists</th>
+              <th className="px-4 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <AnimatePresence>
+              {trips.map((trip) => (
+                <motion.tr
+                  key={trip._id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="border-b border-green-100 cursor-pointer hover:bg-green-50 transition"
+                  onClick={() => {
+                    setSelectedTrip(trip);
+                    setOpenDrawer(true);
+                    setSelectedTripId(trip._id ? trip._id.toString() : "");
+                  }}
+                >
+                  <td className="px-4 py-3 font-medium text-black">{trip.title}</td>
+                  <td className="px-4 py-3 text-green-700 flex items-center gap-1">
+                    <MapPin size={16} /> {trip.destination}
+                  </td>
+                  <td className="px-4 py-3 text-green-500">
+                    {trip.startDate} → {trip.endDate}
+                  </td>
+                  <td className="px-4 py-3">
+                    {packingLists && packingLists.length > 0 ? (
+                      packingLists.map((list) => (
+                        <div key={list._id?.toString()} className="flex items-center gap-1 text-green-600">
+                          <Leaf size={14} /> {list.title} ({list.categories.reduce((acc, cat) => acc + cat.items.length, 0)})
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-black/50">No lists</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteTrip(trip._id ? trip._id.toString() : "");
+                      }}
+                      className="text-red-500 hover:text-red-600 transition"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
+                </motion.tr>
+              ))}
+            </AnimatePresence>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Drawer, Modal & Prompt remain the same as your original code */}
+      {/* Edit Drawer */}
+      <AnimatePresence>
+        {openDrawer && selectedTrip && (
+          <motion.div
+            className="fixed inset-0 z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div
+              className="absolute inset-0 bg-black/30"
+              onClick={() => setOpenDrawer(false)}
+            />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 120, damping: 18 }}
+              className="absolute right-0 top-0 h-full w-full sm:w-[420px] bg-white border-l border-green-200 p-5 overflow-y-auto"
+            >
+              <h3 className="text-lg font-semibold mb-2">{selectedTrip.title}</h3>
+              <p className="text-sm text-black/60 mb-4">{selectedTrip.destination}</p>
+
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                  <label className="text-sm font-medium text-black/70">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={selectedTrip.startDate}
+                    onChange={(e) =>
+                      setSelectedTrip({ ...selectedTrip, startDate: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-green-200 py-2 px-3"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-black/70">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={selectedTrip.endDate}
+                    onChange={(e) =>
+                      setSelectedTrip({ ...selectedTrip, endDate: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-green-200 py-2 px-3"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-black/70">
+                  Packing Lists
+                </label>
+                <div className="mt-2 flex flex-col gap-2">
+                  {selectedTrip.packingLists && selectedTrip.packingLists.length > 0 ? (
+                    selectedTrip.packingLists.map((list) => (
+                      <div
+                        key={list.id}
+                        className="flex items-center justify-between text-green-600"
+                      >
+                        <span>
+                          {list.title} ({list.itemsCount})
+                        </span>
+                        <button
+                          className="text-red-500 hover:text-red-600"
+                          onClick={() => {
+                            setSelectedTrip({
+                              ...selectedTrip,
+                              packingLists: selectedTrip.packingLists!.filter(
+                                (p) => p.id !== list.id
+                              ),
+                            });
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-black/50 py-3">
+                      No packing lists
+                      <button
+                        onClick={() => handleGeneratePackingList(selectedTrip)}
+                        className="mt-3 w-full rounded-xl bg-green-500 text-white py-2 font-semibold hover:bg-green-600 transition animate-pulse"
+                      >
+                        ➕ Generate Smart Packing List
+                      </button>
                     </div>
-                    <p className="text-sm text-emerald-600 mt-1 font-medium">{trip.startDate} → {trip.endDate}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <button
+                  onClick={() => setOpenDrawer(false)}
+                  className="rounded-xl border px-4 py-2"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => setOpenDrawer(false)}
+                  className="rounded-xl bg-green-500 text-white px-4 py-2 font-semibold hover:bg-green-600"
+                >
+                  Save
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Create Trip Modal */}
+      <AnimatePresence>
+        {openCreateModal && (
+          <motion.div
+            className="fixed inset-0 z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div
+              className="absolute inset-0 bg-black/30"
+              onClick={() => setOpenCreateModal(false)}
+            />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 120, damping: 18 }}
+              className="absolute right-0 top-0 h-full w-full sm:w-[420px] bg-white border-l border-green-200 p-5 overflow-y-auto"
+            >
+              <h3 className="text-lg font-semibold mb-4">Create New Trip</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-black/70">Name</label>
+                  <input
+                    type="text"
+                    value={newTrip.name}
+                    onChange={(e) =>
+                      setNewTrip({ ...newTrip, name: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-green-200 py-2 px-3"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-black/70">
+                    Destination
+                  </label>
+                  <input
+                    type="text"
+                    value={newTrip.destination}
+                    onChange={(e) =>
+                      setNewTrip({ ...newTrip, destination: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-green-200 py-2 px-3"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-black/70">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={newTrip.startDate}
+                      onChange={(e) =>
+                        setNewTrip({ ...newTrip, startDate: e.target.value })
+                      }
+                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                    />
                   </div>
+                  <div>
+                    <label className="text-sm font-medium text-black/70">
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={newTrip.endDate}
+                      onChange={(e) =>
+                        setNewTrip({ ...newTrip, endDate: e.target.value })
+                      }
+                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-4">
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDeleteTrip(trip.id); }}
-                    className="text-red-500 hover:text-red-600 transition"
+                    onClick={() => setOpenCreateModal(false)}
+                    className="rounded-xl border px-4 py-2"
                   >
-                    <Trash2 size={18} />
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateTrip}
+                    className="rounded-xl bg-green-500 text-white px-4 py-2 font-semibold hover:bg-green-600"
+                  >
+                    Create
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                {trip.packingLists && trip.packingLists.length > 0 && (
-                  <div className="mt-4 flex flex-col gap-2">
-                    <span className="text-sm font-semibold text-gray-700">Packing Lists:</span>
-                    {trip.packingLists.map((list) => (
-                      <div key={list.id} className="flex items-center gap-2 text-sm text-emerald-600">
-                        <Leaf size={16} /> <span>{list.title} ({list.itemsCount} items)</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-20 text-center text-gray-500">
-          <img src="/empty-state.svg" alt="No trips" className="w-40 mb-6 opacity-80" />
-          <p className="text-lg font-medium">No trips found</p>
-          <p className="text-sm mt-1">Create your first trip to start organizing packing lists.</p>
-        </div>
-      )}
-
-      {/* Pagination */}
-<div className="flex justify-center items-center mt-8 gap-2 flex-wrap">
-  <button
-    onClick={() => goToPage(1)}
-    disabled={currentPage === 1}
-    className="px-3 py-1 rounded-xl border shadow hover:bg-gray-100 disabled:opacity-50"
-  >
-    {"<<"} First
-  </button>
-  <button
-    onClick={() => goToPage(currentPage - 1)}
-    disabled={currentPage === 1}
-    className="px-3 py-1 rounded-xl border shadow hover:bg-gray-100 disabled:opacity-50"
-  >
-    {"<"} Prev
-  </button>
-
-  {/* Page numbers with ellipsis */}
-  {Array.from({ length: totalPages }, (_, i) => i + 1)
-    .filter((page) =>
-      page === 1 ||
-      page === totalPages ||
-      Math.abs(page - currentPage) <= 1
-    )
-    .map((page, index, arr) => {
-      const prev = arr[index - 1];
-      return (
-        <span key={page}>
-          {prev && page - prev > 1 && <span className="px-2">...</span>}
-          <button
-            onClick={() => goToPage(page)}
-            className={`px-3 py-1 rounded-xl border shadow hover:bg-emerald-50 ${
-              currentPage === page ? "bg-emerald-100 font-medium" : ""
-            }`}
+      {/* Generate Packing List Prompt (after create) */}
+      <AnimatePresence>
+        {showGeneratePrompt && selectedTrip && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
-            {page}
-          </button>
-        </span>
-      );
-    })}
-
-  <button
-    onClick={() => goToPage(currentPage + 1)}
-    disabled={currentPage === totalPages}
-    className="px-3 py-1 rounded-xl border shadow hover:bg-gray-100 disabled:opacity-50"
-  >
-    Next {">"}
-  </button>
-  <button
-    onClick={() => goToPage(totalPages)}
-    disabled={currentPage === totalPages}
-    className="px-3 py-1 rounded-xl border shadow hover:bg-gray-100 disabled:opacity-50"
-  >
-    Last {">>"}
-  </button>
-</div>
-
+            <div
+              className="absolute inset-0 bg-black/30"
+              onClick={() => setShowGeneratePrompt(false)}
+            />
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 120, damping: 14 }}
+              className="relative bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-sm text-center"
+            >
+              <h3 className="text-xl font-bold text-black mb-3">
+                🎉 {selectedTrip.name} Created!
+              </h3>
+              <p className="text-black/70 mb-4">
+                Would you like to generate a packing list now?
+              </p>
+              <div className="flex justify-center gap-3">
+                <button
+                  onClick={() => handleGeneratePackingList(selectedTrip)}
+                  className="rounded-xl bg-green-500 text-white px-5 py-2 font-semibold hover:bg-green-600"
+                >
+                  Generate Now
+                </button>
+                <button
+                  onClick={() => setShowGeneratePrompt(false)}
+                  className="rounded-xl border px-5 py-2"
+                >
+                  Skip
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

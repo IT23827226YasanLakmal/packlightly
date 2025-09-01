@@ -1,45 +1,45 @@
 "use client";
-import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Edit2, Trash2, Star } from "lucide-react";
 
-export type EcoItem = {
+import { motion, AnimatePresence } from "framer-motion";
+import { User, UserPlus, Trash2, Edit2 } from "lucide-react";
+import React from "react";
+
+export type UserItem = {
   id: string;
   name: string;
-  category: string;
-  eco: number; // 1-5
-  price: number;
-  stock: number;
-  status: "active" | "archived";
+  email: string;
+  role: "admin" | "editor" | "viewer";
+  status: "active" | "inactive";
 };
 
-const initialEcoItems: EcoItem[] = [
-  { id: "1", name: "Bamboo Toothbrush", category: "Toiletries", eco: 5, price: 3.5, stock: 320, status: "active" },
-  { id: "2", name: "Recycled Travel Bag", category: "Bags", eco: 4, price: 49.0, stock: 58, status: "active" },
-  { id: "3", name: "Steel Water Bottle", category: "Bottles", eco: 5, price: 18.0, stock: 210, status: "active" },
-  { id: "4", name: "Hemp T-Shirt", category: "Clothing", eco: 4, price: 24.0, stock: 90, status: "archived" },
+const initialUsers: UserItem[] = [
+  { id: "1", name: "Alice Green", email: "alice@ecoapp.com", role: "admin", status: "active" },
+  { id: "2", name: "Bob Brown", email: "bob@ecoapp.com", role: "editor", status: "active" },
+  { id: "3", name: "Charlie White", email: "charlie@ecoapp.com", role: "viewer", status: "inactive" },
 ];
 
-export default function AdminEcoInventoryPage() {
-  const [items, setItems] = React.useState<EcoItem[]>(initialEcoItems);
+export default function AdminUserManagementPage() {
+  const [users, setUsers] = React.useState<UserItem[]>(initialUsers);
   const [query, setQuery] = React.useState("");
-  const [editing, setEditing] = React.useState<EcoItem | null>(null);
+  const [editing, setEditing] = React.useState<UserItem | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const [confirmDelete, setConfirmDelete] = React.useState<EcoItem | null>(null);
+  const [confirmDelete, setConfirmDelete] = React.useState<UserItem | null>(null);
 
-  const filteredItems = items.filter(
-    (i) => i.name.toLowerCase().includes(query.toLowerCase()) || i.category.toLowerCase().includes(query.toLowerCase())
+  const filteredUsers = users.filter(
+    (u) =>
+      u.name.toLowerCase().includes(query.toLowerCase()) ||
+      u.email.toLowerCase().includes(query.toLowerCase())
   );
 
-  function saveItem(item: EcoItem) {
-    setItems((prev) => {
-      const exists = prev.some((p) => p.id === item.id);
-      return exists ? prev.map((p) => (p.id === item.id ? item : p)) : [{ ...item, id: String(Date.now()) }, ...prev];
+  function saveUser(user: UserItem) {
+    setUsers((prev) => {
+      const exists = prev.some((u) => u.id === user.id);
+      return exists ? prev.map((u) => (u.id === user.id ? user : u)) : [{ ...user, id: String(Date.now()) }, ...prev];
     });
   }
 
-  function deleteItem(id: string) {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  function deleteUser(id: string) {
+    setUsers((prev) => prev.filter((u) => u.id !== id));
     setConfirmDelete(null);
   }
 
@@ -52,10 +52,10 @@ export default function AdminEcoInventoryPage() {
         className="rounded-3xl bg-gradient-to-br from-black/70 via-emerald-900/60 to-emerald-950/70 border border-green-700/40 p-6 shadow-xl backdrop-blur-xl flex items-center justify-between"
       >
         <div className="flex items-center gap-3">
-          <Star className="w-8 h-8 text-emerald-400" />
+          <User className="w-8 h-8 text-emerald-400" />
           <div>
-            <h1 className="text-2xl font-bold text-white">Eco Inventory</h1>
-            <p className="text-green-300 text-sm">Manage products, eco ratings & stock</p>
+            <h1 className="text-2xl font-bold text-white">User Management</h1>
+            <p className="text-green-300 text-sm">View, edit, or remove users from your platform</p>
           </div>
         </div>
         <button
@@ -65,7 +65,7 @@ export default function AdminEcoInventoryPage() {
           }}
           className="rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-4 py-2 font-semibold flex items-center gap-2 hover:from-emerald-700 hover:to-emerald-800 transition"
         >
-          <Plus className="w-5 h-5" /> Add Item
+          <UserPlus className="w-5 h-5" /> Add User
         </button>
       </motion.div>
 
@@ -73,65 +73,54 @@ export default function AdminEcoInventoryPage() {
       <div className="flex items-center gap-3">
         <input
           type="text"
-          placeholder="Search items by name or category..."
+          placeholder="Search users by name or email..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="w-full rounded-2xl border border-green-500/30 bg-black/30 text-white py-2 px-4 outline-none focus:ring-2 focus:ring-emerald-500"
         />
       </div>
 
-      {/* Eco Items Table */}
+      {/* User Table */}
       <div className="rounded-3xl bg-white/20 dark:bg-black/40 backdrop-blur-xl border border-green-700/30 overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead className="border-b border-green-600/40">
             <tr>
-              <th className="py-3 px-4 text-green-300">Product</th>
-              <th className="py-3 px-4 text-green-300">Category</th>
-              <th className="py-3 px-4 text-green-300">Eco</th>
-              <th className="py-3 px-4 text-green-300">Price</th>
-              <th className="py-3 px-4 text-green-300">Stock</th>
+              <th className="py-3 px-4 text-green-300">Name</th>
+              <th className="py-3 px-4 text-green-300">Email</th>
+              <th className="py-3 px-4 text-green-300">Role</th>
               <th className="py-3 px-4 text-green-300">Status</th>
               <th className="py-3 px-4 text-green-300 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             <AnimatePresence initial={false}>
-              {filteredItems.map((item) => (
+              {filteredUsers.map((user) => (
                 <motion.tr
-                  key={item.id}
+                  key={user.id}
                   layout
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   className="border-b border-green-500/20 hover:bg-emerald-900/20 transition"
                 >
-                  <td className="py-3 px-4 font-medium text-white">{item.name}</td>
-                  <td className="py-3 px-4 text-green-200">{item.category}</td>
-                  <td className="py-3 px-4 flex gap-1">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-4 h-4 ${i < item.eco ? "fill-emerald-500 text-emerald-500" : "text-green-500/30"}`}
-                      />
-                    ))}
-                  </td>
-                  <td className="py-3 px-4 text-green-200">${item.price.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-green-200">{item.stock}</td>
+                  <td className="py-3 px-4 font-medium text-white">{user.name}</td>
+                  <td className="py-3 px-4 text-green-200">{user.email}</td>
+                  <td className="py-3 px-4 capitalize text-green-300">{user.role}</td>
                   <td className="py-3 px-4">
                     <span
                       className={`px-2 py-1 rounded-full text-xs ${
-                        item.status === "active"
+                        user.status === "active"
                           ? "bg-emerald-600/30 text-emerald-400"
                           : "bg-red-600/20 text-red-400"
                       }`}
                     >
-                      {item.status}
+                      {user.status}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right flex justify-end gap-2">
                     <button
                       onClick={() => {
-                        setEditing(item);
+                        setEditing(user);
                         setDrawerOpen(true);
                       }}
                       className="rounded-lg border border-green-500/30 px-2 py-1 hover:bg-emerald-900/30"
@@ -139,7 +128,7 @@ export default function AdminEcoInventoryPage() {
                       <Edit2 className="w-4 h-4 text-green-300" />
                     </button>
                     <button
-                      onClick={() => setConfirmDelete(item)}
+                      onClick={() => setConfirmDelete(user)}
                       className="rounded-lg border border-red-500/30 px-2 py-1 hover:bg-red-900/30"
                     >
                       <Trash2 className="w-4 h-4 text-red-400" />
@@ -152,10 +141,15 @@ export default function AdminEcoInventoryPage() {
         </table>
       </div>
 
-      {/* Drawer for Add/Edit Eco Item */}
+      {/* Drawer for Add/Edit User */}
       <AnimatePresence>
         {drawerOpen && (
-          <motion.div className="fixed inset-0 z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.div
+            className="fixed inset-0 z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
             <div className="absolute inset-0 bg-black/30" onClick={() => setDrawerOpen(false)} />
             <motion.div
               initial={{ x: "100%" }}
@@ -164,11 +158,11 @@ export default function AdminEcoInventoryPage() {
               transition={{ type: "spring", stiffness: 120, damping: 18 }}
               className="absolute right-0 top-0 h-full w-full sm:w-[420px] bg-black/90 border-l border-green-700/30 p-5 overflow-y-auto rounded-l-3xl"
             >
-              <h3 className="text-lg font-semibold text-white mb-2">{editing ? "Edit" : "Add"} Product</h3>
+              <h3 className="text-lg font-semibold text-white mb-2">{editing ? "Edit" : "Add"} User</h3>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (editing) saveItem(editing);
+                  if (editing) saveUser({ ...editing });
                   setDrawerOpen(false);
                 }}
                 className="space-y-3"
@@ -184,51 +178,26 @@ export default function AdminEcoInventoryPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-green-300">Category</label>
-                  <select
-                    value={editing?.category || "Bags"}
-                    onChange={(e) => editing && setEditing({ ...editing, category: e.target.value })}
+                  <label className="text-sm text-green-300">Email</label>
+                  <input
+                    type="email"
+                    value={editing?.email || ""}
+                    onChange={(e) => editing && setEditing({ ...editing, email: e.target.value })}
                     className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    {["Bags", "Bottles", "Toiletries", "Clothing", "Accessories"].map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </select>
+                    required
+                  />
                 </div>
                 <div>
-                  <label className="text-sm text-green-300">Eco Rating</label>
+                  <label className="text-sm text-green-300">Role</label>
                   <select
-                    value={editing?.eco || 3}
-                    onChange={(e) => editing && setEditing({ ...editing, eco: Number(e.target.value) })}
+                    value={editing?.role || "viewer"}
+                    onChange={(e) => editing && setEditing({ ...editing, role: e.target.value as any })}
                     className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
                   >
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
+                    <option value="admin">Admin</option>
+                    <option value="editor">Editor</option>
+                    <option value="viewer">Viewer</option>
                   </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm text-green-300">Price ($)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editing?.price || 0}
-                      onChange={(e) => editing && setEditing({ ...editing, price: parseFloat(e.target.value) })}
-                      className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-green-300">Stock</label>
-                    <input
-                      type="number"
-                      value={editing?.stock || 0}
-                      onChange={(e) => editing && setEditing({ ...editing, stock: parseInt(e.target.value) || 0 })}
-                      className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
                 </div>
                 <div>
                   <label className="text-sm text-green-300">Status</label>
@@ -238,14 +207,17 @@ export default function AdminEcoInventoryPage() {
                     className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     <option value="active">Active</option>
-                    <option value="archived">Archived</option>
+                    <option value="inactive">Inactive</option>
                   </select>
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button type="button" onClick={() => setDrawerOpen(false)} className="rounded-xl border px-4 py-2 text-white">
                     Cancel
                   </button>
-                  <button type="submit" className="rounded-xl bg-emerald-600 text-white px-4 py-2 font-semibold hover:bg-emerald-700">
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-emerald-600 text-white px-4 py-2 font-semibold hover:bg-emerald-700"
+                  >
                     Save
                   </button>
                 </div>
@@ -266,14 +238,16 @@ export default function AdminEcoInventoryPage() {
               exit={{ scale: 0.95, opacity: 0 }}
               className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92%] sm:w-[420px] rounded-2xl bg-black/90 border border-green-700/30 p-5"
             >
-              <h4 className="text-lg font-semibold text-white">Delete Product</h4>
-              <p className="text-green-300 mt-1">Are you sure you want to delete "{confirmDelete.name}"?</p>
+              <h4 className="text-lg font-semibold text-white">Delete User</h4>
+              <p className="text-green-300 mt-1">
+                Are you sure you want to delete "{confirmDelete.name}"?
+              </p>
               <div className="flex justify-end gap-2 mt-4">
                 <button onClick={() => setConfirmDelete(null)} className="rounded-xl border px-4 py-2 text-white">
                   Cancel
                 </button>
                 <button
-                  onClick={() => deleteItem(confirmDelete.id)}
+                  onClick={() => deleteUser(confirmDelete.id)}
                   className="rounded-xl bg-red-600 text-white px-4 py-2 font-semibold hover:bg-red-700"
                 >
                   Delete

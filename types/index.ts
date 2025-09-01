@@ -1,7 +1,5 @@
-// types/index.ts
 import { Types } from "mongoose";
-
-// Weather Condition Types
+// types/index.ts
 
 // Weather Interface
 export interface Weather {
@@ -38,31 +36,35 @@ export type CategoryItems = {
 
 // Trip Interface
 export interface Trip {
-  _id: Types.ObjectId;
-  title: string;
-  destination: string;
-  description: string;
-  startDate: Date;
-  endDate: Date;
-  durationDays: number;
+  _id?: string;
   ownerUid: string;
+  title: string;
+  name: string;
+  type: "Solo" | "Couple" | "Family" | "Group";
+  destination: string;
+  startDate: string;
+  endDate: string;
+  durationDays: number;
+  passengers: {
+    adults: number;
+    children: number;
+    total: number;
+  };
+  budget: number;
   weather: Weather;
+  packingLists?: Array<{ id: string; title: string; itemsCount: number }>;
 }
-
 // Packing List Interface
 export interface PackingList {
-  _id?: Types.ObjectId;
+  _id?: {type: Types.ObjectId, required:false};
   tripId?: Types.ObjectId;
   ownerUid: string;
   title: string;
   categories: {
-    name: "Clothing" | "Essentials" | "Toiletries" | "Electronics";
+    name: 'Clothing' | 'Toiletries' | 'Electronics' | 'Documents' | 'Miscellaneous';
     items: Item[];
-    _id: Types.ObjectId;
   }[];
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+} 
 
 // Store Types
 export interface ChecklistStore {
