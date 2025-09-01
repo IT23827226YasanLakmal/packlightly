@@ -1,5 +1,3 @@
-import React from "react";
-
 const filters = ["Category", "Eco Rating"];
 
 export default function FilterBar() {
