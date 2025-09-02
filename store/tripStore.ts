@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { fetcherWithToken } from '@/utils/fetcher';
+import { fetcherWithToken, fetcherWithTokenConfig } from '@/utils/fetcher';
 import { Trip } from '@/types'; // You should create proper types
 
 interface TripStore {
@@ -9,9 +9,24 @@ interface TripStore {
   error: string | null;
   fetchTrips: () => Promise<void>;
   setSelectedTripId: (id: string) => void;
+  createTrip: (trip: Partial<Trip>) => Promise<void>;
 }
 
 export const useTripStore = create<TripStore>((set) => ({
+  createTrip: async (trip) => {
+    set({ loading: true, error: null });
+    try {
+      await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/trips`, {
+        method: 'POST',
+        body: JSON.stringify(trip),
+      });
+      // Fetch updated trips list
+      const data = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/trips`);
+      set({ trips: data, loading: false });
+    } catch {
+      set({ error: 'Failed to create trip', loading: false });
+    }
+  },
   trips: [],
   selectedTripId: '',
   loading: false,

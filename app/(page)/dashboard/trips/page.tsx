@@ -64,16 +64,8 @@ export default function AllTripsTable() {
   };
 
   // CREATE TRIP
-  const handleCreateTrip = () => {
-    const createdTrip: Trip = {
-      ...newTrip,
-      _id: String(Date.now()),
-    };
-
-    useTripStore.setState({
-      trips: [createdTrip, ...trips],
-    });
-
+  const handleCreateTrip = async () => {
+    await useTripStore.getState().createTrip(newTrip);
     setNewTrip({
       ownerUid: "",
       title: "",
@@ -88,7 +80,7 @@ export default function AllTripsTable() {
         location: "",
         tempRange: "",
         description: "",
-        condition: "",
+        condition: "Sunny",
         highTemp: "",
         lowTemp: "",
         wind: "",
@@ -96,9 +88,7 @@ export default function AllTripsTable() {
         chanceRain: "",
       },
     });
-
     setOpenCreateModal(false);
-    setSelectedTrip(createdTrip);
     setShowGeneratePrompt(true);
   };
 
@@ -344,7 +334,7 @@ export default function AllTripsTable() {
                     className="w-full rounded-xl border border-green-200 py-2 px-3"
                   />
                 </div>
-                  
+
                 <div>
                   <label className="text-sm font-medium text-black/70">Type</label>
                   <select
