@@ -21,7 +21,6 @@ export default function AllTripsTable() {
   const [newTrip, setNewTrip] = useState<Trip>({
     ownerUid: "",
     title: "",
-    name: "",
     type: "Solo",
     destination: "",
     startDate: new Date().toISOString().slice(0, 10),
@@ -78,7 +77,6 @@ export default function AllTripsTable() {
     setNewTrip({
       ownerUid: "",
       title: "",
-      name: "",
       type: "Solo",
       destination: "",
       startDate: new Date().toISOString().slice(0, 10),
@@ -338,57 +336,110 @@ export default function AllTripsTable() {
               <h3 className="text-lg font-semibold mb-4">Create New Trip</h3>
               <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium text-black/70">Name</label>
+                  <label className="text-sm font-medium text-black/70">Title</label>
                   <input
                     type="text"
-                    value={newTrip.name}
-                    onChange={(e) =>
-                      setNewTrip({ ...newTrip, name: e.target.value })
-                    }
+                    value={newTrip.title}
+                    onChange={(e) => setNewTrip({ ...newTrip, title: e.target.value })}
                     className="w-full rounded-xl border border-green-200 py-2 px-3"
                   />
                 </div>
+                  
                 <div>
-                  <label className="text-sm font-medium text-black/70">
-                    Destination
-                  </label>
+                  <label className="text-sm font-medium text-black/70">Type</label>
+                  <select
+                    value={newTrip.type}
+                    onChange={(e) => setNewTrip({ ...newTrip, type: e.target.value as Trip["type"] })}
+                    className="w-full rounded-xl border border-green-200 py-2 px-3"
+                  >
+                    <option value="Solo">Solo</option>
+                    <option value="Couple">Couple</option>
+                    <option value="Family">Family</option>
+                    <option value="Group">Group</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-black/70">Destination</label>
                   <input
                     type="text"
                     value={newTrip.destination}
-                    onChange={(e) =>
-                      setNewTrip({ ...newTrip, destination: e.target.value })
-                    }
+                    onChange={(e) => setNewTrip({ ...newTrip, destination: e.target.value })}
                     className="w-full rounded-xl border border-green-200 py-2 px-3"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm font-medium text-black/70">
-                      Start Date
-                    </label>
+                    <label className="text-sm font-medium text-black/70">Start Date</label>
                     <input
                       type="date"
                       value={newTrip.startDate}
-                      onChange={(e) =>
-                        setNewTrip({ ...newTrip, startDate: e.target.value })
-                      }
+                      onChange={(e) => setNewTrip({ ...newTrip, startDate: e.target.value })}
                       className="w-full rounded-xl border border-green-200 py-2 px-3"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-black/70">
-                      End Date
-                    </label>
+                    <label className="text-sm font-medium text-black/70">End Date</label>
                     <input
                       type="date"
                       value={newTrip.endDate}
-                      onChange={(e) =>
-                        setNewTrip({ ...newTrip, endDate: e.target.value })
-                      }
+                      onChange={(e) => setNewTrip({ ...newTrip, endDate: e.target.value })}
                       className="w-full rounded-xl border border-green-200 py-2 px-3"
                     />
                   </div>
                 </div>
+                <div>
+                  <label className="text-sm font-medium text-black/70">Duration (days)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={newTrip.durationDays}
+                    onChange={(e) => setNewTrip({ ...newTrip, durationDays: Number(e.target.value) })}
+                    className="w-full rounded-xl border border-green-200 py-2 px-3"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-black/70">Adults</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={newTrip.passengers.adults}
+                      onChange={(e) => setNewTrip({ ...newTrip, passengers: { ...newTrip.passengers, adults: Number(e.target.value) } })}
+                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-black/70">Children</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={newTrip.passengers.children}
+                      onChange={(e) => setNewTrip({ ...newTrip, passengers: { ...newTrip.passengers, children: Number(e.target.value) } })}
+                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-black/70">Total</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={newTrip.passengers.total}
+                      onChange={(e) => setNewTrip({ ...newTrip, passengers: { ...newTrip.passengers, total: Number(e.target.value) } })}
+                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-black/70">Budget</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={newTrip.budget}
+                    onChange={(e) => setNewTrip({ ...newTrip, budget: Number(e.target.value) })}
+                    className="w-full rounded-xl border border-green-200 py-2 px-3"
+                  />
+                </div>
+                {/* Weather fields removed as requested */}
                 <div className="flex justify-end gap-2 pt-4">
                   <button
                     onClick={() => setOpenCreateModal(false)}
@@ -430,7 +481,7 @@ export default function AllTripsTable() {
               className="relative bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-sm text-center"
             >
               <h3 className="text-xl font-bold text-black mb-3">
-                🎉 {selectedTrip.name} Created!
+                🎉 {selectedTrip.title} Created!
               </h3>
               <p className="text-black/70 mb-4">
                 Would you like to generate a packing list now?

@@ -18,7 +18,16 @@ export const useTripStore = create<TripStore>((set) => ({
   error: null,
   
   fetchTrips: async () => {
-    set({ loading: true, error: null });
+    set((state) => {
+      // If trips already loaded, skip fetch
+      if (state.trips && state.trips.length > 0) {
+        return { loading: false };
+      }
+      return { loading: true, error: null };
+    });
+    // Only fetch if not cached
+    const current = useTripStore.getState();
+    if (current.trips && current.trips.length > 0) return;
     try {
       const data = await fetcherWithToken('http://localhost:5000/api/trips');
       set({ trips: data, loading: false });

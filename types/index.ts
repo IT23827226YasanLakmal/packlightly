@@ -39,7 +39,6 @@ export interface Trip {
   _id?: string;
   ownerUid: string;
   title: string;
-  name: string;
   type: "Solo" | "Couple" | "Family" | "Group";
   destination: string;
   startDate: string;
