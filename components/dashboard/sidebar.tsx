@@ -1,5 +1,6 @@
-'use client';
-import React, { useState } from "react";
+'use client'
+
+import { useState } from "react";
 import {
   List,
   ChevronLeft,
@@ -23,7 +24,13 @@ export const Sidebar = () => {
     setExpandedMenus((prev) => ({ ...prev, [path]: !prev[path] }));
   };
 
-  const menuItems = [
+  type MenuItemType = {
+    label: string;
+    path: string;
+    icon: React.ReactNode;
+    children?: Array<{ label: string; path: string }>;
+  };
+  const menuItems: MenuItemType[] = [
     {label: "Trips",path: "/dashboard/trips",icon: <Plane size={24} />},
     { label: "Packing Lists", path: "/dashboard/packinglists", icon:<List size={24} /> },
     { label: "Smart Packing", path: "/dashboard/smart-packing", icon:<Sparkles size={24} /> },

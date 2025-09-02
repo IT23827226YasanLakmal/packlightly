@@ -57,7 +57,7 @@ export interface Trip {
 // Packing List Interface
 export interface PackingList {
   _id?: {type: Types.ObjectId, required:false};
-  tripId?: Types.ObjectId;
+  tripId?: string | Types.ObjectId;
   ownerUid: string;
   title: string;
   categories: {

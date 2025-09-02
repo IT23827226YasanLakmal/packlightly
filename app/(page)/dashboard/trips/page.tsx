@@ -4,17 +4,17 @@ import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Trash2, Leaf, MapPin, Plus } from "lucide-react";
 import { useTripStore } from "@/store/tripStore";
-import { usePackingListStore } from "@/store/packingListStore";
+import { usePackingListStore } from "@/store/packingListStore"; 
 
 import { Trip } from '@/types/index';
 
 export default function AllTripsTable() {
-  const { trips, loading, selectedTripId, error, fetchTrips, setSelectedTripId } = useTripStore();
+  const {trips, loading, error, fetchTrips, setSelectedTripId } = useTripStore();
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false);
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [showGeneratePrompt, setShowGeneratePrompt] = useState(false);
-  const { packingLists, fetchPackingLists, addPackingList } = usePackingListStore();
+  const {packingLists, fetchPackingLists, addPackingList,  } = usePackingListStore();
 
 
 
@@ -40,7 +40,6 @@ export default function AllTripsTable() {
       humidity: "",
       chanceRain: "",
     },
-    packingLists: [],
   });
 
   useEffect(() => {
@@ -48,10 +47,8 @@ export default function AllTripsTable() {
   }, [fetchTrips]);
 
     useEffect(() => {
-    if (selectedTripId) {
-      fetchPackingLists(selectedTripId).catch(console.error);
-    }
-  }, [selectedTripId, fetchPackingLists]);
+      fetchPackingLists().catch(console.error);
+    }, [fetchPackingLists]);
 
 
   // DELETE TRIP
@@ -100,7 +97,6 @@ export default function AllTripsTable() {
         humidity: "",
         chanceRain: "",
       },
-      packingLists: [],
     });
 
     setOpenCreateModal(false);
@@ -108,12 +104,20 @@ export default function AllTripsTable() {
     setShowGeneratePrompt(true);
   };
 
-  const handleGeneratePackingList = (trip: Trip) => {
-  addPackingList(trip._id?.toString() || "", "Smart Packing List");
-
-  // Refresh local state
-  fetchPackingLists(trip._id?.toString() || "").catch(console.error);
-
+  const handleGeneratePackingList = () => {
+  if (!selectedTrip) return;
+  addPackingList({
+    tripId: selectedTrip._id,
+    ownerUid: selectedTrip.ownerUid,
+    title: "Smart Packing List",
+    categories: [
+      { name: "Clothing", items: [] },
+      { name: "Toiletries", items: [] },
+      { name: "Electronics", items: [] },
+      { name: "Documents", items: [] },
+      { name: "Miscellaneous", items: [] },
+    ],
+  });
   setShowGeneratePrompt(false);
 };
 
@@ -181,7 +185,7 @@ export default function AllTripsTable() {
                   <td className="px-4 py-3">
                     <button
                       onClick={(e) => {
-                        e.stopPropagation();
+                        e.stopPropagation();   
                         handleDeleteTrip(trip._id ? trip._id.toString() : "");
                       }}
                       className="text-red-500 hover:text-red-600 transition"
@@ -282,7 +286,7 @@ export default function AllTripsTable() {
                     <div className="text-center text-black/50 py-3">
                       No packing lists
                       <button
-                        onClick={() => handleGeneratePackingList(selectedTrip)}
+                        onClick={() => handleGeneratePackingList()}
                         className="mt-3 w-full rounded-xl bg-green-500 text-white py-2 font-semibold hover:bg-green-600 transition animate-pulse"
                       >
                         ➕ Generate Smart Packing List
@@ -433,7 +437,7 @@ export default function AllTripsTable() {
               </p>
               <div className="flex justify-center gap-3">
                 <button
-                  onClick={() => handleGeneratePackingList(selectedTrip)}
+                  onClick={() => handleGeneratePackingList()}
                   className="rounded-xl bg-green-500 text-white px-5 py-2 font-semibold hover:bg-green-600"
                 >
                   Generate Now
