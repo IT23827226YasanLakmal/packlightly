@@ -6,15 +6,21 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
 } from "firebase/auth";
-import { auth, db } from "../../../lib/firebaseClient"; // 👈 db must be exported in firebaseClient
-import {
-  doc,
-  getDoc,
-  setDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import axios from "axios";
+import { auth } from "@/lib/firebaseClient";
+import axios, { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
+
+// Type guard for AxiosError with message
+function isAxiosErrorWithMessage(error: unknown): error is AxiosError<{ message: string }> {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "isAxiosError" in error &&
+    (error as AxiosError).isAxiosError === true &&
+    !!(error as AxiosError<{ message: string }> ).response &&
+    typeof (error as AxiosError<{ message: string }> ).response?.data?.message === "string"
+  );
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -23,45 +29,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // 🔹 Helper: fetch role or create new user in Firestore
-  const fetchOrCreateUserRole = async (uid: string, email: string) => {
-    const ref = doc(db, "users", uid);
-    const snap = await getDoc(ref);
-
-    if (snap.exists()) {
-      return snap.data().role || "user";
-    } else {
-      await setDoc(ref, {
-        email,
-        role: "user", // default role
-        createdAt: serverTimestamp(),
-      });
-      return "user";
-    }
-  };
-
-  // 🔹 Helper: redirect by role
-  const redirectByRole = (role: string) => {
-    if (role === "admin") router.push("/admin");
-    else router.push("/dashboard/trips");
-  };
-
-  // 🔹 Email/password login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await userCredential.user.getIdToken();
 
-      // optional: sync with backend
-      await axios.post(
-        "https://localhost:5000/api/auth/profile",
+      // Fetch user profile from backend
+      const { data } = await axios.post(
+        "http://localhost:5000/api/auth/profile",
         { email },
         {
           headers: {
@@ -70,21 +48,25 @@ export default function LoginPage() {
         }
       );
 
-      // Get role and redirect
-      const role = await fetchOrCreateUserRole(
-        userCredential.user.uid,
-        userCredential.user.email || email
-      );
-      redirectByRole(role);
+      // Check if user is admin
+      if (data.role !== "admin") {
+        setErrorMsg("Access denied: Admins only.");
+        setLoading(false);
+        return;
+      }
+
+      // Redirect after login success
+      router.push("/admin/dashboard");
     } catch (error: unknown) {
-      if (error instanceof Error) setErrorMsg(error.message);
+      if (isAxiosErrorWithMessage(error)) {
+        setErrorMsg((error as AxiosError<{ message: string }> ).response!.data.message);
+      } else if (error instanceof Error) setErrorMsg(error.message);
       else setErrorMsg("Login failed");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔹 Google login
   const handleGoogleSignIn = async () => {
     setErrorMsg(null);
     setLoading(true);
@@ -92,23 +74,46 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
       const idToken = await userCredential.user.getIdToken();
-      console.log("Google ID Token:", idToken);
-
-      // Get role and redirect
-      const role = await fetchOrCreateUserRole(
-        userCredential.user.uid,
-        userCredential.user.email || ""
+      // Fetch user profile from backend
+      const { data } = await axios.post(
+        "http://localhost:5000/api/auth/profile",
+        { email: userCredential.user.email },
+        {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
       );
-      redirectByRole(role);
+      if (data.role !== "admin") {
+        setErrorMsg("Access denied: Admins only.");
+        setLoading(false);
+        return;
+      }
+      // Redirect after Google login success
+      router.push("/admin/dashboard");
     } catch (error: unknown) {
-      if (error instanceof Error) setErrorMsg(error.message);
+      if (isAxiosErrorWithMessage(error)) {
+        setErrorMsg((error as AxiosError<{ message: string }> ).response!.data.message);
+      } else if (error instanceof Error) setErrorMsg(error.message);
       else setErrorMsg("Google sign-in failed");
     } finally {
       setLoading(false);
     }
+
+// Type guard for AxiosError with message
+function isAxiosErrorWithMessage(error: unknown): error is AxiosError<{ message: string }> {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "isAxiosError" in error &&
+    (error as AxiosError).isAxiosError === true &&
+    !!(error as AxiosError<{ message: string }> ).response &&
+    typeof (error as AxiosError<{ message: string }> ).response?.data?.message === "string"
+  );
+}
   };
 
-  // Handlers for inputs
+
   const onEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
     if (errorMsg) setErrorMsg(null);
@@ -148,14 +153,20 @@ export default function LoginPage() {
             type="submit"
             disabled={loading}
             className={`bg-green-600 text-white rounded-xl py-3 font-bold text-lg shadow-md transition-colors
-              ${
-                loading
-                  ? "cursor-not-allowed bg-green-400"
-                  : "hover:bg-green-700"
-              }
+              ${loading ? "cursor-not-allowed bg-green-400" : "hover:bg-green-700"}
             `}
           >
-            {loading ? "Logging in..." : "Login"}
+            {loading ? (
+              <span className="flex items-center gap-2 justify-center">
+                <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Logging in...
+              </span>
+            ) : (
+              "Login"
+            )}
           </button>
         </form>
 
@@ -166,36 +177,12 @@ export default function LoginPage() {
           disabled={loading}
           aria-label="Sign in with Google"
           className={`flex justify-center items-center gap-3 rounded-xl border-2 border-green-600 py-3 text-green-600 font-semibold text-base transition-colors
-            ${
-              loading
-                ? "cursor-not-allowed opacity-60"
-                : "hover:bg-green-100 hover:border-green-700 hover:text-green-700"
-            }
+            ${loading ? "cursor-not-allowed opacity-60" : "hover:bg-green-100 hover:border-green-700 hover:text-green-700"}
           `}
           type="button"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="30"
-            height="30"
-            viewBox="0 0 48 48"
-          >
-            <path
-              fill="#FFC107"
-              d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
-            ></path>
-            <path
-              fill="#FF3D00"
-              d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"
-            ></path>
-            <path
-              fill="#4CAF50"
-              d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"
-            ></path>
-            <path
-              fill="#1976D2"
-              d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"
-            ></path>
+          <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="30" height="30" viewBox="0 0 48 48">
+            <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path>
           </svg>
           Sign in with Google
         </button>
@@ -213,7 +200,6 @@ export default function LoginPage() {
   );
 }
 
-// 🔹 Input component
 function InputField({
   type,
   placeholder,
@@ -232,9 +218,8 @@ function InputField({
   return (
     <label
       htmlFor={name}
-      className={`relative block w-full cursor-text ${
-        disabled ? "cursor-not-allowed" : ""
-      }`}
+      className={`relative block w-full cursor-text ${disabled ? "cursor-not-allowed" : ""
+        }`}
     >
       <input
         id={name}
@@ -261,7 +246,6 @@ function InputField({
   );
 }
 
-// 🔹 Divider
 function Divider() {
   return (
     <div
