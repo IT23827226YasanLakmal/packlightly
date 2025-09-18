@@ -45,7 +45,7 @@ export default function AllTripsTable() {
     fetchTrips().catch(console.error);
   }, [fetchTrips]);
 
-    useEffect(() => {
+  useEffect(() => {
       fetchPackingLists().catch(console.error);
     }, [fetchPackingLists]);
 

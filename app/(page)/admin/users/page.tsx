@@ -25,12 +25,12 @@ export default function Page() {
   }, [fetchUsers]);
 
   // Filtering: displayName, email, role
-  const filteredUsers = users.filter(
-    (u) =>
-      (u.displayName && u.displayName.toLowerCase().includes(query.toLowerCase())) ||
-      u.email.toLowerCase().includes(query.toLowerCase()) ||
-      (u.role && u.role.toLowerCase().includes(query.toLowerCase()))
-  );
+    const filteredUsers = users.filter(
+      (u) =>
+        (u.displayName && u.displayName.toLowerCase().includes(query.toLowerCase())) ||
+        u.email.toLowerCase().includes(query.toLowerCase()) ||
+        (u.role && u.role.toLowerCase().includes(query.toLowerCase()))
+    );
 
   // CRUD handlers using zustand store
   async function saveUser(user: UserItem) {
