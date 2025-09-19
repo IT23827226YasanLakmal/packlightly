@@ -64,6 +64,16 @@ export interface PackingList {
     items: Item[];
   }[];
 } 
+export interface Product {
+  _id?: {type: Types.ObjectId, required:false};
+  name: string;
+  category: string;
+  eco: number; // 1-5
+  description: string;
+  availableLocation: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 // Store Types
 export interface ChecklistStore {
