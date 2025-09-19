@@ -6,7 +6,7 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
 } from "firebase/auth";
-import { auth, db } from "../../../lib/firebaseClient"; // 👈 db must be exported in firebaseClient
+import { auth, db } from "@/lib/firebaseClient"; // 👈 db must be exported in firebaseClient
 import {
   doc,
   getDoc,
@@ -58,7 +58,7 @@ export default function LoginPage() {
         password
       );
       const idToken = await userCredential.user.getIdToken();
-
+      
       // optional: sync with backend
       await axios.post(
         "https://localhost:5000/api/auth/profile",

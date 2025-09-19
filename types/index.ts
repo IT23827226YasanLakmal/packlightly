@@ -1,6 +1,18 @@
 import { Types } from "mongoose";
 // types/index.ts
 
+export interface NewsArticle {
+  _id?: string; // <-- change from { type: ObjectId, required: false }
+  title: string;
+  link: string;
+  description: string;
+  pubDate: string;
+  source_id: string;
+  image?: string;
+  content?: string;
+}
+
+
 // Weather Interface
 export interface Weather {
   location: string;
