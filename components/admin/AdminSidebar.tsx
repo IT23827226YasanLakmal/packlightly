@@ -10,6 +10,7 @@ export default function AdminSidebar() {
     { label: "Inventory", icon: Package, href: "/admin/eco-inventory" },
     { label: "News", icon: Newspaper, href: "/admin/news" },
     { label: "Users", icon: User, href: "/admin/users" },
+    { label: "Reports", icon: User, href: "/admin/reports" },
     { label: "Settings", icon: Settings, href: "/admin/settings" },
   ];
 
