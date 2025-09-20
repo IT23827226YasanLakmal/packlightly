@@ -1,5 +1,23 @@
 import { Types } from "mongoose";
-// types/index.ts
+
+export interface Comment {
+  id: number;          // Unique comment ID
+  user: string;        // Name or username of commenter
+  text: string;        // Comment content
+  createdAt?: string;  // Optional timestamp
+}
+
+export interface Post {
+  _id?: string;             // MongoDB ObjectId as string
+  ownerId: string;         // User ID of the post owner
+  title: string;           // Post title
+  description: string;     // Post content
+  tags: string[];          // List of tags
+  status: "Draft" | "Published"; // Post status
+  date: string;            // Creation date (ISO string)
+  imageUrl?: string;       // Optional image URL
+  comments: Comment[];     // List of comments
+}
 
 export interface NewsArticle {
   _id?: string; // <-- change from { type: ObjectId, required: false }

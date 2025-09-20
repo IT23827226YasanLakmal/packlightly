@@ -3,10 +3,13 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Edit2, Heart, MessageCircle, X, Bold, Italic, Underline, Heading2, List, Quote, Image, Eye } from "lucide-react";
-import { usePostStore, Post, Comment } from "@/store/postStore"; // import your post store
+import { usePostStore} from "@/store/postStore"; // import your post store
+import { useCurrentUser } from "@/lib/useCurrentUser";
+import { Post, Comment } from "@/types";
 
 export default function MyPostsPage() {
-const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loading, error } = usePostStore();
+  const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loading, error } = usePostStore();
+  const user = useCurrentUser();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const [currentPage, setCurrentPage] = useState(1);
@@ -16,16 +19,16 @@ const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loadi
   const [modalOpen, setModalOpen] = useState(false);
 
   // Comments state
-  const [expandedPosts, setExpandedPosts] = useState<number[]>([]);
-  const [commentsData, setCommentsData] = useState<Record<number, Comment[]>>({});
+  const [expandedPosts, setExpandedPosts] = useState<string[]>([]);
+  const [commentsData, setCommentsData] = useState<Record<string, Comment[]>>({});
 
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
 
-  const handleDeletePost = async (id: number) => {
-    await deletePost(id);
-    setExpandedPosts(prev => prev.filter(pid => pid !== id));
+  const handleDeletePost = async (_id: string) => {
+    await deletePost(_id);
+    setExpandedPosts(prev => prev.filter(pid => pid !== _id));
   };
 
   const filteredPosts = posts
@@ -46,7 +49,8 @@ const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loadi
   const openModal = (post?: Post) => {
     setModalPost(
       post ?? {
-        id: 0,
+        _id: undefined,
+        ownerId: user?.uid || "",
         title: "",
         description: "",
         tags: [],
@@ -60,16 +64,20 @@ const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loadi
   };
 
   const savePost = async (post: Post) => {
-    if (post.id && post.id !== 0) {
-      await updatePost(post.id, post);
+    if (post._id) {
+      await updatePost(post._id, post);
     } else {
-      await createPost(post);
+      if (!user) {
+        alert("You must be logged in to create a post.");
+        return;
+      }
+      await createPost({ ...post, ownerId: user.uid });
     }
     setModalOpen(false);
   };
 
-  const toggleComments = (id: number) =>
-    setExpandedPosts(prev => prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]);
+  const toggleComments = (_id: string) =>
+    setExpandedPosts(prev => prev.includes(_id) ? prev.filter(pid => pid !== _id) : [...prev, _id]);
 
   
 
@@ -106,7 +114,7 @@ const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loadi
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence>
               {paginatedPosts.map(post => (
-                <motion.div key={post.id} initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -25 }} layout className="flex flex-col justify-between backdrop-blur-xl rounded-3xl border border-green-700/40 shadow-xl hover:shadow-emerald-800/50 transition">
+                <motion.div key={post._id} initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -25 }} layout className="flex flex-col justify-between backdrop-blur-xl rounded-3xl border border-green-700/40 shadow-xl hover:shadow-emerald-800/50 transition">
                   {post.imageUrl && <img src={post.imageUrl} alt={post.title} className="rounded-t-3xl h-40 w-full object-cover" />}
                   <div className="p-5 flex flex-col flex-1">
                     <h2 className="text-lg font-semibold text-black">{post.title}</h2>
@@ -117,22 +125,21 @@ const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loadi
                     <div className="flex justify-between items-center mt-5">
                       <div className="flex gap-2">
                         <button onClick={() => openModal(post)} className="p-2 rounded-full hover:bg-green-900/30 text-black transition"><Edit2 size={18} /></button>
-                        <button onClick={() => handleDeletePost(post.id)} className="p-2 rounded-full hover:bg-red-900/30 text-red-400 transition"><Trash2 size={18} /></button>
+                        <button onClick={() => handleDeletePost(post._id!)} className="p-2 rounded-full hover:bg-red-900/30 text-red-400 transition"><Trash2 size={18} /></button>
                       </div>
                       <div className="flex gap-4 items-center">
                         <div className="flex items-center gap-1 text-emerald-400 font-medium"><Heart size={16} /> {post.comments.length}</div>
-                        <div onClick={() => toggleComments(post.id)} className="flex items-center gap-1 text-emerald-400 font-medium cursor-pointer">
+                        <div onClick={() => toggleComments(post._id!)} className="flex items-center gap-1 text-emerald-400 font-medium cursor-pointer">
                          <MessageCircle size={16} /> {post.comments.length}
-
-</div>
+                        </div>
                       </div>
                     </div>
 
                     {/* Expandable Comments */}
                     <AnimatePresence>
-                      {expandedPosts.includes(post.id) && (
+                      {expandedPosts.includes(post._id!) && (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-4 border-t border-green-700/20 pt-3">
-                          {(commentsData[post.id] || []).map(comment => (
+                          {(commentsData[post._id!] || []).map(comment => (
                             <div key={comment.id} className="flex flex-col gap-1 mb-3 bg-black/30 p-3 rounded-xl shadow-inner">
                               <span className="text-xs font-medium text-green-300">{comment.user} <span className="text-gray-500 text-[10px]">1d ago</span></span>
                               <p className="text-sm text-green-200">{comment.text}</p>
@@ -146,7 +153,7 @@ const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loadi
                               className="flex-1 px-3 py-2 rounded-xl border border-green-500/30 focus:ring-2 focus:ring-green-400 outline-none bg-black/20 text-white"
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
-                                  usePostStore.getState().addComment(post.id, (e.target as HTMLInputElement).value);
+                                  usePostStore.getState().addComment(post._id!, (e.target as HTMLInputElement).value);
                                 }
                               }}
                             />
@@ -154,7 +161,7 @@ const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loadi
                               className="px-4 py-2 bg-emerald-600 text-black rounded-xl shadow hover:bg-emerald-700 transition"
                               onClick={(e) => {
                                 const input = (e.currentTarget.previousSibling as HTMLInputElement);
-                                addComment(post.id, input.value);
+                                addComment(post._id!, input.value);
                                 input.value = "";
                               }}
                             >
@@ -197,27 +204,33 @@ const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loadi
 // ========================
 // Modal Component
 // ========================
-function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post | null; onClose: () => void; onSave: (post: Post) => void }) {
+// Inside MyPostsPage.tsx (replace the old PostModal)
+function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post | null; onClose: () => void; onSave: (post: Post, imageFile?: File) => void }) {
   const [title, setTitle] = useState(post?.title || "");
   const [content, setContent] = useState(post?.description || "");
   const [tags, setTags] = useState(post?.tags.join(", ") || "");
-  const [image, setImage] = useState<string | null>(post?.imageUrl || null);
   const [preview, setPreview] = useState(false);
   const [status, setStatus] = useState<"Draft" | "Published">(post?.status || "Draft");
+
+  const [image, setImage] = useState<string | null>(post?.imageUrl || null); // For preview
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null); // For upload
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setTitle(post?.title || "");
     setContent(post?.description || "");
     setTags(post?.tags.join(", ") || "");
-    setImage(post?.imageUrl || null);
     setStatus(post?.status || "Draft");
+    setImage(post?.imageUrl || null);
+    setSelectedImageFile(null);
   }, [post]);
 
   const applyFormat = (format: string) => setContent(prev => prev + format);
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setImage(reader.result as string);
       reader.readAsDataURL(file);
@@ -226,24 +239,35 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
 
   const handleSubmit = () => {
     if (!post) return;
-    onSave({ ...post, title, description: content, tags: tags.split(",").map(t => t.trim()), imageUrl: image ? image : post.imageUrl, status });
+    onSave(
+      {
+        ...post,
+        title,
+        description: content,
+        tags: tags.split(",").map(t => t.trim()),
+        status,
+      },
+      selectedImageFile || undefined
+    );
+    onClose();
   };
 
   return (
     <AnimatePresence>
       {open && post && (
-        <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <motion.div initial={{ y: 50, opacity: 0, scale: 0.95 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 50, opacity: 0, scale: 0.95 }} transition={{ duration: 0.35, ease: "easeInOut" }} className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-green-700/30">
+        <motion.div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.div initial={{ y: 50, opacity: 0, scale: 0.95 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 50, opacity: 0, scale: 0.95 }} transition={{ duration: 0.35, ease: "easeInOut" }} className="w-full max-w-3xl bg-black/80 rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-green-700/30">
+            
             {/* Header */}
             <div className="flex justify-between items-center p-5 border-b border-green-700/30">
-              <h2 className="text-xl font-bold text-black">{post.id ? "✍️ Edit Post" : "✍️ Create New Post"}</h2>
+              <h2 className="text-xl font-bold text-white">{post._id ? "✍️ Edit Post" : "✍️ Create New Post"}</h2>
               <motion.button onClick={onClose} whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }} className="p-1 rounded-full hover:bg-red-900/30 transition">
                 <X className="w-6 h-6 text-red-500" />
               </motion.button>
             </div>
 
             {/* Title */}
-            <input type="text" placeholder="Post Title..." value={title} onChange={e => setTitle(e.target.value)} className="px-5 py-3 text-lg font-semibold text-black placeholder-green-300 border-b border-green-700/30 focus:ring-2 focus:ring-emerald-500 outline-none transition" />
+            <input type="text" placeholder="Post Title..." value={title} onChange={e => setTitle(e.target.value)} className="px-5 py-3 text-lg font-semibold text-white placeholder-green-300 border-b border-green-700/30 focus:ring-2 focus:ring-emerald-500 outline-none transition" />
 
             {/* Toolbar */}
             {!preview && (
@@ -261,24 +285,24 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
                   ];
                   return (
                     <motion.button key={i} onClick={actions[i]} whileHover={{ scale: 1.2, rotate: 10 }} whileTap={{ scale: 0.9, rotate: 0 }} className="p-2 bg-green-900/30 rounded-lg shadow hover:bg-green-700/50 transition">
-                      <Icon className="w-5 h-5 text-black" />
+                      <Icon className="w-5 h-5 text-white" />
                     </motion.button>
                   );
                 })}
-                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
+                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
               </motion.div>
             )}
 
             {/* Editor / Preview */}
             <div className="p-5 overflow-y-auto max-h-[400px]">
               {preview ? (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} className="prose max-w-none text-black">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} className="prose max-w-none text-white">
                   <h2>{title}</h2>
                   {image && <img src={image} alt="uploaded" className="rounded-xl my-4 shadow-lg" />}
                   <p>{content}</p>
                 </motion.div>
               ) : (
-                <textarea value={content} onChange={e => setContent(e.target.value)} className="w-full h-[300px] resize-none p-4 text-black rounded-xl border border-green-700/30 focus:ring-2 focus:ring-emerald-500 outline-none shadow-inner transition placeholder-green-300" placeholder="Write your post..." />
+                <textarea value={content} onChange={e => setContent(e.target.value)} className="w-full h-[300px] resize-none p-4 text-white rounded-xl border border-green-700/30 focus:ring-2 focus:ring-emerald-500 outline-none shadow-inner transition placeholder-green-300" placeholder="Write your post..." />
               )}
               {image && !preview && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4"><img src={image} alt="preview" className="rounded-xl max-h-60 shadow-lg" /></motion.div>}
             </div>
@@ -286,8 +310,8 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
             {/* Footer */}
             <div className="flex justify-between items-center p-5 border-t border-green-700/30">
               <span className="text-sm text-green-400">💡 Drafts are auto-saved</span>
-              <motion.button onClick={handleSubmit} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-black px-6 py-2 rounded-2xl font-semibold shadow-lg hover:shadow-emerald-400 transition">
-                {post.id ? "Save Changes" : "Publish"}
+              <motion.button onClick={handleSubmit} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-6 py-2 rounded-2xl font-semibold shadow-lg hover:shadow-emerald-400 transition">
+                {post._id ? "Save Changes" : "Publish"}
               </motion.button>
             </div>
           </motion.div>
