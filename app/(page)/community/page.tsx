@@ -4,50 +4,32 @@ import { motion, AnimatePresence } from "framer-motion";
 import Header from "../../../components/Header";
 import TrendingCard from "../../../components/community/TrendingCard";
 import PostListItem from "../../../components/community/PostListItem";
-import CreatePostModal from "@/components/community/CreatePostModal";
+import { usePostStore } from "@/store/postStore";
+
+// Define a type for trending/reading posts
+interface CommunityPostSection {
+  section: string;
+  body: string;
+}
+interface CommunityPost {
+  title: string;
+  description: string;
+  imageUrl: string;
+  content: CommunityPostSection[];
+}
 
 export default function Page() {
-  const [readingPost, setReadingPost] = useState<any | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [readingPost, setReadingPost] = useState<CommunityPost | null>(null);
+  const { posts, fetchPosts, loading, error } = usePostStore();
 
-  const trendingPosts = [
-    {
-      title: "Sustainable Travel Tips for Southeast Asia",
-      description:
-        "Share your best practices for minimizing your environmental impact while exploring the region.",
-      imageUrl: "https://picsum.photos/id/1011/600/400",
-      content: [
-        {
-          section: "🌱 Introduction",
-          body: "Eco-friendly travel means making mindful choices that reduce negative impact.",
-        },
-        {
-          section: "🚲 Transport",
-          body: "Consider trains, buses, biking, or walking over flights where possible.",
-        },
-        {
-          section: "🏨 Stay",
-          body: "Choose eco-certified hotels and support local communities.",
-        },
-      ],
-    },
-    {
-      title: "Packing Light for a Month-Long Trip",
-      description:
-        "What are your go-to items and strategies for traveling light without sacrificing essentials?",
-      imageUrl: "https://picsum.photos/id/1015/600/400",
-      content: [
-        {
-          section: "🎒 Essentials",
-          body: "Carry versatile clothing that can be layered and reused.",
-        },
-        {
-          section: "🧼 Toiletries",
-          body: "Use eco-friendly, compact, and refillable products.",
-        },
-      ],
-    },
-  ];
+  React.useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
+
+  // Trending posts: top 2 by likeCount (fallback to 0 if undefined)
+  const trendingPosts = [...posts]
+    .sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0))
+    .slice(0, 2);
 
   return (
     <>
@@ -72,16 +54,6 @@ export default function Page() {
                   Ask questions, share tips, and connect with fellow eco-conscious travelers.
                 </p>
               </div>
-
-              <motion.button
-                whileHover={{ scale: 1.08 }}
-                whileTap={{ scale: 0.92 }}
-                onClick={() => setCreateOpen(true)}
-                className="self-center flex min-w-[140px] h-12 cursor-pointer items-center justify-center rounded-2xl px-6 
-                bg-white text-green-600 text-sm font-bold shadow-lg hover:shadow-green-200 transition relative z-10"
-              >
-                ➕ Create Post
-              </motion.button>
             </motion.div>
 
             {/* Trending Posts */}
@@ -89,15 +61,34 @@ export default function Page() {
               🔥 Trending Posts
             </h3>
 
+            {loading && <p className="text-green-500 px-4 py-2">Loading posts...</p>}
+            {error && <p className="text-red-500 px-4 py-2">{error}</p>}
+
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
               className="grid md:grid-cols-2 gap-6 p-4"
             >
+              {trendingPosts.length === 0 && !loading && (
+                <p className="text-gray-500 col-span-2">No trending posts yet.</p>
+              )}
               {trendingPosts.map((post, i) => (
-                <div key={i} onClick={() => setReadingPost(post)} className="cursor-pointer">
-                  <TrendingCard {...post} />
+                <div key={post._id || i} onClick={() => setReadingPost({
+                  title: post.title,
+                  description: post.description,
+                  imageUrl: post.imageUrl || '',
+                  content: [
+                    { section: 'Description', body: post.description },
+                    // You can add more sections if you want
+                  ],
+                })} className="cursor-pointer">
+                  <TrendingCard
+                    title={post.title}
+                    description={post.description}
+                    imageUrl={post.imageUrl}
+                  />
+                  <div className="text-xs text-green-700 font-semibold mt-2">👍 {post.likeCount ?? 0} likes</div>
                 </div>
               ))}
             </motion.div>
@@ -107,23 +98,25 @@ export default function Page() {
               🆕 Recent Posts
             </h3>
 
+            {loading && <p className="text-green-500 px-4 py-2">Loading posts...</p>}
+            {error && <p className="text-red-500 px-4 py-2">{error}</p>}
+
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.4 }}
               className="divide-y divide-gray-100"
             >
-              {[
-                { title: "Best Eco-Friendly Gear for Hiking?", time: "3 days ago", author: "@ecoTraveler22" },
-                { title: "Tips for Reducing Plastic Waste on the Road?", time: "1 week ago", author: "@WanderlustJess" },
-                { title: "Favorite Sustainable Travel Destinations?", time: "2 weeks ago", author: "@GreenAdventurer" },
-                { title: "How to Offset Your Carbon Footprint While Traveling?", time: "3 weeks ago", author: "@EarthLover88" },
-              ].map((post, i) => (
+              {posts.map((post, i) => (
                 <div
-                  key={i}
+                  key={post._id || i}
                   className="flex gap-4 px-4 py-4 hover:bg-green-100/60 rounded-xl transition cursor-pointer"
                 >
-                  <PostListItem {...post} />
+                  <PostListItem
+                    title={post.title}
+                    time={new Date(post.date).toLocaleDateString()}
+                    author={post.ownerId || "Unknown"}
+                  />
                 </div>
               ))}
             </motion.div>
@@ -200,9 +193,9 @@ export default function Page() {
             >
               <h2 className="text-2xl font-bold mb-4">{readingPost.title}</h2>
               <p className="text-gray-600 mb-6">{readingPost.description}</p>
-              <img src={readingPost.imageUrl} alt="" className="rounded-xl mb-6" />
+              <img src={readingPost.imageUrl} alt="" className="rounded-xl mb-6" /> {/* TODO: Replace with <Image> for Next.js best practices */}
               <div className="space-y-4">
-                {readingPost.content.map((section: any, i: number) => (
+                {readingPost.content.map((section, i) => (
                   <details
                     key={i}
                     className="bg-green-50 rounded-xl p-4 cursor-pointer group"
@@ -217,11 +210,6 @@ export default function Page() {
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
-
-      {/* Create Post Modal */}
-      <AnimatePresence>
-        <CreatePostModal open={createOpen} onClose={() => setCreateOpen(false)} />
       </AnimatePresence>
     </>
   );

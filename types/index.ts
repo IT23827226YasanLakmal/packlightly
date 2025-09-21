@@ -17,6 +17,7 @@ export interface Post {
   date: string;            // Creation date (ISO string)
   imageUrl?: string;       // Optional image URL
   comments: Comment[];     // List of comments
+  likeCount?: number;      // Number of likes
 }
 
 export interface NewsArticle {
