@@ -1,9 +1,13 @@
 "use client";
 import React from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CalendarDays, ArrowLeft, ArrowRight } from "lucide-react";
+
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { useNewsStore } from "@/store/newsStore";
+import Image from "next/image";
 
 export type NewsItem = {
   id: string;
@@ -14,40 +18,31 @@ export type NewsItem = {
   image: string;
 };
 
-const seed: NewsItem[] = [
-  {
-    id: "n1",
-    title: "Eco-friendly travel tips for 2025",
-    publishedAt: "2025-08-12",
-    category: "Packing Tips",
-    snippet: "Learn how to travel sustainably without compromising comfort...",
-    image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80"
-  },
-  {
-    id: "n2",
-    title: "New carbon-neutral courier partnerships",
-    publishedAt: "2025-08-20",
-    category: "Sustainable Transport",
-    snippet: "Companies are joining forces to reduce carbon emissions during deliveries...",
-    image: "https://images.unsplash.com/photo-1517638851339-4bb56c69db68?auto=format&fit=crop&w=800&q=80"
-  },
-  {
-    id: "n3",
-    title: "Top eco hotels to visit this year",
-    publishedAt: "2025-08-22",
-    category: "Eco Hotels",
-    snippet: "Discover hotels that prioritize sustainability and environmental care...",
-    image: "https://images.unsplash.com/photo-1501117716987-c8e1e70f1226?auto=format&fit=crop&w=800&q=80"
-  },
-];
+
 
 const categories = ["All", "Packing Tips", "Sustainable Transport", "Eco Hotels", "Travel Policies"];
 
+
 export default function EcoTravelNews() {
-  const [items] = React.useState<NewsItem[]>(seed);
-  const [selected, setSelected] = React.useState<NewsItem | null>(null);
-  const [activeCategory, setActiveCategory] = React.useState("All");
-  const [carouselIndex, setCarouselIndex] = React.useState(0);
+  const { news, loading, error, fetchNews } = useNewsStore();
+  const [selected, setSelected] = useState<NewsItem | null>(null);
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [carouselIndex, setCarouselIndex] = useState(0);
+
+  useEffect(() => {
+    fetchNews();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Map news from store to NewsItem type for UI
+  const items: NewsItem[] = (news || []).map((n) => ({
+    id: n._id || Math.random().toString(36).substr(2, 9),
+    title: n.title,
+    publishedAt: n.pubDate,
+    category: n.source_id || "General",
+    snippet: n.description,
+    image: n.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
+  }));
 
   const filteredItems = activeCategory === "All" ? items : items.filter(n => n.category === activeCategory);
 
@@ -57,10 +52,13 @@ export default function EcoTravelNews() {
 
       {/* Hero Section */}
       <div className="relative w-full h-[50vh] flex items-center justify-center text-center overflow-hidden rounded-b-3xl shadow-lg">
-        <img
+        <Image
           src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80"
           alt="Eco Travel"
+          fill
           className="absolute inset-0 w-full h-full object-cover opacity-40"
+          style={{ objectFit: "cover", opacity: 0.4 }}
+          priority
         />
         <motion.div
           initial={{ y: 20, opacity: 0 }}
@@ -94,40 +92,52 @@ export default function EcoTravelNews() {
 
       {/* Trending Carousel */}
       <div className="relative w-full max-w-6xl mx-auto overflow-hidden rounded-2xl">
-        <motion.div
-          key={carouselIndex}
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -50 }}
-          className="w-full flex justify-center"
-        >
-          <div
-            className="relative w-full h-64 md:h-80 rounded-2xl shadow-lg cursor-pointer overflow-hidden"
-            onClick={() => setSelected(filteredItems[carouselIndex])}
-          >
-            <img
-              src={filteredItems[carouselIndex]?.image}
-              alt={filteredItems[carouselIndex]?.title}
-              className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-            />
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent text-white">
-              <h2 className="text-xl md:text-2xl font-bold">{filteredItems[carouselIndex]?.title}</h2>
-              <p className="text-sm md:text-base">{filteredItems[carouselIndex]?.snippet}</p>
-            </div>
-          </div>
-        </motion.div>
-        <button
-          onClick={() => setCarouselIndex((carouselIndex - 1 + filteredItems.length) % filteredItems.length)}
-          className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/50 p-2 rounded-full shadow hover:bg-white/70 transition"
-        >
-          <ArrowLeft className="w-6 h-6 text-green-700" />
-        </button>
-        <button
-          onClick={() => setCarouselIndex((carouselIndex + 1) % filteredItems.length)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/50 p-2 rounded-full shadow hover:bg-white/70 transition"
-        >
-          <ArrowRight className="w-6 h-6 text-green-700" />
-        </button>
+        {loading ? (
+          <div className="w-full h-64 flex items-center justify-center text-emerald-700 text-xl font-semibold">Loading news...</div>
+        ) : filteredItems.length === 0 ? (
+          <div className="w-full h-64 flex items-center justify-center text-emerald-700 text-xl font-semibold">No news found.</div>
+        ) : (
+          <>
+            <motion.div
+              key={carouselIndex}
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              className="w-full flex justify-center"
+            >
+              <div
+                className="relative w-full h-64 md:h-80 rounded-2xl shadow-lg cursor-pointer overflow-hidden"
+                onClick={() => setSelected(filteredItems[carouselIndex])}
+              >
+                <Image
+                  src={filteredItems[carouselIndex]?.image}
+                  alt={filteredItems[carouselIndex]?.title || "News image"}
+                  fill
+                  className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                  style={{ objectFit: "cover" }}
+                  sizes="(max-width: 768px) 100vw, 800px"
+                  priority={carouselIndex === 0}
+                />
+                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent text-white">
+                  <h2 className="text-xl md:text-2xl font-bold">{filteredItems[carouselIndex]?.title}</h2>
+                  <p className="text-sm md:text-base">{filteredItems[carouselIndex]?.snippet}</p>
+                </div>
+              </div>
+            </motion.div>
+            <button
+              onClick={() => setCarouselIndex((carouselIndex - 1 + filteredItems.length) % filteredItems.length)}
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/50 p-2 rounded-full shadow hover:bg-white/70 transition"
+            >
+              <ArrowLeft className="w-6 h-6 text-green-700" />
+            </button>
+            <button
+              onClick={() => setCarouselIndex((carouselIndex + 1) % filteredItems.length)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/50 p-2 rounded-full shadow hover:bg-white/70 transition"
+            >
+              <ArrowRight className="w-6 h-6 text-green-700" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* News Grid */}
@@ -139,7 +149,7 @@ export default function EcoTravelNews() {
             className="bg-white rounded-3xl shadow-lg overflow-hidden cursor-pointer relative"
             onClick={() => setSelected(n)}
           >
-            <img src={n.image} alt={n.title} className="w-full h-48 object-cover" />
+            <Image src={n.image} alt={n.title} width={600} height={192} className="w-full h-48 object-cover" style={{ objectFit: "cover" }} />
             <div className="p-4 flex flex-col gap-2">
               <span className="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 self-start">{n.category}</span>
               <h3 className="text-lg font-bold text-emerald-900">{n.title}</h3>
@@ -163,7 +173,7 @@ export default function EcoTravelNews() {
               exit={{ y: 20, opacity: 0 }}
               className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] sm:w-[700px] bg-white rounded-3xl shadow-2xl overflow-y-auto max-h-[90vh]"
             >
-              <img src={selected.image} alt={selected.title} className="w-full h-64 object-cover rounded-t-3xl" />
+              <Image src={selected.image} alt={selected.title} width={700} height={256} className="w-full h-64 object-cover rounded-t-3xl" style={{ objectFit: "cover" }} />
               <div className="p-6">
                 <h2 className="text-3xl font-bold text-emerald-900 mb-2">{selected.title}</h2>
                 <p className="text-green-700 text-sm mb-4">{selected.publishedAt} • {selected.category}</p>
