@@ -10,9 +10,38 @@ interface TripStore {
   fetchTrips: () => Promise<void>;
   setSelectedTripId: (id: string) => void;
   createTrip: (trip: Partial<Trip>) => Promise<void>;
+  deleteTrip: (tripId: string) => Promise<void>;
+  updateTrip: (tripId: string, updates: Partial<Trip>) => Promise<void>;
 }
 
-export const useTripStore = create<TripStore>((set) => ({
+export const useTripStore = create<TripStore>((set, get) => ({
+  updateTrip: async (tripId: string, updates: Partial<Trip>) => {
+    set({ loading: true, error: null });
+    try {
+      await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/trips/${tripId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      });
+      // Fetch updated trips list
+      const data = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/trips`);
+      set({ trips: data, loading: false });
+    } catch {
+      set({ error: 'Failed to update trip', loading: false });
+    }
+  },
+  deleteTrip: async (tripId: string) => {
+    set({ loading: true, error: null });
+    try {
+      await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/trips/${tripId}`, {
+        method: 'DELETE',
+      });
+      // Fetch updated trips list
+      const data = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/trips`);
+      set({ trips: data, loading: false });
+    } catch {
+      set({ error: 'Failed to delete trip', loading: false });
+    }
+  },
   createTrip: async (trip) => {
     set({ loading: true, error: null });
     try {
@@ -33,7 +62,7 @@ export const useTripStore = create<TripStore>((set) => ({
   error: null,
   
   fetchTrips: async () => {
-    set((state) => {
+    set((state: TripStore) => {
       // If trips already loaded, skip fetch
       if (state.trips && state.trips.length > 0) {
         return { loading: false };
@@ -46,7 +75,7 @@ export const useTripStore = create<TripStore>((set) => ({
     try {
       const data = await fetcherWithToken('http://localhost:5000/api/trips');
       set({ trips: data, loading: false });
-    } catch (error) {
+    } catch {
       set({ error: 'Failed to fetch trips', loading: false });
     }
   },

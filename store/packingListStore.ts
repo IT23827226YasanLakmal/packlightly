@@ -15,7 +15,9 @@ interface PackingListStore {
   setSelectedPackingListId: (id: string) => void;
   addPackingList: (packingList: Partial<PackingList>) => Promise<void>;
   deletePackingList: (listId: string) => Promise<void>;
+  generatePackingListForTrip: (tripId: string) => Promise<void>;
 }
+
 
 export const usePackingListStore = create<PackingListStore>((set) => ({
   addPackingList: async (packingList) => {
@@ -35,6 +37,27 @@ export const usePackingListStore = create<PackingListStore>((set) => ({
       set({ packingLists: data, loading: false });
     } catch {
       set({ error: 'Failed to add packing list', loading: false });
+    }
+  },
+  generatePackingListForTrip: async (tripId: string) => {
+    set({ loading: true, error: null });
+    try {
+      const token = await getToken();
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/packinglists/${tripId}/ai-generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to generate packing list');
+      const generatedList = await response.json();
+      set((state) => ({
+        packingLists: [...state.packingLists, generatedList],
+        loading: false,
+      }));
+    } catch {
+      set({ error: 'Failed to generate packing list', loading: false });
     }
   },
 
@@ -72,4 +95,5 @@ export const usePackingListStore = create<PackingListStore>((set) => ({
   },
 
   setSelectedPackingListId: (id: string) => set({ selectedPackingListId: id }),
+  
 }));

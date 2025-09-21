@@ -14,7 +14,8 @@ export default function AllTripsTable() {
   const [openDrawer, setOpenDrawer] = useState(false);
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [showGeneratePrompt, setShowGeneratePrompt] = useState(false);
-  const {packingLists, fetchPackingLists, addPackingList,  } = usePackingListStore();
+  const [generatingPackingList, setGeneratingPackingList] = useState(false);
+  const {packingLists, fetchPackingLists, generatePackingListForTrip } = usePackingListStore();
 
 
 
@@ -51,14 +52,11 @@ export default function AllTripsTable() {
 
 
   // DELETE TRIP
-  const handleDeleteTrip = (tripId: string) => {
+  const handleDeleteTrip = async (tripId: string) => {
     const confirmed = confirm("Are you sure you want to delete this trip?");
     if (!confirmed) return;
 
-    // Update store directly
-    useTripStore.setState({
-      trips: trips.filter((trip) => trip._id !== tripId),
-    });
+    await useTripStore.getState().deleteTrip(tripId);
 
     if (selectedTrip?._id === tripId) setSelectedTrip(null);
   };
@@ -92,22 +90,13 @@ export default function AllTripsTable() {
     setShowGeneratePrompt(true);
   };
 
-  const handleGeneratePackingList = () => {
-  if (!selectedTrip) return;
-  addPackingList({
-    tripId: selectedTrip._id,
-    ownerUid: selectedTrip.ownerUid,
-    title: "Smart Packing List",
-    categories: [
-      { name: "Clothing", items: [] },
-      { name: "Toiletries", items: [] },
-      { name: "Electronics", items: [] },
-      { name: "Documents", items: [] },
-      { name: "Miscellaneous", items: [] },
-    ],
-  });
-  setShowGeneratePrompt(false);
-};
+  const handleGeneratePackingList = async () => {
+    if (!selectedTrip || !selectedTrip._id || generatingPackingList) return;
+    setGeneratingPackingList(true);
+    await generatePackingListForTrip(selectedTrip._id.toString());
+    setGeneratingPackingList(false);
+    setShowGeneratePrompt(false);
+  };
 
   if (loading) return <p>Loading trips...</p>;
   if (error) return <p className="text-red-500">{error}</p>;
@@ -160,12 +149,14 @@ export default function AllTripsTable() {
                     {trip.startDate} → {trip.endDate}
                   </td>
                   <td className="px-4 py-3">
-                    {packingLists && packingLists.length > 0 ? (
-                      packingLists.map((list) => (
-                        <div key={list._id?.toString()} className="flex items-center gap-1 text-green-600">
-                          <Leaf size={14} /> {list.title} ({list.categories.reduce((acc, cat) => acc + cat.items.length, 0)})
-                        </div>
-                      ))
+                    {packingLists && packingLists.filter(list => list.tripId?.toString() === trip._id?.toString()).length > 0 ? (
+                      packingLists
+                        .filter(list => list.tripId?.toString() === trip._id?.toString())
+                        .map((list) => (
+                          <div key={list._id?.toString()} className="flex items-center gap-1 text-green-600">
+                            <Leaf size={14} /> {list.title} ({list.categories.reduce((acc, cat) => acc + cat.items.length, 0)})
+                          </div>
+                        ))
                     ) : (
                       <span className="text-black/50">No lists</span>
                     )}
@@ -274,10 +265,11 @@ export default function AllTripsTable() {
                     <div className="text-center text-black/50 py-3">
                       No packing lists
                       <button
-                        onClick={() => handleGeneratePackingList()}
-                        className="mt-3 w-full rounded-xl bg-green-500 text-white py-2 font-semibold hover:bg-green-600 transition animate-pulse"
+                        onClick={handleGeneratePackingList}
+                        className={`mt-3 w-full rounded-xl bg-green-500 text-white py-2 font-semibold transition animate-pulse ${generatingPackingList ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-600'}`}
+                        disabled={generatingPackingList}
                       >
-                        ➕ Generate Smart Packing List
+                        {generatingPackingList ? 'Generating...' : '➕ Generate Smart Packing List'}
                       </button>
                     </div>
                   )}
@@ -478,14 +470,24 @@ export default function AllTripsTable() {
               </p>
               <div className="flex justify-center gap-3">
                 <button
-                  onClick={() => handleGeneratePackingList()}
-                  className="rounded-xl bg-green-500 text-white px-5 py-2 font-semibold hover:bg-green-600"
+                  onClick={handleGeneratePackingList}
+                  className={`rounded-xl bg-green-500 text-white px-5 py-2 font-semibold transition flex items-center justify-center ${generatingPackingList ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-600'}`}
+                  disabled={generatingPackingList}
                 >
-                  Generate Now
+                  {generatingPackingList ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 mr-2 inline-block" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                      </svg>
+                      Generating...
+                    </>
+                  ) : 'Generate Now'}
                 </button>
                 <button
                   onClick={() => setShowGeneratePrompt(false)}
                   className="rounded-xl border px-5 py-2"
+                  disabled={generatingPackingList}
                 >
                   Skip
                 </button>
