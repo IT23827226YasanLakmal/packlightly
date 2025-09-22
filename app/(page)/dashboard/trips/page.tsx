@@ -18,6 +18,27 @@ export default function AllTripsTable() {
   const [generatingPackingList, setGeneratingPackingList] = useState(false);
   const { packingLists, fetchPackingLists, generatePackingListForTrip } = usePackingListStore();
 
+  // Helper function to handle trip type logic
+  const getPassengerConfigForTripType = (tripType: Trip["type"]) => {
+    switch (tripType) {
+      case "Solo":
+        return { adults: 1, children: 0, total: 1, childrenDisabled: true };
+      case "Couple":
+        return { adults: 2, children: 0, total: 2, childrenDisabled: true };
+      case "Family":
+        return { adults: 2, children: 1, total: 3, childrenDisabled: false };
+      case "Group":
+        return { adults: 4, children: 0, total: 4, childrenDisabled: false };
+      default:
+        return { adults: 1, children: 0, total: 1, childrenDisabled: true };
+    }
+  };
+
+  // Helper function to calculate total passengers
+  const calculateTotal = (adults: number, children: number) => {
+    return adults + children;
+  };
+
 
 
   const [newTrip, setNewTrip] = useState<Trip>({
@@ -223,7 +244,19 @@ export default function AllTripsTable() {
                   <label className="text-sm font-medium text-black/70">Type</label>
                   <select
                     value={selectedTrip.type}
-                    onChange={e => setSelectedTrip({ ...selectedTrip, type: e.target.value as Trip["type"] })}
+                    onChange={e => {
+                      const tripType = e.target.value as Trip["type"];
+                      const passengerConfig = getPassengerConfigForTripType(tripType);
+                      setSelectedTrip({ 
+                        ...selectedTrip, 
+                        type: tripType,
+                        passengers: {
+                          adults: passengerConfig.adults,
+                          children: passengerConfig.children,
+                          total: passengerConfig.total
+                        }
+                      });
+                    }}
                     className="w-full rounded-xl border border-green-200 py-2 px-3"
                   >
                     <option value="Solo">Solo</option>
@@ -278,7 +311,18 @@ export default function AllTripsTable() {
                       type="number"
                       min={0}
                       value={selectedTrip.passengers.adults}
-                      onChange={e => setSelectedTrip({ ...selectedTrip, passengers: { ...selectedTrip.passengers, adults: Number(e.target.value) } })}
+                      onChange={e => {
+                        const adults = Number(e.target.value);
+                        const total = calculateTotal(adults, selectedTrip.passengers.children);
+                        setSelectedTrip({ 
+                          ...selectedTrip, 
+                          passengers: { 
+                            ...selectedTrip.passengers, 
+                            adults, 
+                            total 
+                          } 
+                        });
+                      }}
                       className="w-full rounded-xl border border-green-200 py-2 px-3"
                     />
                   </div>
@@ -288,8 +332,20 @@ export default function AllTripsTable() {
                       type="number"
                       min={0}
                       value={selectedTrip.passengers.children}
-                      onChange={e => setSelectedTrip({ ...selectedTrip, passengers: { ...selectedTrip.passengers, children: Number(e.target.value) } })}
-                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                      onChange={e => {
+                        const children = Number(e.target.value);
+                        const total = calculateTotal(selectedTrip.passengers.adults, children);
+                        setSelectedTrip({ 
+                          ...selectedTrip, 
+                          passengers: { 
+                            ...selectedTrip.passengers, 
+                            children, 
+                            total 
+                          } 
+                        });
+                      }}
+                      disabled={selectedTrip.type === "Solo" || selectedTrip.type === "Couple"}
+                      className="w-full rounded-xl border border-green-200 py-2 px-3 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -298,8 +354,8 @@ export default function AllTripsTable() {
                       type="number"
                       min={1}
                       value={selectedTrip.passengers.total}
-                      onChange={e => setSelectedTrip({ ...selectedTrip, passengers: { ...selectedTrip.passengers, total: Number(e.target.value) } })}
-                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                      readOnly
+                      className="w-full rounded-xl border border-green-200 py-2 px-3 bg-gray-50 cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -406,7 +462,19 @@ export default function AllTripsTable() {
                   <label className="text-sm font-medium text-black/70">Type</label>
                   <select
                     value={newTrip.type}
-                    onChange={(e) => setNewTrip({ ...newTrip, type: e.target.value as Trip["type"] })}
+                    onChange={(e) => {
+                      const tripType = e.target.value as Trip["type"];
+                      const passengerConfig = getPassengerConfigForTripType(tripType);
+                      setNewTrip({ 
+                        ...newTrip, 
+                        type: tripType,
+                        passengers: {
+                          adults: passengerConfig.adults,
+                          children: passengerConfig.children,
+                          total: passengerConfig.total
+                        }
+                      });
+                    }}
                     className="w-full rounded-xl border border-green-200 py-2 px-3"
                   >
                     <option value="Solo">Solo</option>
@@ -461,7 +529,18 @@ export default function AllTripsTable() {
                       type="number"
                       min={0}
                       value={newTrip.passengers.adults}
-                      onChange={(e) => setNewTrip({ ...newTrip, passengers: { ...newTrip.passengers, adults: Number(e.target.value) } })}
+                      onChange={(e) => {
+                        const adults = Number(e.target.value);
+                        const total = calculateTotal(adults, newTrip.passengers.children);
+                        setNewTrip({ 
+                          ...newTrip, 
+                          passengers: { 
+                            ...newTrip.passengers, 
+                            adults, 
+                            total 
+                          } 
+                        });
+                      }}
                       className="w-full rounded-xl border border-green-200 py-2 px-3"
                     />
                   </div>
@@ -471,8 +550,20 @@ export default function AllTripsTable() {
                       type="number"
                       min={0}
                       value={newTrip.passengers.children}
-                      onChange={(e) => setNewTrip({ ...newTrip, passengers: { ...newTrip.passengers, children: Number(e.target.value) } })}
-                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                      onChange={(e) => {
+                        const children = Number(e.target.value);
+                        const total = calculateTotal(newTrip.passengers.adults, children);
+                        setNewTrip({ 
+                          ...newTrip, 
+                          passengers: { 
+                            ...newTrip.passengers, 
+                            children, 
+                            total 
+                          } 
+                        });
+                      }}
+                      disabled={newTrip.type === "Solo" || newTrip.type === "Couple"}
+                      className="w-full rounded-xl border border-green-200 py-2 px-3 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -481,8 +572,8 @@ export default function AllTripsTable() {
                       type="number"
                       min={1}
                       value={newTrip.passengers.total}
-                      onChange={(e) => setNewTrip({ ...newTrip, passengers: { ...newTrip.passengers, total: Number(e.target.value) } })}
-                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                      readOnly
+                      className="w-full rounded-xl border border-green-200 py-2 px-3 bg-gray-50 cursor-not-allowed"
                     />
                   </div>
                 </div>
