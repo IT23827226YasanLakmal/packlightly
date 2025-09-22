@@ -104,11 +104,7 @@ export default function ProductCard({ imageLink, title, rating, ecoRating, descr
                   <p className="text-gray-700 text-sm leading-relaxed">{description}</p>
                 )}
 
-                <button
-                  className="mt-3 w-full rounded-2xl bg-gradient-to-r from-[#4e976b] to-[#76c893] py-3 text-white font-semibold shadow-lg hover:brightness-105 transition-all"
-                >
-                  Add to Cart
-                </button>
+               
               </div>
             </motion.div>
           </motion.div>
