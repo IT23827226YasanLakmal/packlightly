@@ -16,6 +16,16 @@ import { Trip, Item, CategoryItems, PackingList, Category } from '@/types';
  * ----------------------------*/
 const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 
+// Helper function to format dates
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
+
 
 export default function PackingListOverviewPage() {
   console.log('🚀 Smart Packing component rendering');
@@ -264,7 +274,26 @@ export default function PackingListOverviewPage() {
 
 
   /** Loading Check */
-  if (!currentTrip) return <div>Loading trip...</div>;
+  if (!currentTrip) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white/60">
+        <div className="flex flex-col items-center gap-4">
+          {/* Spinner */}
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-green-200 rounded-full animate-pulse"></div>
+            <div className="absolute inset-2 w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          {/* Loading text */}
+          <div className="text-center">
+            <h3 className="text-xl font-bold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
+              Loading Smart Packing
+            </h3>
+            <p className="text-sm text-green-600 mt-1 animate-pulse">Preparing your packing experience...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Debug log for smart categories
   console.log('Smart packing render state:', { 
@@ -296,8 +325,8 @@ export default function PackingListOverviewPage() {
               {trips.find((t: Trip) => t._id?.toString() === selectedTripId)?.title}
             </h1>
             <p className="text-sm text-green-600 mt-1 animate-fadeIn">
-              Destination: {currentTrip.destination} &nbsp;|&nbsp; {currentTrip.startDate} →{' '}
-              {currentTrip.endDate} &nbsp;|&nbsp; {currentTrip.durationDays} days
+              Destination: {currentTrip.destination} &nbsp;|&nbsp; {formatDate(currentTrip.startDate)} →{' '}
+              {formatDate(currentTrip.endDate)} &nbsp;|&nbsp; {currentTrip.durationDays} days
             </p>
           </div>
         </div>

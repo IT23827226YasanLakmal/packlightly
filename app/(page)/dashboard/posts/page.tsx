@@ -126,7 +126,24 @@ export default function MyPostsPage() {
       </div>
 
       {/* Loading / Error */}
-      {loading && <p className="text-green-300">Loading posts...</p>}
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-4">
+            {/* Spinner */}
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-green-200 rounded-full animate-pulse"></div>
+              <div className="absolute inset-2 w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            {/* Loading text */}
+            <div className="text-center">
+              <h3 className="text-xl font-bold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
+                Loading Posts
+              </h3>
+              <p className="text-sm text-green-600 mt-1 animate-pulse">Fetching community content...</p>
+            </div>
+          </div>
+        </div>
+      )}
       {error && <p className="text-red-400">{error}</p>}
 
       {/* Posts Grid */}

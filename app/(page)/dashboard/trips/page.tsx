@@ -8,6 +8,33 @@ import { usePackingListStore } from "@/store/packingListStore";
 
 import { Trip } from '@/types/index';
 
+// Helper function to format dates
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
+
+// Helper function to convert ISO date to input date format (YYYY-MM-DD)
+const formatDateForInput = (dateString: string) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toISOString().split('T')[0];
+};
+
+// Helper function to calculate duration in days between two dates
+const calculateDurationDays = (startDate: string, endDate: string) => {
+  if (!startDate || !endDate) return 0;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffTime = end.getTime() - start.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays > 0 ? diffDays : 0;
+};
+
 export default function AllTripsTable() {
   const { trips, loading, error, fetchTrips, setSelectedTripId, updateTrip } = useTripStore();
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
@@ -127,6 +154,16 @@ export default function AllTripsTable() {
     fetchPackingLists().catch(console.error);
   }, [fetchPackingLists]);
 
+  // Calculate duration when selectedTrip changes
+  useEffect(() => {
+    if (selectedTrip && selectedTrip.startDate && selectedTrip.endDate) {
+      const duration = calculateDurationDays(selectedTrip.startDate, selectedTrip.endDate);
+      if (selectedTrip.durationDays !== duration) {
+        setSelectedTrip(prev => prev ? { ...prev, durationDays: duration } : null);
+      }
+    }
+  }, [selectedTrip]);
+
 
   // DELETE TRIP
   const handleDeleteTrip = async (tripId: string) => {
@@ -183,7 +220,26 @@ export default function AllTripsTable() {
     setShowGeneratePrompt(false);
   };
 
-  if (loading) return <p>Loading trips...</p>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white/60">
+        <div className="flex flex-col items-center gap-4">
+          {/* Spinner */}
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-green-200 rounded-full animate-pulse"></div>
+            <div className="absolute inset-2 w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          {/* Loading text */}
+          <div className="text-center">
+            <h3 className="text-xl font-bold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
+              Loading Trips
+            </h3>
+            <p className="text-sm text-green-600 mt-1 animate-pulse">Please wait while we fetch your data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (error) {
     const err = error as unknown;
     let msg = 'An error occurred';
@@ -238,7 +294,7 @@ export default function AllTripsTable() {
                     <MapPin size={16} /> {trip.destination}
                   </td>
                   <td className="px-4 py-3 text-green-500">
-                    {trip.startDate} → {trip.endDate}
+                    {formatDate(trip.startDate)} → {formatDate(trip.endDate)}
                   </td>
                   <td className="px-4 py-3">
                     {packingLists && packingLists.filter(list => list.tripId?.toString() === trip._id?.toString()).length > 0 ? (
@@ -364,9 +420,15 @@ export default function AllTripsTable() {
                     <label className="text-sm font-medium text-black/70">Start Date *</label>
                     <input
                       type="date"
-                      value={selectedTrip.startDate}
+                      value={formatDateForInput(selectedTrip.startDate)}
                       onChange={e => {
-                        setSelectedTrip({ ...selectedTrip, startDate: e.target.value });
+                        const newStartDate = e.target.value;
+                        const duration = calculateDurationDays(newStartDate, selectedTrip.endDate);
+                        setSelectedTrip({ 
+                          ...selectedTrip, 
+                          startDate: newStartDate,
+                          durationDays: duration
+                        });
                         clearValidationErrors('editTrip', 'startDate');
                       }}
                       className={`w-full rounded-xl border py-2 px-3 ${
@@ -383,9 +445,15 @@ export default function AllTripsTable() {
                     <label className="text-sm font-medium text-black/70">End Date *</label>
                     <input
                       type="date"
-                      value={selectedTrip.endDate}
+                      value={formatDateForInput(selectedTrip.endDate)}
                       onChange={e => {
-                        setSelectedTrip({ ...selectedTrip, endDate: e.target.value });
+                        const newEndDate = e.target.value;
+                        const duration = calculateDurationDays(selectedTrip.startDate, newEndDate);
+                        setSelectedTrip({ 
+                          ...selectedTrip, 
+                          endDate: newEndDate,
+                          durationDays: duration
+                        });
                         clearValidationErrors('editTrip', 'endDate');
                       }}
                       className={`w-full rounded-xl border py-2 px-3 ${
@@ -405,16 +473,9 @@ export default function AllTripsTable() {
                     type="number"
                     min={1}
                     value={selectedTrip.durationDays}
-                    onChange={e => {
-                      setSelectedTrip({ ...selectedTrip, durationDays: Number(e.target.value) });
-                      clearValidationErrors('editTrip', 'durationDays');
-                    }}
-                    className={`w-full rounded-xl border py-2 px-3 ${
-                      validationErrors.editTrip.durationDays 
-                        ? 'border-red-500 focus:ring-red-500' 
-                        : 'border-green-200 focus:ring-green-500'
-                    }`}
-                    placeholder="Enter duration in days"
+                    readOnly
+                    className="w-full rounded-xl border border-green-200 py-2 px-3 bg-gray-50 cursor-not-allowed"
+                    placeholder="Auto-calculated from dates"
                   />
                   {validationErrors.editTrip.durationDays && (
                     <p className="text-red-500 text-xs mt-1">{validationErrors.editTrip.durationDays}</p>
@@ -516,10 +577,18 @@ export default function AllTripsTable() {
                         No packing lists
                         <button
                           onClick={handleGeneratePackingList}
-                          className={`mt-3 w-full rounded-xl bg-green-500 text-white py-2 font-semibold transition animate-pulse ${generatingPackingList ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-600'}`}
+                          className={`mt-3 w-full rounded-xl bg-green-500 text-white py-2 font-semibold transition flex items-center justify-center ${generatingPackingList ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-600'}`}
                           disabled={generatingPackingList}
                         >
-                          {generatingPackingList ? 'Generating...' : '➕ Generate Smart Packing List'}
+                          {generatingPackingList ? (
+                            <>
+                              <svg className="animate-spin h-4 w-4 mr-2 inline-block" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                              </svg>
+                              Generating...
+                            </>
+                          ) : '➕ Generate Smart Packing List'}
                         </button>
                       </div>
                     )}
@@ -553,10 +622,18 @@ export default function AllTripsTable() {
                       clearValidationErrors('editTrip');
                       setOpenDrawer(false);
                     }}
-                    className={`rounded-xl bg-green-500 text-white px-4 py-2 font-semibold transition ${savingTrip ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-600'}`}
+                    className={`rounded-xl bg-green-500 text-white px-4 py-2 font-semibold transition flex items-center justify-center ${savingTrip ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-600'}`}
                     disabled={savingTrip}
                   >
-                    {savingTrip ? 'Saving...' : 'Save'}
+                    {savingTrip ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 mr-2 inline-block" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                        </svg>
+                        Saving...
+                      </>
+                    ) : 'Save'}
                   </button>
                 </div>
               </div>
@@ -660,7 +737,13 @@ export default function AllTripsTable() {
                       type="date"
                       value={newTrip.startDate}
                       onChange={(e) => {
-                        setNewTrip({ ...newTrip, startDate: e.target.value });
+                        const newStartDate = e.target.value;
+                        const duration = calculateDurationDays(newStartDate, newTrip.endDate);
+                        setNewTrip({ 
+                          ...newTrip, 
+                          startDate: newStartDate,
+                          durationDays: duration
+                        });
                         clearValidationErrors('newTrip', 'startDate');
                       }}
                       className={`w-full rounded-xl border py-2 px-3 ${
@@ -679,7 +762,13 @@ export default function AllTripsTable() {
                       type="date"
                       value={newTrip.endDate}
                       onChange={(e) => {
-                        setNewTrip({ ...newTrip, endDate: e.target.value });
+                        const newEndDate = e.target.value;
+                        const duration = calculateDurationDays(newTrip.startDate, newEndDate);
+                        setNewTrip({ 
+                          ...newTrip, 
+                          endDate: newEndDate,
+                          durationDays: duration
+                        });
                         clearValidationErrors('newTrip', 'endDate');
                       }}
                       className={`w-full rounded-xl border py-2 px-3 ${
@@ -699,16 +788,9 @@ export default function AllTripsTable() {
                     type="number"
                     min={1}
                     value={newTrip.durationDays}
-                    onChange={(e) => {
-                      setNewTrip({ ...newTrip, durationDays: Number(e.target.value) });
-                      clearValidationErrors('newTrip', 'durationDays');
-                    }}
-                    className={`w-full rounded-xl border py-2 px-3 ${
-                      validationErrors.newTrip.durationDays 
-                        ? 'border-red-500 focus:ring-red-500' 
-                        : 'border-green-200 focus:ring-green-500'
-                    }`}
-                    placeholder="Enter duration in days"
+                    readOnly
+                    className="w-full rounded-xl border border-green-200 py-2 px-3 bg-gray-50 cursor-not-allowed"
+                    placeholder="Auto-calculated from dates"
                   />
                   {validationErrors.newTrip.durationDays && (
                     <p className="text-red-500 text-xs mt-1">{validationErrors.newTrip.durationDays}</p>

@@ -20,7 +20,7 @@ const getPackingListItemsCount = (list: PackingList) =>
   list.categories.reduce((sum, cat) => sum + cat.items.length, 0);
 
 export default function PackingListsPage() {
-  const { packingLists, fetchPackingLists, deletePackingList } = usePackingListStore();
+  const { packingLists, fetchPackingLists, deletePackingList, loading, error } = usePackingListStore();
   const { trips, fetchTrips } = useTripStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("newest");
@@ -80,6 +80,40 @@ export default function PackingListsPage() {
   const currentTripName = selectedTrip
     ? getTripNameById(selectedTrip)
     : null;
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-green-100">
+        <div className="flex flex-col items-center gap-4">
+          {/* Spinner */}
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-green-200 rounded-full animate-pulse"></div>
+            <div className="absolute inset-2 w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          {/* Loading text */}
+          <div className="text-center">
+            <h3 className="text-xl font-bold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
+              Loading Packing Lists
+            </h3>
+            <p className="text-sm text-green-600 mt-1 animate-pulse">Gathering your organized lists...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-green-100">
+        <div className="text-center">
+          <p className="text-red-500 text-lg font-medium">Error loading packing lists</p>
+          <p className="text-gray-600 mt-2">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-100 p-6">
