@@ -30,7 +30,7 @@ export default function MyPostsPage() {
     await deletePost(_id);
     setExpandedPosts(prev => prev.filter(pid => pid !== _id));
   };
-
+//filter post
   const filteredPosts = posts
     .filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) =>
@@ -38,7 +38,7 @@ export default function MyPostsPage() {
         ? new Date(b.date).getTime() - new Date(a.date).getTime()
         : new Date(a.date).getTime() - new Date(b.date).getTime()
     );
-
+//pagination
   const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
   const paginatedPosts = filteredPosts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const goToPage = (page: number) => {
@@ -145,7 +145,7 @@ export default function MyPostsPage() {
                               <p className="text-sm text-green-200">{comment.text}</p>
                             </div>
                           ))}
-                          {/* Input field */}
+                          {/* add comment Input field */}
                           <div className="flex gap-2 mt-2">
                             <input
                               type="text"
