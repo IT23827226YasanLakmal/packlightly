@@ -9,8 +9,9 @@ import { usePackingListStore } from "@/store/packingListStore";
 import { Trip } from '@/types/index';
 
 export default function AllTripsTable() {
-  const {trips, loading, error, fetchTrips, setSelectedTripId } = useTripStore();
+  const {trips, loading, error, fetchTrips, setSelectedTripId, updateTrip } = useTripStore();
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [savingTrip, setSavingTrip] = useState(false);
   const [openDrawer, setOpenDrawer] = useState(false);
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [showGeneratePrompt, setShowGeneratePrompt] = useState(false);
@@ -200,95 +201,162 @@ export default function AllTripsTable() {
               transition={{ type: "spring", stiffness: 120, damping: 18 }}
               className="absolute right-0 top-0 h-full w-full sm:w-[420px] bg-white border-l border-green-200 p-5 overflow-y-auto"
             >
-              <h3 className="text-lg font-semibold mb-2">{selectedTrip.title}</h3>
-              <p className="text-sm text-black/60 mb-4">{selectedTrip.destination}</p>
-
-              <div className="grid grid-cols-2 gap-3 mb-4">
+              {/* Editable Trip Form */}
+              <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium text-black/70">
-                    Start Date
-                  </label>
+                  <label className="text-sm font-medium text-black/70">Title</label>
                   <input
-                    type="date"
-                    value={selectedTrip.startDate}
-                    onChange={(e) =>
-                      setSelectedTrip({ ...selectedTrip, startDate: e.target.value })
-                    }
+                    type="text"
+                    value={selectedTrip.title}
+                    onChange={e => setSelectedTrip({ ...selectedTrip, title: e.target.value })}
                     className="w-full rounded-xl border border-green-200 py-2 px-3"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-black/70">
-                    End Date
-                  </label>
+                  <label className="text-sm font-medium text-black/70">Type</label>
+                  <select
+                    value={selectedTrip.type}
+                    onChange={e => setSelectedTrip({ ...selectedTrip, type: e.target.value as Trip["type"] })}
+                    className="w-full rounded-xl border border-green-200 py-2 px-3"
+                  >
+                    <option value="Solo">Solo</option>
+                    <option value="Couple">Couple</option>
+                    <option value="Family">Family</option>
+                    <option value="Group">Group</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-black/70">Destination</label>
                   <input
-                    type="date"
-                    value={selectedTrip.endDate}
-                    onChange={(e) =>
-                      setSelectedTrip({ ...selectedTrip, endDate: e.target.value })
-                    }
+                    type="text"
+                    value={selectedTrip.destination}
+                    onChange={e => setSelectedTrip({ ...selectedTrip, destination: e.target.value })}
                     className="w-full rounded-xl border border-green-200 py-2 px-3"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-black/70">
-                  Packing Lists
-                </label>
-                <div className="mt-2 flex flex-col gap-2">
-                  {selectedTrip.packingLists && selectedTrip.packingLists.length > 0 ? (
-                    selectedTrip.packingLists.map((list) => (
-                      <div
-                        key={list.id}
-                        className="flex items-center justify-between text-green-600"
-                      >
-                        <span>
-                          {list.title} ({list.itemsCount})
-                        </span>
-                        <button
-                          className="text-red-500 hover:text-red-600"
-                          onClick={() => {
-                            setSelectedTrip({
-                              ...selectedTrip,
-                              packingLists: selectedTrip.packingLists!.filter(
-                                (p) => p.id !== list.id
-                              ),
-                            });
-                          }}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-black/70">Start Date</label>
+                    <input
+                      type="date"
+                      value={selectedTrip.startDate}
+                      onChange={e => setSelectedTrip({ ...selectedTrip, startDate: e.target.value })}
+                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-black/70">End Date</label>
+                    <input
+                      type="date"
+                      value={selectedTrip.endDate}
+                      onChange={e => setSelectedTrip({ ...selectedTrip, endDate: e.target.value })}
+                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-black/70">Duration (days)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={selectedTrip.durationDays}
+                    onChange={e => setSelectedTrip({ ...selectedTrip, durationDays: Number(e.target.value) })}
+                    className="w-full rounded-xl border border-green-200 py-2 px-3"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-sm font-medium text-black/70">Adults</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={selectedTrip.passengers.adults}
+                      onChange={e => setSelectedTrip({ ...selectedTrip, passengers: { ...selectedTrip.passengers, adults: Number(e.target.value) } })}
+                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-black/70">Children</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={selectedTrip.passengers.children}
+                      onChange={e => setSelectedTrip({ ...selectedTrip, passengers: { ...selectedTrip.passengers, children: Number(e.target.value) } })}
+                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-black/70">Total</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={selectedTrip.passengers.total}
+                      onChange={e => setSelectedTrip({ ...selectedTrip, passengers: { ...selectedTrip.passengers, total: Number(e.target.value) } })}
+                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-black/70">Budget</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={selectedTrip.budget}
+                    onChange={e => setSelectedTrip({ ...selectedTrip, budget: Number(e.target.value) })}
+                    className="w-full rounded-xl border border-green-200 py-2 px-3"
+                  />
+                </div>
+                {/* Packing Lists display (read-only) */}
+                <div>
+                  <label className="text-sm font-medium text-black/70">Packing Lists</label>
+                  <div className="mt-2 flex flex-col gap-2">
+                    {selectedTrip.packingLists && selectedTrip.packingLists.length > 0 ? (
+                      selectedTrip.packingLists.map((list) => (
+                        <div
+                          key={list.id}
+                          className="flex items-center justify-between text-green-600"
                         >
-                          <Trash2 size={16} />
+                          <span>
+                            {list.title} ({list.itemsCount})
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-black/50 py-3">
+                        No packing lists
+                        <button
+                          onClick={handleGeneratePackingList}
+                          className={`mt-3 w-full rounded-xl bg-green-500 text-white py-2 font-semibold transition animate-pulse ${generatingPackingList ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-600'}`}
+                          disabled={generatingPackingList}
+                        >
+                          {generatingPackingList ? 'Generating...' : '➕ Generate Smart Packing List'}
                         </button>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center text-black/50 py-3">
-                      No packing lists
-                      <button
-                        onClick={handleGeneratePackingList}
-                        className={`mt-3 w-full rounded-xl bg-green-500 text-white py-2 font-semibold transition animate-pulse ${generatingPackingList ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-600'}`}
-                        disabled={generatingPackingList}
-                      >
-                        {generatingPackingList ? 'Generating...' : '➕ Generate Smart Packing List'}
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4">
-                <button
-                  onClick={() => setOpenDrawer(false)}
-                  className="rounded-xl border px-4 py-2"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => setOpenDrawer(false)}
-                  className="rounded-xl bg-green-500 text-white px-4 py-2 font-semibold hover:bg-green-600"
-                >
-                  Save
-                </button>
+                <div className="flex justify-end gap-2 pt-4">
+                  <button
+                    onClick={() => setOpenDrawer(false)}
+                    className="rounded-xl border px-4 py-2"
+                    disabled={savingTrip}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!selectedTrip || !selectedTrip._id) return;
+                      setSavingTrip(true);
+                      await updateTrip(selectedTrip._id.toString(), selectedTrip);
+                      setSavingTrip(false);
+                      setOpenDrawer(false);
+                    }}
+                    className={`rounded-xl bg-green-500 text-white px-4 py-2 font-semibold transition ${savingTrip ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-600'}`}
+                    disabled={savingTrip}
+                  >
+                    {savingTrip ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

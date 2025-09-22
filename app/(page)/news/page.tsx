@@ -35,10 +35,12 @@ export default function EcoTravelNews() {
   }, []);
 
   // Map news from store to NewsItem type for UI
-  const items: NewsItem[] = (news || []).map((n) => ({
-    id: n._id || Math.random().toString(36).substr(2, 9),
+  const items: NewsItem[] = (news || []).map((n, idx) => ({
+    id: n._id ? n._id : `news-${idx}`,
     title: n.title,
-    publishedAt: n.pubDate,
+    publishedAt: n.pubDate
+      ? new Date(n.pubDate).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      : '',
     category: n.source_id || "General",
     snippet: n.description,
     image: n.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
