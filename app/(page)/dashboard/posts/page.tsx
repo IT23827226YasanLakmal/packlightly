@@ -6,6 +6,7 @@ import { Plus, Trash2, Edit2, Heart, MessageCircle, X, Bold, Italic, Underline, 
 import { usePostStore } from "@/store/postStore"; // import your post store
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { Post, Comment } from "@/types";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 
 export default function MyPostsPage() {
   const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loading, error } = usePostStore();
@@ -22,14 +23,33 @@ export default function MyPostsPage() {
   const [expandedPosts, setExpandedPosts] = useState<string[]>([]);
   const [commentsData, setCommentsData] = useState<Record<string, Comment[]>>({});
 
+  // Confirmation dialog state
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [postToDelete, setPostToDelete] = useState<string | null>(null);
+
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
 
-  const handleDeletePost = async (_id: string) => {
-    await deletePost(_id);
-    setExpandedPosts(prev => prev.filter(pid => pid !== _id));
+  const handleDeletePost = (postId: string) => {
+    setPostToDelete(postId);
+    setConfirmDialogOpen(true);
   };
+
+  const handleConfirmDelete = async () => {
+    if (postToDelete) {
+      await deletePost(postToDelete);
+      setExpandedPosts(prev => prev.filter(pid => pid !== postToDelete));
+      setPostToDelete(null);
+    }
+    setConfirmDialogOpen(false);
+  };
+
+  const handleCancelDelete = () => {
+    setPostToDelete(null);
+    setConfirmDialogOpen(false);
+  };
+
   //filter post
   const filteredPosts = posts
     .filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -68,7 +88,7 @@ export default function MyPostsPage() {
       await updatePost(post._id, post);
     } else {
       if (!user) {
-        alert("You must be logged in to create a post.");
+        // User not logged in - silently return
         return;
       }
       await createPost({ ...post, ownerId: user.uid });
@@ -198,6 +218,15 @@ export default function MyPostsPage() {
 
       {/* Create/Edit Modal */}
       <PostModal open={modalOpen} post={modalPost} onClose={() => setModalOpen(false)} onSave={savePost} />
+      
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDialogOpen}
+        title="Delete Post"
+        description="Are you sure you want to delete this post? This action cannot be undone."
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }
