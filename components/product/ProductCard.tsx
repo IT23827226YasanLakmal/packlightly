@@ -5,14 +5,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Leaf, X } from "lucide-react";
 
 interface ProductCardProps {
-  imageUrl: string;
+  imageLink: string;
   title: string;
   rating: number;
   ecoRating: number;
   description?: string; // optional for modal details
 }
 
-export default function ProductCard({ imageUrl, title, rating, ecoRating, description }: ProductCardProps) {
+export default function ProductCard({ imageLink, title, rating, ecoRating, description }: ProductCardProps) {
   const [open, setOpen] = useState(false);
 
   const stars = Array.from({ length: 5 }, (_, i) => i < Math.round(rating));
@@ -29,7 +29,7 @@ export default function ProductCard({ imageUrl, title, rating, ecoRating, descri
         <div className="relative w-full aspect-square overflow-hidden rounded-xl">
           <div
             className="w-full h-full bg-center bg-cover transition-transform duration-500 hover:scale-105"
-            style={{ backgroundImage: `url("${imageUrl}")` }}
+            style={{ backgroundImage: `url("${imageLink}")` }}
           />
         </div>
 
@@ -83,7 +83,7 @@ export default function ProductCard({ imageUrl, title, rating, ecoRating, descri
               <div className="flex flex-col gap-4">
                 <div
                   className="w-full aspect-square bg-center bg-cover rounded-xl shadow-md"
-                  style={{ backgroundImage: `url("${imageUrl}")` }}
+                  style={{ backgroundImage: `url("${imageLink}")` }}
                 />
 
                 <h2 className="text-2xl font-bold text-[#0e1b13]">{title}</h2>

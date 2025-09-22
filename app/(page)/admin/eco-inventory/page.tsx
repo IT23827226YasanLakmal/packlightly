@@ -1,10 +1,33 @@
-"use client";
+'use client'
+import { useState } from "react";
 import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Edit2, Trash2, Star } from "lucide-react";
 import { useProductStore } from "@/store/productStore";
+import Image from "next/image";
 import { Product } from "@/types";
-import mongoose from "mongoose";
+function ProductImageWithFallback({ src, alt }: { src: string; alt: string }) {
+  const [errored, setErrored] = useState(false);
+  return errored ? (
+    <div className="w-14 h-14 flex items-center justify-center bg-green-900/10 rounded-lg border border-green-700/30 text-green-700 text-xs">
+      No Image
+    </div>
+  ) : (
+    <Image
+      src={src}
+      alt={alt}
+      width={56}
+      height={56}
+      className="object-cover rounded-lg border border-green-700/30 bg-black/20"
+      style={{ width: 56, height: 56 }}
+      unoptimized
+      onError={() => {
+        setErrored(true);
+      }}
+    />
+  );
+}
+
 
 // Default empty product for Add mode
 const emptyProduct: Product = {
@@ -14,6 +37,7 @@ const emptyProduct: Product = {
   eco: 3,
   description: "",
   availableLocation: "",
+  imageLink: "",
 };
 
 export default function AdminEcoInventoryPage() {
@@ -134,6 +158,7 @@ export default function AdminEcoInventoryPage() {
           <table className="w-full text-sm text-left">
             <thead className="border-b border-green-600/40">
               <tr>
+                <th className="py-3 px-4 text-green-300">Image</th>
                 <th className="py-3 px-4 text-green-300">Name</th>
                 <th className="py-3 px-4 text-green-300">Category</th>
                 <th className="py-3 px-4 text-green-300">Eco Rating</th>
@@ -152,6 +177,15 @@ export default function AdminEcoInventoryPage() {
                     exit={{ opacity: 0 }}
                     className="border-b border-green-500/20 hover:bg-emerald-900/20 transition"
                   >
+                    <td className="py-3 px-4">
+                      {item.imageLink ? (
+                        <ProductImageWithFallback src={item.imageLink} alt={item.name} />
+                      ) : (
+                        <div className="w-14 h-14 flex items-center justify-center bg-green-900/10 rounded-lg border border-green-700/30 text-green-700 text-xs">
+                          No Image
+                        </div>
+                      )}
+                    </td>
                     <td className="py-3 px-4 font-medium text-white">
                       {item.name}
                     </td>
@@ -229,6 +263,8 @@ export default function AdminEcoInventoryPage() {
                 }}
                 className="space-y-3"
               >
+
+
                 <div>
                   <label className="text-sm text-green-300">Name</label>
                   <input
@@ -238,6 +274,17 @@ export default function AdminEcoInventoryPage() {
                     className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
                     required
                     autoFocus
+                  />
+                </div>
+
+
+                <div>
+                  <label className="text-sm text-green-300">Image Link</label>
+                  <input
+                    type="text"
+                    value={editing.imageLink}
+                    onChange={e => updateEditing({ imageLink: e.target.value })}
+                    className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 

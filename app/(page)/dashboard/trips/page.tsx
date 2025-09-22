@@ -100,7 +100,13 @@ export default function AllTripsTable() {
   };
 
   if (loading) return <p>Loading trips...</p>;
-  if (error) return <p className="text-red-500">{error}</p>;
+  if (error) {
+    const err = error as unknown;
+    let msg = 'An error occurred';
+    if (typeof err === 'string') msg = err;
+    else if (typeof err === 'object' && err && 'message' in err && typeof (err as { message?: string }).message === 'string') msg = (err as { message: string }).message;
+    return <p className="text-red-500">{msg}</p>;
+  }
 
   return (
     <div className="min-h-screen p-6 bg-white/60">
