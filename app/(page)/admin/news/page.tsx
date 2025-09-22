@@ -205,6 +205,18 @@ export default function NewsPage() {
                 </div>
 
                 <div>
+                  <label className="text-sm text-green-300">Link URL</label>
+                  <input
+                    type="url"
+                    value={editing.link}
+                    onChange={(e) => updateEditing({ link: e.target.value })}
+                    className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
+                    required
+                    placeholder="https://example.com/article"
+                  />
+                </div>
+
+                <div>
                   <label className="text-sm text-green-300">Image URL</label>
                   <input
                     type="text"
