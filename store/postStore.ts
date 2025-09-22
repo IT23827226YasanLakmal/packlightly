@@ -67,9 +67,7 @@ export const usePostStore = create<PostStore>((set, get) => ({
         return;
       }
 
-      console.log('Creating post with data:', postData);
-      alert('Creating post with data: ' + JSON.stringify(postData));
-      const postRes = await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts`, {
+      await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts`, {
         method: 'POST',
         body: JSON.stringify(postData),
       });
