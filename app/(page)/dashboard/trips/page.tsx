@@ -49,7 +49,7 @@ export default function AllTripsTable() {
   });
 
   // Validation helper functions
-  const validateTrip = (trip: Trip, isEdit: boolean = false) => {
+  const validateTrip = (trip: Trip) => {
     const errors: { [key: string]: string } = {};
 
     if (!trip.title.trim()) {
@@ -340,43 +340,85 @@ export default function AllTripsTable() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-black/70">Destination</label>
+                  <label className="text-sm font-medium text-black/70">Destination *</label>
                   <input
                     type="text"
                     value={selectedTrip.destination}
-                    onChange={e => setSelectedTrip({ ...selectedTrip, destination: e.target.value })}
-                    className="w-full rounded-xl border border-green-200 py-2 px-3"
+                    onChange={e => {
+                      setSelectedTrip({ ...selectedTrip, destination: e.target.value });
+                      clearValidationErrors('editTrip', 'destination');
+                    }}
+                    className={`w-full rounded-xl border py-2 px-3 ${
+                      validationErrors.editTrip.destination 
+                        ? 'border-red-500 focus:ring-red-500' 
+                        : 'border-green-200 focus:ring-green-500'
+                    }`}
+                    placeholder="Enter destination"
                   />
+                  {validationErrors.editTrip.destination && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.editTrip.destination}</p>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm font-medium text-black/70">Start Date</label>
+                    <label className="text-sm font-medium text-black/70">Start Date *</label>
                     <input
                       type="date"
                       value={selectedTrip.startDate}
-                      onChange={e => setSelectedTrip({ ...selectedTrip, startDate: e.target.value })}
-                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                      onChange={e => {
+                        setSelectedTrip({ ...selectedTrip, startDate: e.target.value });
+                        clearValidationErrors('editTrip', 'startDate');
+                      }}
+                      className={`w-full rounded-xl border py-2 px-3 ${
+                        validationErrors.editTrip.startDate 
+                          ? 'border-red-500 focus:ring-red-500' 
+                          : 'border-green-200 focus:ring-green-500'
+                      }`}
                     />
+                    {validationErrors.editTrip.startDate && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.editTrip.startDate}</p>
+                    )}
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-black/70">End Date</label>
+                    <label className="text-sm font-medium text-black/70">End Date *</label>
                     <input
                       type="date"
                       value={selectedTrip.endDate}
-                      onChange={e => setSelectedTrip({ ...selectedTrip, endDate: e.target.value })}
-                      className="w-full rounded-xl border border-green-200 py-2 px-3"
+                      onChange={e => {
+                        setSelectedTrip({ ...selectedTrip, endDate: e.target.value });
+                        clearValidationErrors('editTrip', 'endDate');
+                      }}
+                      className={`w-full rounded-xl border py-2 px-3 ${
+                        validationErrors.editTrip.endDate 
+                          ? 'border-red-500 focus:ring-red-500' 
+                          : 'border-green-200 focus:ring-green-500'
+                      }`}
                     />
+                    {validationErrors.editTrip.endDate && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.editTrip.endDate}</p>
+                    )}
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-black/70">Duration (days)</label>
+                  <label className="text-sm font-medium text-black/70">Duration (days) *</label>
                   <input
                     type="number"
-                    min={0}
+                    min={1}
                     value={selectedTrip.durationDays}
-                    onChange={e => setSelectedTrip({ ...selectedTrip, durationDays: Number(e.target.value) })}
-                    className="w-full rounded-xl border border-green-200 py-2 px-3"
+                    onChange={e => {
+                      setSelectedTrip({ ...selectedTrip, durationDays: Number(e.target.value) });
+                      clearValidationErrors('editTrip', 'durationDays');
+                    }}
+                    className={`w-full rounded-xl border py-2 px-3 ${
+                      validationErrors.editTrip.durationDays 
+                        ? 'border-red-500 focus:ring-red-500' 
+                        : 'border-green-200 focus:ring-green-500'
+                    }`}
+                    placeholder="Enter duration in days"
                   />
+                  {validationErrors.editTrip.durationDays && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.editTrip.durationDays}</p>
+                  )}
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
@@ -439,9 +481,20 @@ export default function AllTripsTable() {
                     type="number"
                     min={0}
                     value={selectedTrip.budget}
-                    onChange={e => setSelectedTrip({ ...selectedTrip, budget: Number(e.target.value) })}
-                    className="w-full rounded-xl border border-green-200 py-2 px-3"
+                    onChange={e => {
+                      setSelectedTrip({ ...selectedTrip, budget: Number(e.target.value) });
+                      clearValidationErrors('editTrip', 'budget');
+                    }}
+                    className={`w-full rounded-xl border py-2 px-3 ${
+                      validationErrors.editTrip.budget 
+                        ? 'border-red-500 focus:ring-red-500' 
+                        : 'border-green-200 focus:ring-green-500'
+                    }`}
+                    placeholder="Enter budget amount"
                   />
+                  {validationErrors.editTrip.budget && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.editTrip.budget}</p>
+                  )}
                 </div>
                 {/* Packing Lists display (read-only) */}
                 <div>
@@ -474,7 +527,10 @@ export default function AllTripsTable() {
                 </div>
                 <div className="flex justify-end gap-2 pt-4">
                   <button
-                    onClick={() => setOpenDrawer(false)}
+                    onClick={() => {
+                      setOpenDrawer(false);
+                      clearValidationErrors('editTrip');
+                    }}
                     className="rounded-xl border px-4 py-2"
                     disabled={savingTrip}
                   >
@@ -483,9 +539,18 @@ export default function AllTripsTable() {
                   <button
                     onClick={async () => {
                       if (!selectedTrip || !selectedTrip._id) return;
+                      
+                      // Validate the form
+                      const errors = validateTrip(selectedTrip);
+                      if (Object.keys(errors).length > 0) {
+                        setValidationErrors(prev => ({ ...prev, editTrip: errors }));
+                        return;
+                      }
+
                       setSavingTrip(true);
                       await updateTrip(selectedTrip._id.toString(), selectedTrip);
                       setSavingTrip(false);
+                      clearValidationErrors('editTrip');
                       setOpenDrawer(false);
                     }}
                     className={`rounded-xl bg-green-500 text-white px-4 py-2 font-semibold transition ${savingTrip ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-600'}`}
@@ -728,7 +793,10 @@ export default function AllTripsTable() {
                 {/* Weather fields removed as requested */}
                 <div className="flex justify-end gap-2 pt-4">
                   <button
-                    onClick={() => setOpenCreateModal(false)}
+                    onClick={() => {
+                      setOpenCreateModal(false);
+                      clearValidationErrors('newTrip');
+                    }}
                     className="rounded-xl border px-4 py-2"
                   >
                     Cancel

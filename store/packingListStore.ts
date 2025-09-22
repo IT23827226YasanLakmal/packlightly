@@ -65,18 +65,31 @@ export const usePackingListStore = create<PackingListStore>((set) => ({
     set({ loading: true, error: null });
     try {
       const token = await getToken();
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/packinglists/${listId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/packinglists/${listId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
       });
-      // Refresh list after delete
-      const data = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/packinglists`);
-      set({ packingLists: data, loading: false });
-    } catch {
-      set({ error: 'Failed to delete packing list', loading: false });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to delete packing list: ${response.status} ${response.statusText}`);
+      }
+      
+      // Optimistically remove from local state instead of refetching
+      set((state) => ({
+        packingLists: state.packingLists.filter(list => 
+          (list._id?.toString() || '') !== listId
+        ),
+        loading: false,
+      }));
+    } catch (error) {
+      console.error('Delete packing list error:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to delete packing list', 
+        loading: false 
+      });
     }
   },
   packingLists: [],
