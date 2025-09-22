@@ -12,12 +12,25 @@ import { Menu, X } from "lucide-react";
 export default function Header() {
   const [user, setUser] = useState<User | null>(null);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [profileDropdown, setProfileDropdown] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => setUser(currentUser));
     return () => unsubscribe();
   }, []);
+
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileDropdown && !(event.target as Element).closest('.profile-dropdown')) {
+        setProfileDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [profileDropdown]);
 
   const routes = [
     { name: "Home", path: "/" },
@@ -30,7 +43,11 @@ export default function Header() {
 
   const handleDashboardClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    user ? router.push("/dashboard/trips") : router.push("/login");
+    if (user) {
+      router.push("/dashboard/trips");
+    } else {
+      router.push("/login");
+    }
   };
 
   return (
@@ -73,25 +90,67 @@ export default function Header() {
         {/* Auth / Profile Desktop */}
         <div className="hidden md:flex items-center ml-6 gap-4">
           {user ? (
-            <div className="relative group">
-              <Image
-                src={user.photoURL || "/images/default-avatar.png"}
-                alt="Profile"
-                width={40}
-                height={40}
-                className="rounded-full cursor-pointer border-2 border-gray-300 hover:border-green-500 transition-all duration-300"
-              />
-              <div className="absolute right-0 mt-2 hidden w-44 rounded-xl bg-white shadow-lg group-hover:flex flex-col animate-dropdown">
-                <Link href="/profile" className="px-4 py-2 text-sm hover:bg-gray-100 rounded-t-lg transition">
-                  My Profile
-                </Link>
-                <button
-                  onClick={() => signOut(auth)}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded-b-lg transition"
+            <div className="relative profile-dropdown">
+              <button
+                onClick={() => setProfileDropdown(!profileDropdown)}
+                className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors duration-300"
+              >
+                <Image
+                  src={user.photoURL || "/images/default-avatar.png"}
+                  alt="Profile"
+                  width={32}
+                  height={32}
+                  className="rounded-full border-2 border-gray-300"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  {user.displayName || user.email?.split('@')[0] || 'User'}
+                </span>
+                <svg 
+                  className={`w-4 h-4 transition-transform duration-200 ${profileDropdown ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
                 >
-                  Logout
-                </button>
-              </div>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {profileDropdown && (
+                <>
+                  {/* Backdrop to close dropdown when clicking outside */}
+                  <div 
+                    className="fixed inset-0 z-10" 
+                    onClick={() => setProfileDropdown(false)}
+                  ></div>
+                  
+                  <div className="absolute right-0 mt-2 w-48 rounded-lg bg-white shadow-lg border border-gray-200 z-20 animate-dropdown">
+                    <div className="py-2">
+                      <Link 
+                        href="/profile" 
+                        onClick={() => setProfileDropdown(false)}
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        My Profile
+                      </Link>
+                      <button
+                        onClick={() => {
+                          signOut(auth);
+                          setProfileDropdown(false);
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <>
@@ -135,17 +194,39 @@ export default function Header() {
               )
             )}
 
-            <div className="mt-4">
+            <div className="mt-6 pt-4 border-t border-gray-200">
               {user ? (
-                <div className="flex flex-col gap-2">
-                  <Link href="/profile" onClick={() => setMobileMenu(false)} className="px-4 py-2 rounded-lg hover:bg-gray-100 transition">
-                    My Profile
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-lg">
+                    <Image
+                      src={user.photoURL || "/images/default-avatar.png"}
+                      alt="Profile"
+                      width={24}
+                      height={24}
+                      className="rounded-full"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      {user.displayName || user.email?.split('@')[0] || 'User'}
+                    </span>
+                  </div>
+                  <Link 
+                    href="/profile" 
+                    onClick={() => setMobileMenu(false)} 
+                    className="flex items-center px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <svg className="w-5 h-5 mr-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span className="text-gray-700">My Profile</span>
                   </Link>
                   <button
                     onClick={() => { signOut(auth); setMobileMenu(false); }}
-                    className="px-4 py-2 rounded-lg hover:bg-gray-100 transition"
+                    className="flex items-center px-4 py-3 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
                   >
-                    Logout
+                    <svg className="w-5 h-5 mr-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span className="text-red-600 font-medium">Logout</span>
                   </button>
                 </div>
               ) : (
