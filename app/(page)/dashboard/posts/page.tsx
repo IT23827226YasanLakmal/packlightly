@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Edit2, Heart, MessageCircle, X, Bold, Italic, Underline, Heading2, List, Quote, Image, Eye } from "lucide-react";
-import { usePostStore} from "@/store/postStore"; // import your post store
+import { usePostStore } from "@/store/postStore"; // import your post store
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { Post, Comment } from "@/types";
 
@@ -30,7 +30,7 @@ export default function MyPostsPage() {
     await deletePost(_id);
     setExpandedPosts(prev => prev.filter(pid => pid !== _id));
   };
-//filter post
+  //filter post
   const filteredPosts = posts
     .filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) =>
@@ -38,7 +38,7 @@ export default function MyPostsPage() {
         ? new Date(b.date).getTime() - new Date(a.date).getTime()
         : new Date(a.date).getTime() - new Date(b.date).getTime()
     );
-//pagination
+  //pagination
   const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
   const paginatedPosts = filteredPosts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const goToPage = (page: number) => {
@@ -79,13 +79,14 @@ export default function MyPostsPage() {
   const toggleComments = (_id: string) =>
     setExpandedPosts(prev => prev.includes(_id) ? prev.filter(pid => pid !== _id) : [...prev, _id]);
 
-  
+
 
   return (
     <div className="min-h-screen p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between gap-4 mb-8 items-center">
-        <h1 className="text-3xl font-extrabold text-black">My Posts</h1>
+        <h1 className="text-3xl font-extrabold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
+          My Posts</h1>
         <div className="flex flex-wrap gap-3 items-center">
           <input
             type="text"
@@ -130,7 +131,7 @@ export default function MyPostsPage() {
                       <div className="flex gap-4 items-center">
                         <div className="flex items-center gap-1 text-emerald-400 font-medium"><Heart size={16} /> {post.comments.length}</div>
                         <div onClick={() => toggleComments(post._id!)} className="flex items-center gap-1 text-emerald-400 font-medium cursor-pointer">
-                         <MessageCircle size={16} /> {post.comments.length}
+                          <MessageCircle size={16} /> {post.comments.length}
                         </div>
                       </div>
                     </div>
@@ -257,7 +258,7 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
       {open && post && (
         <motion.div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <motion.div initial={{ y: 50, opacity: 0, scale: 0.95 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 50, opacity: 0, scale: 0.95 }} transition={{ duration: 0.35, ease: "easeInOut" }} className="w-full max-w-3xl bg-black/80 rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-green-700/30">
-            
+
             {/* Header */}
             <div className="flex justify-between items-center p-5 border-b border-green-700/30">
               <h2 className="text-xl font-bold text-white">{post._id ? "✍️ Edit Post" : "✍️ Create New Post"}</h2>

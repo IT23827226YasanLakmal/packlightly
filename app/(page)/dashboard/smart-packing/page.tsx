@@ -62,22 +62,22 @@ export default function PackingListOverviewPage() {
     uncheckAllCategory,
   } = useChecklistStore();
 
-  
+
 
   // ... other state and hooks (trips, lists, etc.)
   function useTrips() {
-  const { data, error } = useSWR('http://localhost:5000/api/trips', fetcherWithToken);
-  return { trips: data, loading: !data && !error, error };
-}
+    const { data, error } = useSWR('http://localhost:5000/api/trips', fetcherWithToken);
+    return { trips: data, loading: !data && !error, error };
+  }
 
-function usePackingLists(tripId: string) {
-  const { data, error } = useSWR('http://localhost:5000/api/packinglists', fetcherWithToken);
-  const lists = data ? data.filter((pl: PackingList) => pl.tripId?.toString() === tripId) : [];
-  return { lists, loading: !data && !error, error };
-}
+  function usePackingLists(tripId: string) {
+    const { data, error } = useSWR('http://localhost:5000/api/packinglists', fetcherWithToken);
+    const lists = data ? data.filter((pl: PackingList) => pl.tripId?.toString() === tripId) : [];
+    return { lists, loading: !data && !error, error };
+  }
 
 
-   const { trips } = useTrips();
+  const { trips } = useTrips();
 
   /** UI State */
   const [activeTab, setActiveTab] = useState<'weather' | 'checklist' | 'smart'>('weather');
@@ -106,7 +106,7 @@ function usePackingLists(tripId: string) {
 
   /** currentListSeed - FIXED: Use stringified version for comparison */
   const currentListSeed = useMemo(() => {
-    const list = lists.find((p:PackingList) => p._id?.toString() === selectedListId);
+    const list = lists.find((p: PackingList) => p._id?.toString() === selectedListId);
     if (!list?.categories) return { Clothing: [], Essentials: [], Toiletries: [], Electronics: [] };
     return list.categories.reduce((acc: CategoryItems, cat: Category) => {
       acc[cat.name] = cat.items.map((i) => ({
@@ -120,12 +120,12 @@ function usePackingLists(tripId: string) {
   }, [lists, selectedListId]);
 
   // Create a stable reference for comparison
-  const currentListSeedString = useMemo(() => 
-    JSON.stringify(currentListSeed), 
+  const currentListSeedString = useMemo(() =>
+    JSON.stringify(currentListSeed),
     [currentListSeed]
   );
 
- 
+
 
   const listsForTrip = useMemo(() => lists.filter((pl: PackingList) => pl.tripId?.toString() === selectedTripId), [lists, selectedTripId]);
 
@@ -133,7 +133,7 @@ function usePackingLists(tripId: string) {
   // Initialize checklistCats from the current list
   useEffect(() => {
     if (!currentListSeedString) return;
-    
+
     const seedData = JSON.parse(currentListSeedString);
     setChecklistCats(seedData);
     setRemovedItems([]);
@@ -173,7 +173,7 @@ function usePackingLists(tripId: string) {
   }, [checklistCats, removedItems]);
 
 
-    /** Smart Suggestions */
+  /** Smart Suggestions */
   const [smartCats, setSmartCats] = useState<CategoryItems>({});
   const [smartRemoved, setSmartRemoved] = useState<string[]>([]);
 
@@ -228,7 +228,7 @@ function usePackingLists(tripId: string) {
     Electronics: '🔌',
   };
 
-  
+
   /** Loading Check */
   if (!currentTrip) return <div>Loading trip...</div>;
 
@@ -249,7 +249,7 @@ function usePackingLists(tripId: string) {
 
         <div className="flex items-center gap-5 relative z-10">
           <div className="flex flex-col">
-            <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 animate-slideIn animate-pulseGlow">
+            <h1 className="text-3xl font-extrabold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
               {trips.find((t: Trip) => t._id.toString() === selectedTripId)?.title}
             </h1>
             <p className="text-sm text-green-600 mt-1 animate-fadeIn">
@@ -425,9 +425,8 @@ function usePackingLists(tripId: string) {
                     >
                       <span>{categoryIcons[cat] || '📌'}</span>
                       <span>{cat}</span>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                        allChecked ? 'bg-green-500 text-white' : 'bg-white/30'
-                      }`}>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${allChecked ? 'bg-green-500 text-white' : 'bg-white/30'
+                        }`}>
                         {checkedCount}/{total} ✓
                       </span>
                       {ecoCount > 0 && (
@@ -461,21 +460,21 @@ function usePackingLists(tripId: string) {
               {/* Animated Category Content */}
               <AnimatePresence mode="wait">
                 {activeCategory && (
-                    <motion.div
+                  <motion.div
                     key={activeCategory}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.25 }}
                     className="mt-4"
-                    >
+                  >
                     <ChecklistSection
                       title={titleCase(activeCategory)}
                       category={activeCategory}
                       listId={selectedListId}
                     />
-                    
-                    </motion.div>
+
+                  </motion.div>
                 )}
               </AnimatePresence>
             </motion.div>
@@ -550,8 +549,8 @@ function usePackingLists(tripId: string) {
                               <button
                                 onClick={() => handleToggleItem(cat, it.name)}
                                 className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all
-                                  ${it.checked 
-                                    ? 'bg-green-500 border-green-500 text-white' 
+                                  ${it.checked
+                                    ? 'bg-green-500 border-green-500 text-white'
                                     : 'border-gray-300 hover:border-green-400'
                                   }`}
                               >

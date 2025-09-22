@@ -4,19 +4,19 @@ import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Trash2, Leaf, MapPin, Plus } from "lucide-react";
 import { useTripStore } from "@/store/tripStore";
-import { usePackingListStore } from "@/store/packingListStore"; 
+import { usePackingListStore } from "@/store/packingListStore";
 
 import { Trip } from '@/types/index';
 
 export default function AllTripsTable() {
-  const {trips, loading, error, fetchTrips, setSelectedTripId, updateTrip } = useTripStore();
+  const { trips, loading, error, fetchTrips, setSelectedTripId, updateTrip } = useTripStore();
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [savingTrip, setSavingTrip] = useState(false);
   const [openDrawer, setOpenDrawer] = useState(false);
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [showGeneratePrompt, setShowGeneratePrompt] = useState(false);
   const [generatingPackingList, setGeneratingPackingList] = useState(false);
-  const {packingLists, fetchPackingLists, generatePackingListForTrip } = usePackingListStore();
+  const { packingLists, fetchPackingLists, generatePackingListForTrip } = usePackingListStore();
 
 
 
@@ -48,8 +48,8 @@ export default function AllTripsTable() {
   }, [fetchTrips]);
 
   useEffect(() => {
-      fetchPackingLists().catch(console.error);
-    }, [fetchPackingLists]);
+    fetchPackingLists().catch(console.error);
+  }, [fetchPackingLists]);
 
 
   // DELETE TRIP
@@ -112,7 +112,8 @@ export default function AllTripsTable() {
     <div className="min-h-screen p-6 bg-white/60">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-extrabold text-black">All Trips</h1>
+        <h1 className="text-3xl font-extrabold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
+          All Trips</h1>
         <button
           onClick={() => setOpenCreateModal(true)}
           className="flex items-center gap-2 px-5 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition"
@@ -171,7 +172,7 @@ export default function AllTripsTable() {
                   <td className="px-4 py-3">
                     <button
                       onClick={(e) => {
-                        e.stopPropagation();   
+                        e.stopPropagation();
                         handleDeleteTrip(trip._id ? trip._id.toString() : "");
                       }}
                       className="text-red-500 hover:text-red-600 transition"

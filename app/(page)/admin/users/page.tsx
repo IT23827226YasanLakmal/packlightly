@@ -19,6 +19,13 @@ export default function Page() {
   const [editing, setEditing] = React.useState<UserItem | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState<UserItem | null>(null);
+  const [newUser, setNewUser] = React.useState<Partial<UserItem & { password: string }>>({
+    displayName: "",
+    email: "",
+    password: "",
+    role: "user",
+    disabled: false,
+  });
 
   React.useEffect(() => {
     fetchUsers();
@@ -33,16 +40,23 @@ export default function Page() {
     );
 
   // CRUD handlers using zustand store
-  async function saveUser(user: UserItem) {
-    if (user.uid) {
+  async function saveUser() {
+    if (editing) {
       // Full update
-      await updateUser(user as StoreUser);
+      await updateUser(editing as StoreUser);
     } else {
-      // Create
-      await createUser(user as Omit<StoreUser, '_id'>);
+      // Create new user
+      await createUser(newUser as Omit<StoreUser, '_id'>);
     }
     setDrawerOpen(false);
     setEditing(null);
+    setNewUser({
+      displayName: "",
+      email: "",
+      password: "",
+      role: "user",
+      disabled: false,
+    });
   }
 
   // Inline patch for role or status
@@ -71,6 +85,13 @@ export default function Page() {
           <button
             onClick={() => {
               setEditing(null);
+              setNewUser({
+                displayName: "",
+                email: "",
+                password: "",
+                role: "user",
+                disabled: false,
+              });
               setDrawerOpen(true);
             }}
             className="rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-4 py-2 font-semibold flex items-center gap-2 hover:from-emerald-700 hover:to-emerald-800 transition"
@@ -178,8 +199,7 @@ export default function Page() {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    if (editing) saveUser({ ...editing });
-                    setDrawerOpen(false);
+                    saveUser();
                   }}
                   className="space-y-3"
                 >
@@ -187,8 +207,14 @@ export default function Page() {
                     <label className="text-sm text-green-300">Name</label>
                     <input
                       type="text"
-                      value={editing?.displayName || ""}
-                      onChange={(e) => editing && setEditing({ ...editing, displayName: e.target.value })}
+                      value={editing ? editing.displayName || "" : newUser.displayName || ""}
+                      onChange={(e) => {
+                        if (editing) {
+                          setEditing({ ...editing, displayName: e.target.value });
+                        } else {
+                          setNewUser({ ...newUser, displayName: e.target.value });
+                        }
+                      }}
                       className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
                       required
                     />
@@ -197,17 +223,42 @@ export default function Page() {
                     <label className="text-sm text-green-300">Email</label>
                     <input
                       type="email"
-                      value={editing?.email || ""}
-                      onChange={(e) => editing && setEditing({ ...editing, email: e.target.value })}
+                      value={editing ? editing.email || "" : newUser.email || ""}
+                      onChange={(e) => {
+                        if (editing) {
+                          setEditing({ ...editing, email: e.target.value });
+                        } else {
+                          setNewUser({ ...newUser, email: e.target.value });
+                        }
+                      }}
                       className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
                       required
                     />
                   </div>
+                  {!editing && (
+                    <div>
+                      <label className="text-sm text-green-300">Password</label>
+                      <input
+                        type="password"
+                        value={newUser.password || ""}
+                        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                        className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
+                        required
+                        placeholder="Enter password for new user"
+                      />
+                    </div>
+                  )}
                   <div>
                     <label className="text-sm text-green-300">Role</label>
                     <select
-                      value={editing?.role || "user"}
-                      onChange={(e) => editing && setEditing({ ...editing, role: e.target.value as "user" | "admin" })}
+                      value={editing ? editing.role || "user" : newUser.role || "user"}
+                      onChange={(e) => {
+                        if (editing) {
+                          setEditing({ ...editing, role: e.target.value as "user" | "admin" });
+                        } else {
+                          setNewUser({ ...newUser, role: e.target.value as "user" | "admin" });
+                        }
+                      }}
                       className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
                     >
                       <option value="admin">Admin</option>
@@ -217,8 +268,14 @@ export default function Page() {
                   <div>
                     <label className="text-sm text-green-300">Status</label>
                     <select
-                      value={editing?.disabled ? "inactive" : "active"}
-                      onChange={(e) => editing && setEditing({ ...editing, disabled: e.target.value === "inactive" })}
+                      value={editing ? (editing.disabled ? "inactive" : "active") : (newUser.disabled ? "inactive" : "active")}
+                      onChange={(e) => {
+                        if (editing) {
+                          setEditing({ ...editing, disabled: e.target.value === "inactive" });
+                        } else {
+                          setNewUser({ ...newUser, disabled: e.target.value === "inactive" });
+                        }
+                      }}
                       className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
                     >
                       <option value="active">Active</option>
@@ -226,7 +283,21 @@ export default function Page() {
                     </select>
                   </div>
                   <div className="flex justify-end gap-2 pt-2">
-                    <button type="button" onClick={() => setDrawerOpen(false)} className="rounded-xl border px-4 py-2 text-white">
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setDrawerOpen(false);
+                        setEditing(null);
+                        setNewUser({
+                          displayName: "",
+                          email: "",
+                          password: "",
+                          role: "user",
+                          disabled: false,
+                        });
+                      }} 
+                      className="rounded-xl border px-4 py-2 text-white"
+                    >
                       Cancel
                     </button>
                     <button
