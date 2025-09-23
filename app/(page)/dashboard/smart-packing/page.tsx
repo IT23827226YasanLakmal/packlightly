@@ -5,9 +5,9 @@ import { Leaf, Check, CheckCheck } from 'lucide-react';
 import WeatherCard from '@/components/dashboard/weathercard';
 import ChecklistSection from '@/components/dashboard/checklistsection';
 import { useChecklistStore } from '@/store/checklistStore';
-import useSWR from 'swr';
-import { fetcherWithToken } from "@/utils/fetcher";
-import { Trip, Item, CategoryItems, PackingList, Category } from '@/types';
+import { useTripStore } from '@/store/tripStore';
+import { usePackingListStore } from '@/store/packingListStore';
+import { Trip, Item, CategoryItems, PackingList } from '@/types';
 
 
 
@@ -28,7 +28,6 @@ const formatDate = (dateString: string) => {
 
 
 export default function PackingListOverviewPage() {
-  console.log('🚀 Smart Packing component rendering');
 
   // Get state and actions from the store
   const {
@@ -50,27 +49,25 @@ export default function PackingListOverviewPage() {
   });
 
 
-
-  // ... other state and hooks (trips, lists, etc.)
-  function useTrips() {
-    const { data, error } = useSWR('http://localhost:5000/api/trips', fetcherWithToken);
-    return { trips: data, loading: !data && !error, error };
-  }
-
-  function usePackingLists(tripId: string) {
-    const { data, error } = useSWR('http://localhost:5000/api/packinglists', fetcherWithToken);
-    const lists = data ? data.filter((pl: PackingList) => pl.tripId?.toString() === tripId) : [];
-    return { lists, loading: !data && !error, error };
-  }
-
-
-  const { trips } = useTrips();
-
   /** UI State */
   const [activeTab, setActiveTab] = useState<'weather' | 'checklist' | 'smart'>('weather');
-  console.log('📱 Current active tab:', activeTab);
   const [selectedTripId, setSelectedTripId] = useState<string>('');
   const [selectedListId, setSelectedListId] = useState<string>('');
+
+  // Using tripStore & packingListStore
+  const { trips, fetchTrips } = useTripStore();
+  const { packingLists, fetchPackingLists } = usePackingListStore();
+
+  // Filter packing lists by tripId
+  const lists = useMemo(() => {
+    return packingLists.filter((pl: PackingList) => pl.tripId?.toString() === selectedTripId);
+  }, [packingLists, selectedTripId]);
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchTrips();
+    fetchPackingLists();
+  }, [fetchTrips, fetchPackingLists]);
 
   /** Selected Trip */
   const currentTrip = useMemo(() => trips?.find((t: Trip) => t._id?.toString() === selectedTripId), [trips, selectedTripId]);
@@ -85,9 +82,6 @@ export default function PackingListOverviewPage() {
     }
   }, [trips, selectedTripId]);
 
-  /** Packing Lists */
-  const { lists } = usePackingLists(selectedTripId);
-
   /** Initialize selectedListId */
   useEffect(() => {
     if (lists && lists.length > 0 && !selectedListId) {
@@ -99,7 +93,7 @@ export default function PackingListOverviewPage() {
   const currentListSeed = useMemo(() => {
     const list = lists.find((p: PackingList) => p._id?.toString() === selectedListId);
     if (!list?.categories) return {};
-    return list.categories.reduce((acc: CategoryItems, cat: Category) => {
+    return list.categories.reduce((acc: CategoryItems, cat) => {
       acc[cat.name] = cat.items.map((i) => ({
         name: i.name,
         qty: i.qty ?? 1,
@@ -173,26 +167,17 @@ export default function PackingListOverviewPage() {
   // Function to fetch AI suggestions when smart tab is clicked
   const fetchAISuggestions = useCallback(async () => {
     if (!currentTrip || !selectedListId || loadingSuggestions || aiSuggestionsFetched) {
-      console.log('⏭️ Skipping AI suggestions fetch:', { 
-        hasTrip: !!currentTrip,
-        hasListId: !!selectedListId,
-        loading: loadingSuggestions, 
-        alreadyFetched: aiSuggestionsFetched 
-      });
+     
       return;
     }
     
-    console.log('✅ Fetching AI suggestions for packing list:', selectedListId);
     setLoadingSuggestions(true);
     try {
       const aiSuggestions = await getAISuggestions(selectedListId);
-      console.log('✅ Received AI suggestions:', aiSuggestions);
       setSmartCats(aiSuggestions);
       setSmartRemoved([]);
       setAiSuggestionsFetched(true);
-    } catch (error) {
-      console.error('❌ Failed to get AI suggestions:', error);
-      // Don't create hardcoded categories, just leave empty
+    } catch {
       setSmartCats({});
     } finally {
       setLoadingSuggestions(false);
@@ -201,11 +186,9 @@ export default function PackingListOverviewPage() {
 
   // Handle tab change with AI suggestions fetch for smart tab
   const handleTabChange = useCallback((tabId: typeof activeTab) => {
-    console.log('🔄 Tab change to:', tabId);
     setActiveTab(tabId);
     
     if (tabId === 'smart') {
-      console.log('🤖 Smart tab clicked, fetching AI suggestions...');
       fetchAISuggestions();
     }
   }, [fetchAISuggestions]);
@@ -213,7 +196,6 @@ export default function PackingListOverviewPage() {
   // Reset AI suggestions when trip or selected list changes
   useEffect(() => {
     if (currentTrip || selectedListId) {
-      console.log('🔄 Trip or list changed, resetting AI suggestions state');
       setAiSuggestionsFetched(false);
       setSmartCats({});
       setSmartRemoved([]);
@@ -423,7 +405,10 @@ export default function PackingListOverviewPage() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
             >
-              <WeatherCard weather={currentTrip.weather} />
+              <WeatherCard weather={{
+                ...currentTrip.weather,
+                condition: currentTrip.weather.condition as "sunny" | "rainy" | "cloudy" | "snowy" | undefined
+              }} />
             </motion.div>
           )}
 
