@@ -6,6 +6,7 @@ import { Plus, Edit2, Trash2, Star } from "lucide-react";
 import { useProductStore } from "@/store/productStore";
 import Image from "next/image";
 import { Product } from "@/types";
+
 function ProductImageWithFallback({ src, alt }: { src: string; alt: string }) {
   const [errored, setErrored] = useState(false);
   return errored ? (
