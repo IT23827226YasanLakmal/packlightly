@@ -41,8 +41,15 @@ fetchNews: async () => {
         method: "POST",
         body: JSON.stringify(article),
       });
-      const data = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/news`);
-      set({ news: data, loading: false });
+      const response = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/news`);
+      
+      // response has { success, news }
+      const articles = Array.isArray(response.news) ? response.news : [];
+      
+      // Convert _id to string for React
+      const normalized = articles.map((n: NewsArticle) => ({ ...n, _id: n._id?.toString() }));
+      
+      set({ news: normalized, loading: false });
     } catch {
       set({ error: "Failed to create news", loading: false });
     }
@@ -55,8 +62,15 @@ fetchNews: async () => {
         method: "PUT",
         body: JSON.stringify(article),
       });
-      const data = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/news`);
-      set({ news: data, loading: false });
+      const response = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/news`);
+      
+      // response has { success, news }
+      const articles = Array.isArray(response.news) ? response.news : [];
+      
+      // Convert _id to string for React
+      const normalized = articles.map((n: NewsArticle) => ({ ...n, _id: n._id?.toString() }));
+      
+      set({ news: normalized, loading: false });
     } catch {
       set({ error: "Failed to update news", loading: false });
     }

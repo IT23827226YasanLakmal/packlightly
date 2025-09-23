@@ -3,19 +3,48 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Leaf, X } from "lucide-react";
+import Image from "next/image";
 
 interface ProductCardProps {
-  imageUrl: string;
+  imageLink: string;
   title: string;
   rating: number;
   ecoRating: number;
   description?: string; // optional for modal details
 }
 
-export default function ProductCard({ imageUrl, title, rating, ecoRating, description }: ProductCardProps) {
+export default function ProductCard({ imageLink, title, rating, ecoRating, description }: ProductCardProps) {
   const [open, setOpen] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
 
   const stars = Array.from({ length: 5 }, (_, i) => i < Math.round(rating));
+
+  // Fallback image URL for broken or missing images
+  const fallbackImage = "/images/product-placeholder.svg";
+
+  // Check if image URL is valid
+  const isValidImageUrl = (url: string) => {
+    if (!url || url.trim() === '') return false;
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
+    setImageLoading(false);
+  };
+
+  const handleImageLoad = () => {
+    setImageLoading(false);
+  };
+
+  // Use fallback immediately if URL is invalid
+  const imageToUse = !isValidImageUrl(imageLink) || imageError ? fallbackImage : imageLink;
 
   return (
     <>
@@ -26,10 +55,20 @@ export default function ProductCard({ imageUrl, title, rating, ecoRating, descri
         onClick={() => setOpen(true)}
         className="flex flex-col gap-3 pb-3 bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer relative transition-all duration-300 hover:shadow-2xl"
       >
-        <div className="relative w-full aspect-square overflow-hidden rounded-xl">
-          <div
-            className="w-full h-full bg-center bg-cover transition-transform duration-500 hover:scale-105"
-            style={{ backgroundImage: `url("${imageUrl}")` }}
+        <div className="relative w-full aspect-square overflow-hidden rounded-xl bg-gray-100">
+          {imageLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-200 animate-pulse">
+              <span className="text-gray-400 text-sm">Loading...</span>
+            </div>
+          )}
+          <Image
+            src={imageToUse}
+            alt={title}
+            fill
+            className="object-cover transition-transform duration-500 hover:scale-105"
+            onError={handleImageError}
+            onLoad={handleImageLoad}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         </div>
 
@@ -81,10 +120,16 @@ export default function ProductCard({ imageUrl, title, rating, ecoRating, descri
 
               {/* Modal Content */}
               <div className="flex flex-col gap-4">
-                <div
-                  className="w-full aspect-square bg-center bg-cover rounded-xl shadow-md"
-                  style={{ backgroundImage: `url("${imageUrl}")` }}
-                />
+                <div className="relative w-full aspect-square bg-gray-100 rounded-xl shadow-md overflow-hidden">
+                  <Image
+                    src={imageToUse}
+                    alt={title}
+                    fill
+                    className="object-cover"
+                    onError={handleImageError}
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                  />
+                </div>
 
                 <h2 className="text-2xl font-bold text-[#0e1b13]">{title}</h2>
 
@@ -104,11 +149,7 @@ export default function ProductCard({ imageUrl, title, rating, ecoRating, descri
                   <p className="text-gray-700 text-sm leading-relaxed">{description}</p>
                 )}
 
-                <button
-                  className="mt-3 w-full rounded-2xl bg-gradient-to-r from-[#4e976b] to-[#76c893] py-3 text-white font-semibold shadow-lg hover:brightness-105 transition-all"
-                >
-                  Add to Cart
-                </button>
+               
               </div>
             </motion.div>
           </motion.div>

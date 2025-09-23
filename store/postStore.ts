@@ -49,13 +49,11 @@ export const usePostStore = create<PostStore>((set, get) => ({
       if (imageFile) {
         const formData = new FormData();
         formData.append('image', imageFile);
-        alert('Uploading image...');
         const imageRes = await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
           method: 'POST',
           body: formData,
         });
         console.log('Image upload response:', imageRes);
-        alert('Image upload response: ' + JSON.stringify(imageRes));
         if (imageRes && imageRes.url) {
           postData.imageUrl = imageRes.url;
         } else {
@@ -65,22 +63,17 @@ export const usePostStore = create<PostStore>((set, get) => ({
       }
 
       if (!postData.imageUrl && imageFile) {
-        alert('Image upload failed, post not created');
         set({ error: 'Image upload failed, post not created', loading: false });
         return;
       }
 
-      console.log('Creating post with data:', postData);
-      alert('Creating post with data: ' + JSON.stringify(postData));
-      const postRes = await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts`, {
+      await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts`, {
         method: 'POST',
         body: JSON.stringify(postData),
       });
-      alert('Post creation response: ' + JSON.stringify(postRes));
 
       await get().fetchPosts();
     } catch (err) {
-      alert('Failed to create post: ' + err);
       console.error('Failed to create post:', err);
       set({ error: 'Failed to create post', loading: false });
     }

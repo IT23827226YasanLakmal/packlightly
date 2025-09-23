@@ -16,38 +16,19 @@ import { Trip, Item, CategoryItems, PackingList, Category } from '@/types';
  * ----------------------------*/
 const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 
-const generateSmartSuggestions = (trip?: Trip): CategoryItems => {
-  if (!trip) return { Essentials: [], Clothing: [], Toiletries: [], Electronics: [] };
-  const dest = trip.destination?.toLowerCase() || "";
-  const warmWeather = /(paris|dubai|bali|miami|colombo)/.test(dest);
-  const coldWeather = /(oslo|helsinki|zurich|moscow|reykjavik)/.test(dest);
-  const longTrip = trip.durationDays >= 8;
-
-  return {
-    Essentials: [
-      { name: "Reusable water bottle", qty: 1, checked: false, eco: true },
-      { name: "Reusable shopping tote", qty: 1, checked: false, eco: true }
-    ],
-    Clothing: [
-      { name: warmWeather ? "Sun hat" : coldWeather ? "Beanie & gloves" : "Light jacket", qty: 1, checked: false, eco: true },
-      { name: longTrip ? "Laundry kit (eco detergent sheets)" : "Compact laundry bar", qty: 1, checked: false, eco: true },
-      { name: "Packable rain jacket", qty: 1, checked: false, eco: true }
-    ],
-    Toiletries: [
-      { name: "Solid conditioner bar", qty: 1, checked: false, eco: true },
-      { name: "Safety razor (with guard)", qty: 1, checked: false, eco: true },
-      { name: "Refillable travel containers", qty: 1, checked: false, eco: true }
-    ],
-    Electronics: [
-      { name: "Universal travel adapter", qty: 1, checked: false, eco: true },
-      { name: "Power bank", qty: 1, checked: false, eco: true },
-      { name: "Cable organizer", qty: 1, checked: false, eco: true }
-    ]
-  };
+// Helper function to format dates
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
 };
 
 
 export default function PackingListOverviewPage() {
+  console.log('🚀 Smart Packing component rendering');
 
   // Get state and actions from the store
   const {
@@ -60,39 +41,49 @@ export default function PackingListOverviewPage() {
     setActiveCategory,
     checkAllCategory,
     uncheckAllCategory,
+    getAISuggestions,
   } = useChecklistStore();
 
-  
+  console.log('📦 Store methods available:', {
+    hasGetAISuggestions: typeof getAISuggestions === 'function',
+    getAISuggestionsType: typeof getAISuggestions
+  });
+
+
 
   // ... other state and hooks (trips, lists, etc.)
   function useTrips() {
-  const { data, error } = useSWR('http://localhost:5000/api/trips', fetcherWithToken);
-  return { trips: data, loading: !data && !error, error };
-}
+    const { data, error } = useSWR('http://localhost:5000/api/trips', fetcherWithToken);
+    return { trips: data, loading: !data && !error, error };
+  }
 
-function usePackingLists(tripId: string) {
-  const { data, error } = useSWR('http://localhost:5000/api/packinglists', fetcherWithToken);
-  const lists = data ? data.filter((pl: PackingList) => pl.tripId?.toString() === tripId) : [];
-  return { lists, loading: !data && !error, error };
-}
+  function usePackingLists(tripId: string) {
+    const { data, error } = useSWR('http://localhost:5000/api/packinglists', fetcherWithToken);
+    const lists = data ? data.filter((pl: PackingList) => pl.tripId?.toString() === tripId) : [];
+    return { lists, loading: !data && !error, error };
+  }
 
 
-   const { trips } = useTrips();
+  const { trips } = useTrips();
 
   /** UI State */
   const [activeTab, setActiveTab] = useState<'weather' | 'checklist' | 'smart'>('weather');
+  console.log('📱 Current active tab:', activeTab);
   const [selectedTripId, setSelectedTripId] = useState<string>('');
   const [selectedListId, setSelectedListId] = useState<string>('');
 
   /** Selected Trip */
-  const currentTrip = useMemo(() => trips?.find((t: Trip) => t._id.toString() === selectedTripId), [trips, selectedTripId]);
+  const currentTrip = useMemo(() => trips?.find((t: Trip) => t._id?.toString() === selectedTripId), [trips, selectedTripId]);
 
   /** Initialize selectedTripId */
   useEffect(() => {
     if (trips && trips.length > 0 && !selectedTripId) {
-      setSelectedTripId(trips[0]._id.toString());
+      const firstTrip = trips[0];
+      if (firstTrip._id) {
+        setSelectedTripId(firstTrip._id.toString());
+      }
     }
-  }, [trips]);
+  }, [trips, selectedTripId]);
 
   /** Packing Lists */
   const { lists } = usePackingLists(selectedTripId);
@@ -102,12 +93,12 @@ function usePackingLists(tripId: string) {
     if (lists && lists.length > 0 && !selectedListId) {
       setSelectedListId(lists[0]._id?.toString() || '');
     }
-  }, [lists]);
+  }, [lists, selectedListId]);
 
   /** currentListSeed - FIXED: Use stringified version for comparison */
   const currentListSeed = useMemo(() => {
-    const list = lists.find((p:PackingList) => p._id?.toString() === selectedListId);
-    if (!list?.categories) return { Clothing: [], Essentials: [], Toiletries: [], Electronics: [] };
+    const list = lists.find((p: PackingList) => p._id?.toString() === selectedListId);
+    if (!list?.categories) return {};
     return list.categories.reduce((acc: CategoryItems, cat: Category) => {
       acc[cat.name] = cat.items.map((i) => ({
         name: i.name,
@@ -120,12 +111,12 @@ function usePackingLists(tripId: string) {
   }, [lists, selectedListId]);
 
   // Create a stable reference for comparison
-  const currentListSeedString = useMemo(() => 
-    JSON.stringify(currentListSeed), 
+  const currentListSeedString = useMemo(() =>
+    JSON.stringify(currentListSeed),
     [currentListSeed]
   );
 
- 
+
 
   const listsForTrip = useMemo(() => lists.filter((pl: PackingList) => pl.tripId?.toString() === selectedTripId), [lists, selectedTripId]);
 
@@ -133,7 +124,7 @@ function usePackingLists(tripId: string) {
   // Initialize checklistCats from the current list
   useEffect(() => {
     if (!currentListSeedString) return;
-    
+
     const seedData = JSON.parse(currentListSeedString);
     setChecklistCats(seedData);
     setRemovedItems([]);
@@ -173,27 +164,73 @@ function usePackingLists(tripId: string) {
   }, [checklistCats, removedItems]);
 
 
-    /** Smart Suggestions */
+  /** Smart Suggestions */
   const [smartCats, setSmartCats] = useState<CategoryItems>({});
   const [smartRemoved, setSmartRemoved] = useState<string[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [aiSuggestionsFetched, setAiSuggestionsFetched] = useState(false);
 
-  // Create stable trip reference
-  const currentTripId = currentTrip?._id?.toString();
+  // Function to fetch AI suggestions when smart tab is clicked
+  const fetchAISuggestions = useCallback(async () => {
+    if (!currentTrip || !selectedListId || loadingSuggestions || aiSuggestionsFetched) {
+      console.log('⏭️ Skipping AI suggestions fetch:', { 
+        hasTrip: !!currentTrip,
+        hasListId: !!selectedListId,
+        loading: loadingSuggestions, 
+        alreadyFetched: aiSuggestionsFetched 
+      });
+      return;
+    }
+    
+    console.log('✅ Fetching AI suggestions for packing list:', selectedListId);
+    setLoadingSuggestions(true);
+    try {
+      const aiSuggestions = await getAISuggestions(selectedListId);
+      console.log('✅ Received AI suggestions:', aiSuggestions);
+      setSmartCats(aiSuggestions);
+      setSmartRemoved([]);
+      setAiSuggestionsFetched(true);
+    } catch (error) {
+      console.error('❌ Failed to get AI suggestions:', error);
+      // Don't create hardcoded categories, just leave empty
+      setSmartCats({});
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  }, [currentTrip, selectedListId, getAISuggestions, loadingSuggestions, aiSuggestionsFetched]);
 
+  // Handle tab change with AI suggestions fetch for smart tab
+  const handleTabChange = useCallback((tabId: typeof activeTab) => {
+    console.log('🔄 Tab change to:', tabId);
+    setActiveTab(tabId);
+    
+    if (tabId === 'smart') {
+      console.log('🤖 Smart tab clicked, fetching AI suggestions...');
+      fetchAISuggestions();
+    }
+  }, [fetchAISuggestions]);
+
+  // Reset AI suggestions when trip or selected list changes
   useEffect(() => {
-    if (!currentTrip) return;
-    const newSuggestions = generateSmartSuggestions(currentTrip);
-    setSmartCats(newSuggestions);
-    setSmartRemoved([]);
-  }, [currentTripId]); // Only depend on ID, not the whole trip object
+    if (currentTrip || selectedListId) {
+      console.log('🔄 Trip or list changed, resetting AI suggestions state');
+      setAiSuggestionsFetched(false);
+      setSmartCats({});
+      setSmartRemoved([]);
+    }
+  }, [currentTrip, selectedListId]);
 
 
-  // NEW: Toggle item checked state
-  const handleToggleItem = useCallback((category: string, itemName: string) => {
-    const item = (checklistCats[category] || []).find((i) => i.name === itemName);
-    if (!item) return;
-    // Use store action for type safety
-    useChecklistStore.getState().toggleItem(category, itemName, !(item.checked ?? false));
+  // Toggle smart suggestion item checked state
+  const handleToggleSmartItem = useCallback((category: string, itemName: string) => {
+    setSmartCats(prev => ({
+      ...prev,
+      [category]: (prev[category] || []).map(item => 
+        item.name === itemName 
+          ? { ...item, checked: !(item.checked ?? false) }
+          : item
+      )
+    }));
   }, []);
 
   // NEW: Check all items in category
@@ -214,23 +251,58 @@ function usePackingLists(tripId: string) {
         ...(checklistCats[category]?.find((i: Item) => i.name.toLowerCase() === item.name.toLowerCase()) ? [] : [item])
       ]
     });
-  }, []);
+  }, [checklistCats, setChecklistCats]);
 
   const handleRemoveSmart = useCallback((label: string) => {
     setSmartRemoved((prev) => (prev.includes(label) ? prev : [...prev, label]));
   }, []);
 
-  /** Category Icons */
-  const categoryIcons: Record<string, string> = {
-    Clothing: '👕',
-    Essentials: '🎒',
-    Toiletries: '🧴',
-    Electronics: '🔌',
+  /** Category Icons - Dynamic mapping */
+  const getCategoryIcon = (categoryName: string): string => {
+    const name = categoryName.toLowerCase();
+    if (name.includes('clothing') || name.includes('clothes')) return '👕';
+    if (name.includes('essentials') || name.includes('essential')) return '🎒';
+    if (name.includes('toiletries') || name.includes('toiletry') || name.includes('bathroom')) return '🧴';
+    if (name.includes('electronics') || name.includes('electronic') || name.includes('tech')) return '🔌';
+    if (name.includes('documents') || name.includes('document') || name.includes('papers')) return '📄';
+    if (name.includes('miscellaneous') || name.includes('misc') || name.includes('other')) return '📦';
+    if (name.includes('food') || name.includes('snacks')) return '🍪';
+    if (name.includes('medical') || name.includes('health')) return '💊';
+    if (name.includes('accessories') || name.includes('accessory')) return '👜';
+    return '📋'; // Default icon
   };
 
-  
+
   /** Loading Check */
-  if (!currentTrip) return <div>Loading trip...</div>;
+  if (!currentTrip) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white/60">
+        <div className="flex flex-col items-center gap-4">
+          {/* Spinner */}
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-green-200 rounded-full animate-pulse"></div>
+            <div className="absolute inset-2 w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          {/* Loading text */}
+          <div className="text-center">
+            <h3 className="text-xl font-bold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
+              Loading Smart Packing
+            </h3>
+            <p className="text-sm text-green-600 mt-1 animate-pulse">Preparing your packing experience...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Debug log for smart categories
+  console.log('Smart packing render state:', { 
+    smartCats, 
+    smartCatsKeys: Object.keys(smartCats),
+    loadingSuggestions,
+    currentTrip: currentTrip?.title,
+    selectedListId 
+  });
 
   return (
     <div className="relative flex min-h-screen flex-col bg-[#f5f8f6] text-gray-800 p-4">
@@ -249,12 +321,12 @@ function usePackingLists(tripId: string) {
 
         <div className="flex items-center gap-5 relative z-10">
           <div className="flex flex-col">
-            <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 animate-slideIn animate-pulseGlow">
-              {trips.find((t: Trip) => t._id.toString() === selectedTripId)?.title}
+            <h1 className="text-3xl font-extrabold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
+              {trips.find((t: Trip) => t._id?.toString() === selectedTripId)?.title}
             </h1>
             <p className="text-sm text-green-600 mt-1 animate-fadeIn">
-              Destination: {currentTrip.destination} &nbsp;|&nbsp; {currentTrip.startDate} →{' '}
-              {currentTrip.endDate} &nbsp;|&nbsp; {currentTrip.durationDays} days
+              Destination: {currentTrip.destination} &nbsp;|&nbsp; {formatDate(currentTrip.startDate)} →{' '}
+              {formatDate(currentTrip.endDate)} &nbsp;|&nbsp; {currentTrip.durationDays} days
             </p>
           </div>
         </div>
@@ -268,8 +340,8 @@ function usePackingLists(tripId: string) {
               onChange={(e) => setSelectedTripId(e.target.value)}
               className="px-4 py-2 rounded-xl bg-white/80 border border-gray-200 shadow-sm hover:bg-white transition"
             >
-              {trips.map((t: Trip) => (
-                <option key={t._id.toString()} value={t._id.toString()}>
+              {trips.filter((t: Trip) => t._id).map((t: Trip) => (
+                <option key={t._id!.toString()} value={t._id!.toString()}>
                   {t.title}
                 </option>
               ))}
@@ -296,7 +368,7 @@ function usePackingLists(tripId: string) {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                onClick={() => handleTabChange(tab.id as typeof activeTab)}
                 className={`relative px-5 py-2 text-sm font-semibold rounded-full transition-all duration-500 whitespace-nowrap
                   ${activeTab === tab.id
                     ? 'bg-gradient-to-r from-green-400 via-teal-400 to-cyan-400 text-white shadow-xl animate-gradient'
@@ -423,11 +495,10 @@ function usePackingLists(tripId: string) {
                           : 'bg-gray-100 text-gray-700 hover:bg-green-50 hover:text-green-700'}
                       `}
                     >
-                      <span>{categoryIcons[cat] || '📌'}</span>
+                      <span>{getCategoryIcon(cat)}</span>
                       <span>{cat}</span>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                        allChecked ? 'bg-green-500 text-white' : 'bg-white/30'
-                      }`}>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${allChecked ? 'bg-green-500 text-white' : 'bg-white/30'
+                        }`}>
                         {checkedCount}/{total} ✓
                       </span>
                       {ecoCount > 0 && (
@@ -461,21 +532,21 @@ function usePackingLists(tripId: string) {
               {/* Animated Category Content */}
               <AnimatePresence mode="wait">
                 {activeCategory && (
-                    <motion.div
+                  <motion.div
                     key={activeCategory}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.25 }}
                     className="mt-4"
-                    >
+                  >
                     <ChecklistSection
                       title={titleCase(activeCategory)}
                       category={activeCategory}
                       listId={selectedListId}
                     />
-                    
-                    </motion.div>
+
+                  </motion.div>
                 )}
               </AnimatePresence>
             </motion.div>
@@ -533,13 +604,49 @@ function usePackingLists(tripId: string) {
               </div>
 
               {/* Suggestions grouped by category */}
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {Object.keys(smartCats).map((cat) => {
-                  const items = (smartCats[cat] || []).filter((i) => !smartRemoved.includes(i.name));
-                  if (!items.length) return null;
-                  return (
-                    <div key={`smart-${cat}`} className="bg-white rounded-2xl p-4 shadow border border-gray-100">
-                      <h3 className="text-lg font-bold mb-3">{titleCase(cat)}</h3>
+              {loadingSuggestions ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Getting AI suggestions...</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {!aiSuggestionsFetched ? (
+                    <div className="col-span-full text-center py-12">
+                      <div className="bg-gradient-to-br from-green-50 to-teal-50 rounded-2xl p-8 border border-green-100">
+                        <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-teal-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-800 mb-2">AI-Powered Smart Suggestions</h3>
+                        <p className="text-gray-600 mb-4">Get personalized packing recommendations based on your trip details, destination weather, and sustainability preferences.</p>
+                        <button
+                          onClick={fetchAISuggestions}
+                          disabled={loadingSuggestions}
+                          className="bg-gradient-to-r from-green-400 to-teal-400 text-white px-6 py-2 rounded-full font-medium hover:from-green-500 hover:to-teal-500 transition-all duration-200 disabled:opacity-50"
+                        >
+                          Generate Smart Suggestions
+                        </button>
+                      </div>
+                    </div>
+                  ) : Object.keys(smartCats).length === 0 ? (
+                    <div className="col-span-full text-center py-12">
+                      <p className="text-gray-500">No AI suggestions available for this trip.</p>
+                    </div>
+                  ) : (
+                    Object.keys(smartCats).map((cat) => {
+                      const items = (smartCats[cat] || []).filter((i) => !smartRemoved.includes(i.name));
+                      console.log(`Category ${cat}:`, { totalItems: smartCats[cat]?.length, filteredItems: items.length, items });
+                      if (!items.length) return null;
+                      return (
+                        <div key={`smart-${cat}`} className="bg-white rounded-2xl p-4 shadow border border-gray-100">
+                          <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                            <span>{getCategoryIcon(cat)}</span>
+                            {titleCase(cat)}
+                          </h3>
                       <ul className="space-y-2">
                         {items.map((it) => (
                           <li
@@ -548,10 +655,10 @@ function usePackingLists(tripId: string) {
                           >
                             <div className="flex items-center gap-2">
                               <button
-                                onClick={() => handleToggleItem(cat, it.name)}
+                                onClick={() => handleToggleSmartItem(cat, it.name)}
                                 className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all
-                                  ${it.checked 
-                                    ? 'bg-green-500 border-green-500 text-white' 
+                                  ${it.checked
+                                    ? 'bg-green-500 border-green-500 text-white'
                                     : 'border-gray-300 hover:border-green-400'
                                   }`}
                               >
@@ -583,8 +690,10 @@ function usePackingLists(tripId: string) {
                       </ul>
                     </div>
                   );
-                })}
-              </div>
+                    })
+                  )}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

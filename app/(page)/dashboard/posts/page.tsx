@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Edit2, Heart, MessageCircle, X, Bold, Italic, Underline, Heading2, List, Quote, Image, Eye } from "lucide-react";
-import { usePostStore} from "@/store/postStore"; // import your post store
+import { usePostStore } from "@/store/postStore"; // import your post store
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { Post, Comment } from "@/types";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 
 export default function MyPostsPage() {
   const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loading, error } = usePostStore();
@@ -22,15 +23,34 @@ export default function MyPostsPage() {
   const [expandedPosts, setExpandedPosts] = useState<string[]>([]);
   const [commentsData, setCommentsData] = useState<Record<string, Comment[]>>({});
 
+  // Confirmation dialog state
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [postToDelete, setPostToDelete] = useState<string | null>(null);
+
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
 
-  const handleDeletePost = async (_id: string) => {
-    await deletePost(_id);
-    setExpandedPosts(prev => prev.filter(pid => pid !== _id));
+  const handleDeletePost = (postId: string) => {
+    setPostToDelete(postId);
+    setConfirmDialogOpen(true);
   };
 
+  const handleConfirmDelete = async () => {
+    if (postToDelete) {
+      await deletePost(postToDelete);
+      setExpandedPosts(prev => prev.filter(pid => pid !== postToDelete));
+      setPostToDelete(null);
+    }
+    setConfirmDialogOpen(false);
+  };
+
+  const handleCancelDelete = () => {
+    setPostToDelete(null);
+    setConfirmDialogOpen(false);
+  };
+
+  //filter post
   const filteredPosts = posts
     .filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) =>
@@ -38,7 +58,7 @@ export default function MyPostsPage() {
         ? new Date(b.date).getTime() - new Date(a.date).getTime()
         : new Date(a.date).getTime() - new Date(b.date).getTime()
     );
-
+  //pagination
   const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
   const paginatedPosts = filteredPosts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const goToPage = (page: number) => {
@@ -63,15 +83,15 @@ export default function MyPostsPage() {
     setModalOpen(true);
   };
 
-  const savePost = async (post: Post) => {
+  const savePost = async (post: Post, imageFile?: File) => {
     if (post._id) {
-      await updatePost(post._id, post);
+      await updatePost(post._id, post, imageFile);
     } else {
       if (!user) {
-        alert("You must be logged in to create a post.");
+        // User not logged in - silently return
         return;
       }
-      await createPost({ ...post, ownerId: user.uid });
+      await createPost({ ...post, ownerId: user.uid }, imageFile);
     }
     setModalOpen(false);
   };
@@ -79,13 +99,14 @@ export default function MyPostsPage() {
   const toggleComments = (_id: string) =>
     setExpandedPosts(prev => prev.includes(_id) ? prev.filter(pid => pid !== _id) : [...prev, _id]);
 
-  
+
 
   return (
     <div className="min-h-screen p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between gap-4 mb-8 items-center">
-        <h1 className="text-3xl font-extrabold text-black">My Posts</h1>
+        <h1 className="text-3xl font-extrabold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
+          My Posts</h1>
         <div className="flex flex-wrap gap-3 items-center">
           <input
             type="text"
@@ -105,7 +126,24 @@ export default function MyPostsPage() {
       </div>
 
       {/* Loading / Error */}
-      {loading && <p className="text-green-300">Loading posts...</p>}
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-4">
+            {/* Spinner */}
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-green-200 rounded-full animate-pulse"></div>
+              <div className="absolute inset-2 w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            {/* Loading text */}
+            <div className="text-center">
+              <h3 className="text-xl font-bold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
+                Loading Posts
+              </h3>
+              <p className="text-sm text-green-600 mt-1 animate-pulse">Fetching community content...</p>
+            </div>
+          </div>
+        </div>
+      )}
       {error && <p className="text-red-400">{error}</p>}
 
       {/* Posts Grid */}
@@ -130,7 +168,7 @@ export default function MyPostsPage() {
                       <div className="flex gap-4 items-center">
                         <div className="flex items-center gap-1 text-emerald-400 font-medium"><Heart size={16} /> {post.comments.length}</div>
                         <div onClick={() => toggleComments(post._id!)} className="flex items-center gap-1 text-emerald-400 font-medium cursor-pointer">
-                         <MessageCircle size={16} /> {post.comments.length}
+                          <MessageCircle size={16} /> {post.comments.length}
                         </div>
                       </div>
                     </div>
@@ -145,7 +183,7 @@ export default function MyPostsPage() {
                               <p className="text-sm text-green-200">{comment.text}</p>
                             </div>
                           ))}
-                          {/* Input field */}
+                          {/* add comment Input field */}
                           <div className="flex gap-2 mt-2">
                             <input
                               type="text"
@@ -197,6 +235,15 @@ export default function MyPostsPage() {
 
       {/* Create/Edit Modal */}
       <PostModal open={modalOpen} post={modalPost} onClose={() => setModalOpen(false)} onSave={savePost} />
+      
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmDialogOpen}
+        title="Delete Post"
+        description="Are you sure you want to delete this post? This action cannot be undone."
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }
@@ -257,7 +304,7 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
       {open && post && (
         <motion.div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <motion.div initial={{ y: 50, opacity: 0, scale: 0.95 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 50, opacity: 0, scale: 0.95 }} transition={{ duration: 0.35, ease: "easeInOut" }} className="w-full max-w-3xl bg-black/80 rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-green-700/30">
-            
+
             {/* Header */}
             <div className="flex justify-between items-center p-5 border-b border-green-700/30">
               <h2 className="text-xl font-bold text-white">{post._id ? "✍️ Edit Post" : "✍️ Create New Post"}</h2>

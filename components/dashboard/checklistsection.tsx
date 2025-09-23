@@ -26,14 +26,11 @@ export default function ChecklistSection({
     saveToServer
   } = useChecklistStore();
 
-  // Get items for this category
-  const items = checklistCats[category] || [];
-  
-  // Filter out removed items
-  const visibleItems = useMemo(
-    () => items.filter((i) => !removedItems.includes(i.name)),
-    [items, removedItems]
-  );
+  // Get items for this category and filter out removed items
+  const visibleItems = useMemo(() => {
+    const items = checklistCats[category] || [];
+    return items.filter((i) => !removedItems.includes(i.name));
+  }, [checklistCats, category, removedItems]);
 
   const handleAdd = () => {
     const name = newItemLabel.trim();
@@ -88,9 +85,9 @@ export default function ChecklistSection({
       {/* Checklist Items */}
       <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
         {visibleItems.length === 0 && <p className="text-gray-500 text-sm">No items</p>}
-        {visibleItems.map((item) => (
+        {visibleItems.map((item, index) => (
           <div
-            key={item.name}
+            key={`${category}-${item.name}-${index}`}
             className="flex items-center justify-between gap-2 p-2 rounded hover:bg-gray-50 transition"
           >
             <div className="flex items-center gap-2">
