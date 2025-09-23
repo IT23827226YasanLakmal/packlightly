@@ -157,18 +157,21 @@ export default function AdminEcoInventoryPage() {
     return undefined;
   }, []);
 
-  const validateAvailableLocation = React.useCallback((location: string): string | undefined => {
-    if (!location || location.trim().length === 0) {
+  const validateAvailableLocation = React.useCallback((location: string | string[]): string | undefined => {
+    // Convert array to string if needed
+    const locationStr = Array.isArray(location) ? location.join(", ") : location;
+    
+    if (!locationStr || typeof locationStr !== 'string' || locationStr.trim().length === 0) {
       return "Available location is required";
     }
-    if (location.trim().length < 2) {
+    if (locationStr.trim().length < 2) {
       return "Location must be at least 2 characters long";
     }
-    if (location.trim().length > 200) {
+    if (locationStr.trim().length > 200) {
       return "Location must be less than 200 characters";
     }
     // Allow letters, numbers, spaces, commas, periods, and common punctuation
-    if (!/^[a-zA-Z0-9\s,.-]+$/.test(location.trim())) {
+    if (!/^[a-zA-Z0-9\s,.-]+$/.test(locationStr.trim())) {
       return "Location contains invalid characters";
     }
     return undefined;
@@ -209,7 +212,6 @@ export default function AdminEcoInventoryPage() {
     setEditing((prev) => {
       const next = prev ? { ...prev, ...patch } : { ...emptyProduct, ...patch };
       // debug log — remove when confident
-      // eslint-disable-next-line no-console
       console.log("updateEditing ->", patch, "next:", next);
       return next;
     });
@@ -226,7 +228,14 @@ export default function AdminEcoInventoryPage() {
 
   const openEdit = (item: Product) => {
     // clone item so we don't edit the store object directly
-    setEditing({ ...item });
+    // Ensure availableLocation is a string
+    const editingItem = {
+      ...item,
+      availableLocation: Array.isArray(item.availableLocation) 
+        ? item.availableLocation.join(", ") 
+        : item.availableLocation || ""
+    };
+    setEditing(editingItem);
     setValidationErrors({});
     setIsFormValid(false);
     setTouchedFields({});

@@ -101,7 +101,7 @@ export interface Product {
   category: string;
   eco: number; // 1-5
   description: string;
-  availableLocation: string;
+  availableLocation: string | string[];
   imageLink: string;
   createdAt?: string;
   updatedAt?: string;
