@@ -27,6 +27,24 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "www.newsletter.co.uk",
       },
+      // Common product image domains
+      {
+        protocol: "https",
+        hostname: "via.placeholder.com",
+      },
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
+      },
+      {
+        protocol: "https",
+        hostname: "example.com",
+      },
+      // Allow all HTTPS domains for development
+      {
+        protocol: "https",
+        hostname: "**",
+      },
     ],
   },
 };

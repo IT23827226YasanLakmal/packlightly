@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Trash2, Leaf, MapPin, Plus } from "lucide-react";
 import { useTripStore } from "@/store/tripStore";
@@ -36,6 +37,7 @@ const calculateDurationDays = (startDate: string, endDate: string) => {
 };
 
 export default function AllTripsTable() {
+  const router = useRouter();
   const { trips, loading, error, fetchTrips, setSelectedTripId, updateTrip } = useTripStore();
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [savingTrip, setSavingTrip] = useState(false);
@@ -215,9 +217,18 @@ export default function AllTripsTable() {
   const handleGeneratePackingList = async () => {
     if (!selectedTrip || !selectedTrip._id || generatingPackingList) return;
     setGeneratingPackingList(true);
-    await generatePackingListForTrip(selectedTrip._id.toString());
-    setGeneratingPackingList(false);
-    setShowGeneratePrompt(false);
+    try {
+      await generatePackingListForTrip(selectedTrip._id.toString());
+      // Refresh the packing lists to ensure the new list is visible
+      await fetchPackingLists();
+      setGeneratingPackingList(false);
+      setShowGeneratePrompt(false);
+      // Navigate to packing lists page to show the newly generated list
+      router.push(`/dashboard/packinglists?tripId=${selectedTrip._id}`);
+    } catch (error) {
+      console.error('Failed to generate packing list:', error);
+      setGeneratingPackingList(false);
+    }
   };
 
   if (loading) {

@@ -46,6 +46,36 @@ export default function PackingListsPage() {
     if (tripIdParam) setSelectedTrip(tripIdParam);
   }, [tripIdParam, fetchPackingLists, fetchTrips]);
 
+  // Refresh data when the page becomes visible (e.g., after navigation)
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchPackingLists();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchPackingLists();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchPackingLists]);
+
+  // Force refresh when component mounts (especially important after navigation)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchPackingLists();
+    }, 100); // Small delay to ensure store is ready
+
+    return () => clearTimeout(timeoutId);
+  }, [fetchPackingLists]); // Include fetchPackingLists in dependencies
+
   const handleDeleteList = (id: string) => {
     deletePackingList(id);
   };
@@ -53,15 +83,17 @@ export default function PackingListsPage() {
   // Filtered + searched
   let filteredLists = packingLists
     .filter((list) => (selectedTrip ? getPackingListId(list) === selectedTrip || list.tripId?.toString() === selectedTrip : true))
-    .filter((list) => list.title.toLowerCase().includes(searchTerm.toLowerCase()));
+    .filter((list) => list.title?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
 
   // Sorting - Note: PackingList doesn't have createdAt, so we'll use title for alphabetical sort instead
   filteredLists = [...filteredLists].sort((a, b) => {
     if (sortBy === "newest" || sortBy === "oldest") {
       // Fallback to alphabetical since no createdAt
+      const titleA = a.title || '';
+      const titleB = b.title || '';
       return sortBy === "newest" 
-        ? b.title.localeCompare(a.title)
-        : a.title.localeCompare(b.title);
+        ? titleB.localeCompare(titleA)
+        : titleA.localeCompare(titleB);
     }
     if (sortBy === "itemsHigh") return getPackingListItemsCount(b) - getPackingListItemsCount(a);
     if (sortBy === "itemsLow") return getPackingListItemsCount(a) - getPackingListItemsCount(b);
@@ -193,7 +225,7 @@ export default function PackingListsPage() {
               {paginatedLists.map((list) => (
                 <motion.div key={getPackingListId(list)} initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -25 }} transition={{ duration: 0.3 }} layout onClick={() => router.push(`/packinglist-overview?id=${getPackingListId(list)}`)} className="flex flex-col justify-between p-6 bg-white/90 backdrop-blur-lg rounded-2xl shadow-md hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1 cursor-pointer">
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900">{list.title}</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">{list.title || 'Untitled List'}</h2>
                     <p className="text-sm text-gray-600 mt-1">{getPackingListDescription(list)}</p>
                     {!selectedTrip && <p className="text-sm text-emerald-600 mt-2 font-medium">Trip: {getTripNameById(list.tripId?.toString() || '')}</p>}
                   </div>
