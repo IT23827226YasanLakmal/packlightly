@@ -486,7 +486,15 @@ export default function Page() {
                     Cancel
                   </button>
                   <button
-                    onClick={() => deleteUser(confirmDelete.uid)}
+                    onClick={async () => {
+                      try {
+                        await deleteUser(confirmDelete.uid);
+                      } catch (error) {
+                        console.error('Failed to delete user:', error);
+                      } finally {
+                        setConfirmDelete(null);
+                      }
+                    }}
                     className="rounded-xl bg-red-600 text-white px-4 py-2 font-semibold hover:bg-red-700"
                   >
                     Delete
