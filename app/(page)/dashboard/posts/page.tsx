@@ -83,15 +83,15 @@ export default function MyPostsPage() {
     setModalOpen(true);
   };
 
-  const savePost = async (post: Post) => {
+  const savePost = async (post: Post, imageFile?: File) => {
     if (post._id) {
-      await updatePost(post._id, post);
+      await updatePost(post._id, post, imageFile);
     } else {
       if (!user) {
         // User not logged in - silently return
         return;
       }
-      await createPost({ ...post, ownerId: user.uid });
+      await createPost({ ...post, ownerId: user.uid }, imageFile);
     }
     setModalOpen(false);
   };
