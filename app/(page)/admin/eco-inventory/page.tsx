@@ -56,10 +56,152 @@ export default function AdminEcoInventoryPage() {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState<Product | null>(null);
 
+  // Validation state
+  const [validationErrors, setValidationErrors] = React.useState<{
+    name?: string;
+    category?: string;
+    description?: string;
+    imageLink?: string;
+    availableLocation?: string;
+  }>({});
+  const [isFormValid, setIsFormValid] = React.useState(false);
+  const [touchedFields, setTouchedFields] = React.useState<{
+    name?: boolean;
+    category?: boolean;
+    description?: boolean;
+    imageLink?: boolean;
+    availableLocation?: boolean;
+  }>({});
+
   // Load products on mount
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  // Validation functions
+  const validateName = React.useCallback((name: string): string | undefined => {
+    if (!name || name.trim().length === 0) {
+      return "Product name is required";
+    }
+    if (name.trim().length < 2) {
+      return "Product name must be at least 2 characters long";
+    }
+    if (name.trim().length > 100) {
+      return "Product name must be less than 100 characters";
+    }
+    if (!/^[a-zA-Z0-9\s\-'&.()]+$/.test(name.trim())) {
+      return "Product name contains invalid characters";
+    }
+    // Check for duplicate names (excluding current editing item)
+    const existingProduct = products.find(product => 
+      product.name.toLowerCase() === name.trim().toLowerCase() && 
+      product._id !== editing?._id
+    );
+    if (existingProduct) {
+      return "A product with this name already exists";
+    }
+    return undefined;
+  }, [products, editing]);
+
+  const validateCategory = React.useCallback((category: string): string | undefined => {
+    if (!category || category.trim().length === 0) {
+      return "Category is required";
+    }
+    if (category.trim().length < 2) {
+      return "Category must be at least 2 characters long";
+    }
+    if (category.trim().length > 50) {
+      return "Category must be less than 50 characters";
+    }
+    if (!/^[a-zA-Z0-9\s\-&]+$/.test(category.trim())) {
+      return "Category contains invalid characters";
+    }
+    return undefined;
+  }, []);
+
+  const validateDescription = React.useCallback((description: string): string | undefined => {
+    if (!description || description.trim().length === 0) {
+      return "Description is required";
+    }
+    if (description.trim().length < 10) {
+      return "Description must be at least 10 characters long";
+    }
+    if (description.trim().length > 500) {
+      return "Description must be less than 500 characters";
+    }
+    return undefined;
+  }, []);
+
+  const validateImageLink = React.useCallback((imageLink: string): string | undefined => {
+    if (imageLink && imageLink.trim().length > 0) {
+      if (imageLink.trim().length > 2000) {
+        return "Image URL must be less than 2000 characters";
+      }
+      // Basic URL validation
+      try {
+        new URL(imageLink.trim());
+      } catch {
+        return "Please enter a valid URL";
+      }
+      // Check if it's likely an image URL
+      const imageExtensions = /\.(jpg|jpeg|png|gif|bmp|webp|svg)(\?.*)?$/i;
+      const isImageUrl = imageExtensions.test(imageLink.trim()) || 
+                        imageLink.includes('image') || 
+                        imageLink.includes('photo') ||
+                        imageLink.includes('img');
+      if (!isImageUrl) {
+        return "URL should point to an image file";
+      }
+    }
+    return undefined;
+  }, []);
+
+  const validateAvailableLocation = React.useCallback((location: string): string | undefined => {
+    if (!location || location.trim().length === 0) {
+      return "Available location is required";
+    }
+    if (location.trim().length < 2) {
+      return "Location must be at least 2 characters long";
+    }
+    if (location.trim().length > 200) {
+      return "Location must be less than 200 characters";
+    }
+    // Allow letters, numbers, spaces, commas, periods, and common punctuation
+    if (!/^[a-zA-Z0-9\s,.-]+$/.test(location.trim())) {
+      return "Location contains invalid characters";
+    }
+    return undefined;
+  }, []);
+
+  const validateForm = React.useCallback((): boolean => {
+    if (!editing) return false;
+
+    const nameError = validateName(editing.name || "");
+    const categoryError = validateCategory(editing.category || "");
+    const descriptionError = validateDescription(editing.description || "");
+    const imageError = validateImageLink(editing.imageLink || "");
+    const locationError = validateAvailableLocation(editing.availableLocation || "");
+
+    const errors = {
+      name: nameError,
+      category: categoryError,
+      description: descriptionError,
+      imageLink: imageError,
+      availableLocation: locationError,
+    };
+
+    setValidationErrors(errors);
+    const valid = !nameError && !categoryError && !descriptionError && !imageError && !locationError;
+    setIsFormValid(valid);
+    return valid;
+  }, [editing, validateName, validateCategory, validateDescription, validateImageLink, validateAvailableLocation]);
+
+  // Validate form whenever editing data changes
+  React.useEffect(() => {
+    if (drawerOpen && editing) {
+      validateForm();
+    }
+  }, [editing, drawerOpen, validateForm]);
 
   // helper to merge changes safely (works even if editing is null)
   const updateEditing = (patch: Partial<Product>) => {
@@ -75,12 +217,18 @@ export default function AdminEcoInventoryPage() {
   const openAdd = () => {
     // create a fresh object copy
     setEditing({ ...emptyProduct });
+    setValidationErrors({});
+    setIsFormValid(false);
+    setTouchedFields({});
     setDrawerOpen(true);
   };
 
   const openEdit = (item: Product) => {
     // clone item so we don't edit the store object directly
     setEditing({ ...item });
+    setValidationErrors({});
+    setIsFormValid(false);
+    setTouchedFields({});
     setDrawerOpen(true);
   };
 
@@ -91,6 +239,19 @@ export default function AdminEcoInventoryPage() {
   );
 
   async function saveItem(item: Product) {
+    // Mark all fields as touched to show validation errors
+    setTouchedFields({
+      name: true,
+      category: true,
+      description: true,
+      imageLink: true,
+      availableLocation: true,
+    });
+
+    if (!validateForm()) {
+      return; // Don't save if form is invalid
+    }
+
     try {
       if (item._id) {
         await updateProduct(item._id.toString(), item);
@@ -101,8 +262,10 @@ export default function AdminEcoInventoryPage() {
       // close and clear editing to avoid stale references
       setDrawerOpen(false);
       setEditing(null);
+      setValidationErrors({});
+      setIsFormValid(false);
+      setTouchedFields({});
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error("saveItem error:", err);
     }
   }
@@ -111,6 +274,15 @@ export default function AdminEcoInventoryPage() {
     await deleteProduct(id);
     setConfirmDelete(null);
   }
+
+  // Reset form function
+  const resetForm = () => {
+    setDrawerOpen(false);
+    setEditing(null);
+    setValidationErrors({});
+    setIsFormValid(false);
+    setTouchedFields({});
+  };
 
   return (
     <section className="px-6 lg:px-10 py-6 space-y-6">
@@ -240,10 +412,7 @@ export default function AdminEcoInventoryPage() {
             {/* overlay (lower z so drawer is clickable) */}
             <div
               className="absolute inset-0 bg-black/30 z-40"
-              onClick={() => {
-                setDrawerOpen(false);
-                setEditing(null);
-              }}
+              onClick={resetForm}
             />
             <motion.div
               initial={{ x: "100%" }}
@@ -271,21 +440,36 @@ export default function AdminEcoInventoryPage() {
                     type="text"
                     value={editing.name}
                     onChange={(e) => updateEditing({ name: e.target.value })}
-                    className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
-                    required
+                    onBlur={() => setTouchedFields(prev => ({ ...prev, name: true }))}
+                    className={`w-full rounded-xl border bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 ${
+                      validationErrors.name && touchedFields.name
+                        ? 'border-red-500/50 focus:ring-red-500' 
+                        : 'border-green-500/30 focus:ring-emerald-500'
+                    }`}
                     autoFocus
                   />
+                  {validationErrors.name && touchedFields.name && (
+                    <p className="text-red-400 text-xs mt-1">{validationErrors.name}</p>
+                  )}
                 </div>
-
 
                 <div>
                   <label className="text-sm text-green-300">Image Link</label>
                   <input
-                    type="text"
+                    type="url"
                     value={editing.imageLink}
                     onChange={e => updateEditing({ imageLink: e.target.value })}
-                    className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
+                    onBlur={() => setTouchedFields(prev => ({ ...prev, imageLink: true }))}
+                    className={`w-full rounded-xl border bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 ${
+                      validationErrors.imageLink && touchedFields.imageLink
+                        ? 'border-red-500/50 focus:ring-red-500' 
+                        : 'border-green-500/30 focus:ring-emerald-500'
+                    }`}
+                    placeholder="https://example.com/image.jpg (optional)"
                   />
+                  {validationErrors.imageLink && touchedFields.imageLink && (
+                    <p className="text-red-400 text-xs mt-1">{validationErrors.imageLink}</p>
+                  )}
                 </div>
 
                 <div>
@@ -294,8 +478,17 @@ export default function AdminEcoInventoryPage() {
                     type="text"
                     value={editing.category}
                     onChange={(e) => updateEditing({ category: e.target.value })}
-                    className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
+                    onBlur={() => setTouchedFields(prev => ({ ...prev, category: true }))}
+                    className={`w-full rounded-xl border bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 ${
+                      validationErrors.category && touchedFields.category
+                        ? 'border-red-500/50 focus:ring-red-500' 
+                        : 'border-green-500/30 focus:ring-emerald-500'
+                    }`}
+                    placeholder="e.g., Clothing, Electronics, Home & Garden"
                   />
+                  {validationErrors.category && touchedFields.category && (
+                    <p className="text-red-400 text-xs mt-1">{validationErrors.category}</p>
+                  )}
                 </div>
 
                 <div>
@@ -307,20 +500,30 @@ export default function AdminEcoInventoryPage() {
                   >
                     {[1, 2, 3, 4, 5].map((n) => (
                       <option key={n} value={n}>
-                        {n}
+                        {n} Star{n !== 1 ? 's' : ''} - {n === 1 ? 'Poor' : n === 2 ? 'Fair' : n === 3 ? 'Good' : n === 4 ? 'Very Good' : 'Excellent'}
                       </option>
                     ))}
                   </select>
+                  <p className="text-green-400 text-xs mt-1">Rate the environmental friendliness of this product</p>
                 </div>
 
                 <div>
                   <label className="text-sm text-green-300">Description</label>
-                  <input
-                    type="text"
+                  <textarea
                     value={editing.description}
                     onChange={(e) => updateEditing({ description: e.target.value })}
-                    className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
+                    onBlur={() => setTouchedFields(prev => ({ ...prev, description: true }))}
+                    className={`w-full rounded-xl border bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 resize-none h-20 ${
+                      validationErrors.description && touchedFields.description
+                        ? 'border-red-500/50 focus:ring-red-500' 
+                        : 'border-green-500/30 focus:ring-emerald-500'
+                    }`}
+                    placeholder="Describe the product, its features, and eco-friendly aspects..."
                   />
+                  {validationErrors.description && touchedFields.description && (
+                    <p className="text-red-400 text-xs mt-1">{validationErrors.description}</p>
+                  )}
+                  <p className="text-green-400 text-xs mt-1">{editing.description?.length || 0}/500 characters</p>
                 </div>
 
                 <div>
@@ -333,25 +536,37 @@ export default function AdminEcoInventoryPage() {
                         availableLocation: e.target.value, // keep as string while typing
                       })
                     }
-                    className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
+                    onBlur={() => setTouchedFields(prev => ({ ...prev, availableLocation: true }))}
+                    className={`w-full rounded-xl border bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 ${
+                      validationErrors.availableLocation && touchedFields.availableLocation
+                        ? 'border-red-500/50 focus:ring-red-500' 
+                        : 'border-green-500/30 focus:ring-emerald-500'
+                    }`}
+                    placeholder="e.g., New York, California, Online Store"
                   />
+                  {validationErrors.availableLocation && touchedFields.availableLocation && (
+                    <p className="text-red-400 text-xs mt-1">{validationErrors.availableLocation}</p>
+                  )}
+                  <p className="text-green-400 text-xs mt-1">Enter locations where this product is available</p>
                 </div>
 
 
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setDrawerOpen(false);
-                      setEditing(null);
-                    }}
-                    className="rounded-xl border px-4 py-2 text-white"
+                    onClick={resetForm}
+                    className="rounded-xl border px-4 py-2 text-white hover:bg-white/10 transition"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="rounded-xl bg-emerald-600 text-white px-4 py-2 font-semibold hover:bg-emerald-700"
+                    disabled={!isFormValid}
+                    className={`rounded-xl px-4 py-2 font-semibold transition ${
+                      isFormValid 
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    }`}
                   >
                     Save
                   </button>

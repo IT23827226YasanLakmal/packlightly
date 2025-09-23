@@ -27,9 +27,110 @@ export default function Page() {
     disabled: false,
   });
 
+  // Validation state
+  const [validationErrors, setValidationErrors] = React.useState<{
+    displayName?: string;
+    email?: string;
+    password?: string;
+  }>({});
+  const [isFormValid, setIsFormValid] = React.useState(false);
+  const [touchedFields, setTouchedFields] = React.useState<{
+    displayName?: boolean;
+    email?: boolean;
+    password?: boolean;
+  }>({});
+
+  // Validation functions
+  const validateDisplayName = React.useCallback((name: string): string | undefined => {
+    if (!name || name.trim().length === 0) {
+      return "Name is required";
+    }
+    if (name.trim().length < 2) {
+      return "Name must be at least 2 characters long";
+    }
+    if (name.trim().length > 50) {
+      return "Name must be less than 50 characters";
+    }
+    if (!/^[a-zA-Z\s'-]+$/.test(name.trim())) {
+      return "Name can only contain letters, spaces, hyphens, and apostrophes";
+    }
+    return undefined;
+  }, []);
+
+  const validateEmail = React.useCallback((email: string): string | undefined => {
+    if (!email || email.trim().length === 0) {
+      return "Email is required";
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return "Please enter a valid email address";
+    }
+    if (email.trim().length > 100) {
+      return "Email must be less than 100 characters";
+    }
+    // Check for duplicate email (excluding current editing user)
+    const existingUser = users.find(user => 
+      user.email.toLowerCase() === email.trim().toLowerCase() && 
+      user.uid !== editing?.uid
+    );
+    if (existingUser) {
+      return "This email is already registered";
+    }
+    return undefined;
+  }, [users, editing]);
+
+  const validatePassword = React.useCallback((password: string): string | undefined => {
+    if (!editing && (!password || password.length === 0)) {
+      return "Password is required for new users";
+    }
+    if (password && password.length > 0) {
+      if (password.length < 6) {
+        return "Password must be at least 6 characters long";
+      }
+      if (password.length > 128) {
+        return "Password must be less than 128 characters";
+      }
+      if (!/(?=.*[a-z])/.test(password)) {
+        return "Password must contain at least one lowercase letter";
+      }
+      if (!/(?=.*[A-Z])/.test(password)) {
+        return "Password must contain at least one uppercase letter";
+      }
+      if (!/(?=.*\d)/.test(password)) {
+        return "Password must contain at least one number";
+      }
+    }
+    return undefined;
+  }, [editing]);
+
+  const validateForm = React.useCallback((): boolean => {
+    const currentUser = editing || newUser;
+    const nameError = validateDisplayName(currentUser.displayName || "");
+    const emailError = validateEmail(currentUser.email || "");
+    const passwordError = validatePassword((newUser as UserItem & { password: string }).password || "");
+
+    const errors = {
+      displayName: nameError,
+      email: emailError,
+      password: passwordError,
+    };
+
+    setValidationErrors(errors);
+    const valid = !nameError && !emailError && !passwordError;
+    setIsFormValid(valid);
+    return valid;
+  }, [editing, newUser, validateDisplayName, validateEmail, validatePassword]);
+
   React.useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  // Validate form whenever user data changes
+  React.useEffect(() => {
+    if (drawerOpen) {
+      validateForm();
+    }
+  }, [newUser, editing, drawerOpen, users, validateForm]);
 
   // Filtering: displayName, email, role
     const filteredUsers = users.filter(
@@ -41,6 +142,17 @@ export default function Page() {
 
   // CRUD handlers using zustand store
   async function saveUser() {
+    // Mark all fields as touched to show validation errors
+    setTouchedFields({
+      displayName: true,
+      email: true,
+      password: !editing, // Only mark password as touched for new users
+    });
+
+    if (!validateForm()) {
+      return; // Don't save if form is invalid
+    }
+
     if (editing) {
       // Full update
       await updateUser(editing as StoreUser);
@@ -57,7 +169,26 @@ export default function Page() {
       role: "user",
       disabled: false,
     });
+    setValidationErrors({});
+    setIsFormValid(false);
+    setTouchedFields({});
   }
+
+  // Reset form function
+  const resetForm = () => {
+    setDrawerOpen(false);
+    setEditing(null);
+    setNewUser({
+      displayName: "",
+      email: "",
+      password: "",
+      role: "user",
+      disabled: false,
+    });
+    setValidationErrors({});
+    setIsFormValid(false);
+    setTouchedFields({});
+  };
 
   // Inline patch for role or status
   async function handlePatch(uid: string, partial: Partial<UserItem>) {
@@ -92,6 +223,9 @@ export default function Page() {
                 role: "user",
                 disabled: false,
               });
+              setValidationErrors({});
+              setIsFormValid(false);
+              setTouchedFields({});
               setDrawerOpen(true);
             }}
             className="rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-4 py-2 font-semibold flex items-center gap-2 hover:from-emerald-700 hover:to-emerald-800 transition"
@@ -158,6 +292,9 @@ export default function Page() {
                       <button
                         onClick={() => {
                           setEditing(user);
+                          setValidationErrors({});
+                          setIsFormValid(false);
+                          setTouchedFields({});
                           setDrawerOpen(true);
                         }}
                         className="rounded-lg border border-green-500/30 px-2 py-1 hover:bg-emerald-900/30"
@@ -215,9 +352,16 @@ export default function Page() {
                           setNewUser({ ...newUser, displayName: e.target.value });
                         }
                       }}
-                      className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
-                      required
+                      onBlur={() => setTouchedFields(prev => ({ ...prev, displayName: true }))}
+                      className={`w-full rounded-xl border bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 ${
+                        validationErrors.displayName && touchedFields.displayName
+                          ? 'border-red-500/50 focus:ring-red-500' 
+                          : 'border-green-500/30 focus:ring-emerald-500'
+                      }`}
                     />
+                    {validationErrors.displayName && touchedFields.displayName && (
+                      <p className="text-red-400 text-xs mt-1">{validationErrors.displayName}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm text-green-300">Email</label>
@@ -231,9 +375,16 @@ export default function Page() {
                           setNewUser({ ...newUser, email: e.target.value });
                         }
                       }}
-                      className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
-                      required
+                      onBlur={() => setTouchedFields(prev => ({ ...prev, email: true }))}
+                      className={`w-full rounded-xl border bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 ${
+                        validationErrors.email && touchedFields.email
+                          ? 'border-red-500/50 focus:ring-red-500' 
+                          : 'border-green-500/30 focus:ring-emerald-500'
+                      }`}
                     />
+                    {validationErrors.email && touchedFields.email && (
+                      <p className="text-red-400 text-xs mt-1">{validationErrors.email}</p>
+                    )}
                   </div>
                   {!editing && (
                     <div>
@@ -242,10 +393,17 @@ export default function Page() {
                         type="password"
                         value={newUser.password || ""}
                         onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                        className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
-                        required
+                        onBlur={() => setTouchedFields(prev => ({ ...prev, password: true }))}
+                        className={`w-full rounded-xl border bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 ${
+                          validationErrors.password && touchedFields.password
+                            ? 'border-red-500/50 focus:ring-red-500' 
+                            : 'border-green-500/30 focus:ring-emerald-500'
+                        }`}
                         placeholder="Enter password for new user"
                       />
+                      {validationErrors.password && touchedFields.password && (
+                        <p className="text-red-400 text-xs mt-1">{validationErrors.password}</p>
+                      )}
                     </div>
                   )}
                   <div>
@@ -285,24 +443,19 @@ export default function Page() {
                   <div className="flex justify-end gap-2 pt-2">
                     <button 
                       type="button" 
-                      onClick={() => {
-                        setDrawerOpen(false);
-                        setEditing(null);
-                        setNewUser({
-                          displayName: "",
-                          email: "",
-                          password: "",
-                          role: "user",
-                          disabled: false,
-                        });
-                      }} 
+                      onClick={resetForm}
                       className="rounded-xl border px-4 py-2 text-white"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="rounded-xl bg-emerald-600 text-white px-4 py-2 font-semibold hover:bg-emerald-700"
+                      disabled={!isFormValid}
+                      className={`rounded-xl px-4 py-2 font-semibold transition ${
+                        isFormValid 
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                          : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                      }`}
                     >
                       Save
                     </button>
