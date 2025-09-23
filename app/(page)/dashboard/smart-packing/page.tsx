@@ -43,12 +43,6 @@ export default function PackingListOverviewPage() {
     getAISuggestions,
   } = useChecklistStore();
 
-  console.log('📦 Store methods available:', {
-    hasGetAISuggestions: typeof getAISuggestions === 'function',
-    getAISuggestionsType: typeof getAISuggestions
-  });
-
-
   /** UI State */
   const [activeTab, setActiveTab] = useState<'weather' | 'checklist' | 'smart'>('weather');
   const [selectedTripId, setSelectedTripId] = useState<string>('');
