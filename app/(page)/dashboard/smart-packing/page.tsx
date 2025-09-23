@@ -271,15 +271,6 @@ export default function PackingListOverviewPage() {
     );
   }
 
-  // Debug log for smart categories
-  console.log('Smart packing render state:', { 
-    smartCats, 
-    smartCatsKeys: Object.keys(smartCats),
-    loadingSuggestions,
-    currentTrip: currentTrip?.title,
-    selectedListId 
-  });
-
   return (
     <div className="relative flex min-h-screen flex-col bg-[#f5f8f6] text-gray-800 p-4">
       {/* Animated Header */}
