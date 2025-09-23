@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Trash2, Leaf, MapPin, Plus } from "lucide-react";
 import { useTripStore } from "@/store/tripStore";
 import { usePackingListStore } from "@/store/packingListStore";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 
 import { Trip } from '@/types/index';
 
@@ -45,6 +46,9 @@ export default function AllTripsTable() {
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [showGeneratePrompt, setShowGeneratePrompt] = useState(false);
   const [generatingPackingList, setGeneratingPackingList] = useState(false);
+  // Delete confirmation dialog state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [tripToDelete, setTripToDelete] = useState<string | null>(null);
   const { packingLists, fetchPackingLists, generatePackingListForTrip } = usePackingListStore();
 
   // Helper function to handle trip type logic
@@ -169,12 +173,28 @@ export default function AllTripsTable() {
 
   // DELETE TRIP
   const handleDeleteTrip = async (tripId: string) => {
-    const confirmed = confirm("Are you sure you want to delete this trip?");
-    if (!confirmed) return;
+    // Show confirmation dialog instead of browser confirm
+    setTripToDelete(tripId);
+    setShowDeleteConfirm(true);
+  };
 
-    await useTripStore.getState().deleteTrip(tripId);
+  // Handle the actual deletion after confirmation
+  const confirmDeleteTrip = async () => {
+    if (!tripToDelete) return;
+    
+    await useTripStore.getState().deleteTrip(tripToDelete);
 
-    if (selectedTrip?._id === tripId) setSelectedTrip(null);
+    if (selectedTrip?._id === tripToDelete) setSelectedTrip(null);
+    
+    // Reset state
+    setShowDeleteConfirm(false);
+    setTripToDelete(null);
+  };
+
+  // Handle cancelling the deletion
+  const cancelDeleteTrip = () => {
+    setShowDeleteConfirm(false);
+    setTripToDelete(null);
   };
 
   // CREATE TRIP
@@ -961,6 +981,15 @@ export default function AllTripsTable() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Delete Trip"
+        description="Are you sure you want to delete this trip? This action cannot be undone and will remove all associated packing lists."
+        onCancel={cancelDeleteTrip}
+        onConfirm={confirmDeleteTrip}
+      />
     </div>
   );
 }
