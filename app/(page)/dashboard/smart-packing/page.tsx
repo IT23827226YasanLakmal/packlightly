@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Leaf, Check, CheckCheck } from 'lucide-react';
 import WeatherCard from '@/components/dashboard/weathercard';
 import ChecklistSection from '@/components/dashboard/checklistsection';
+import TrendingPosts from '@/components/community/TrendingPosts';
 import { useChecklistStore } from '@/store/checklistStore';
 import { useTripStore } from '@/store/tripStore';
 import { usePackingListStore } from '@/store/packingListStore';
@@ -389,11 +390,20 @@ export default function PackingListOverviewPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
+              className="grid lg:grid-cols-3 gap-6"
             >
-              <WeatherCard weather={{
-                ...currentTrip.weather,
-                condition: currentTrip.weather.condition as "sunny" | "rainy" | "cloudy" | "snowy" | undefined
-              }} />
+              {/* Weather Card - Takes 2 columns */}
+              <div className="lg:col-span-2">
+                <WeatherCard weather={{
+                  ...currentTrip.weather,
+                  condition: currentTrip.weather.condition as "sunny" | "rainy" | "cloudy" | "snowy" | undefined
+                }} />
+              </div>
+              
+              {/* Trending Posts Sidebar - Takes 1 column */}
+              <div className="lg:col-span-1">
+                <TrendingPosts maxPosts={4} showCompact={true} />
+              </div>
             </motion.div>
           )}
 
@@ -617,49 +627,49 @@ export default function PackingListOverviewPage() {
                             <span>{getCategoryIcon(cat)}</span>
                             {titleCase(cat)}
                           </h3>
-                      <ul className="space-y-2">
-                        {items.map((it) => (
-                          <li
-                            key={`sug-${cat}-${it.name}`}
-                            className="flex items-center justify-between gap-3 bg-emerald-50/60 rounded-xl px-3 py-2"
-                          >
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleToggleSmartItem(cat, it.name)}
-                                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all
-                                  ${it.checked
-                                    ? 'bg-green-500 border-green-500 text-white'
-                                    : 'border-gray-300 hover:border-green-400'
-                                  }`}
+                          <ul className="space-y-2">
+                            {items.map((it) => (
+                              <li
+                                key={`sug-${cat}-${it.name}`}
+                                className="flex items-center justify-between gap-3 bg-emerald-50/60 rounded-xl px-3 py-2"
                               >
-                                {it.checked && <Check size={14} />}
-                              </button>
-                              <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-gray-800">{it.name}</span>
-                                {it.eco && <span className="text-xs text-emerald-700">Eco-friendly</span>}
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleRemoveSmart(it.name)}
-                                className="text-red-500 hover:text-red-600 text-xs"
-                                title="Hide suggestion"
-                              >
-                                Remove
-                              </button>
-                              <button
-                                onClick={() => handleAddSuggestionToChecklist(cat, it)}
-                                className="px-2 py-1 rounded-lg bg-emerald-500 text-white text-xs hover:bg-emerald-600"
-                                title="Add to Checklist"
-                              >
-                                Add
-                              </button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  );
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleToggleSmartItem(cat, it.name)}
+                                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all
+                                      ${it.checked
+                                        ? 'bg-green-500 border-green-500 text-white'
+                                        : 'border-gray-300 hover:border-green-400'
+                                      }`}
+                                  >
+                                    {it.checked && <Check size={14} />}
+                                  </button>
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-semibold text-gray-800">{it.name}</span>
+                                    {it.eco && <span className="text-xs text-emerald-700">Eco-friendly</span>}
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleRemoveSmart(it.name)}
+                                    className="text-red-500 hover:text-red-600 text-xs"
+                                    title="Hide suggestion"
+                                  >
+                                    Remove
+                                  </button>
+                                  <button
+                                    onClick={() => handleAddSuggestionToChecklist(cat, it)}
+                                    className="px-2 py-1 rounded-lg bg-emerald-500 text-white text-xs hover:bg-emerald-600"
+                                    title="Add to Checklist"
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
                     })
                   )}
                 </div>

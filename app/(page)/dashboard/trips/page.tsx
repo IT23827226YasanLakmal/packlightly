@@ -7,6 +7,7 @@ import { Trash2, Leaf, MapPin, Plus } from "lucide-react";
 import { useTripStore } from "@/store/tripStore";
 import { usePackingListStore } from "@/store/packingListStore";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import TrendingNews from "@/components/dashboard/TrendingNews";
 
 import { Trip } from '@/types/index';
 
@@ -293,19 +294,23 @@ export default function AllTripsTable() {
         </button>
       </div>
 
-      {/* Trips Table */}
-      <div className="overflow-x-auto rounded-xl shadow-md border border-green-200">
-        <table className="w-full text-left">
-          <thead className="bg-green-50">
-            <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Destination</th>
-              <th className="px-4 py-3">Dates</th>
-              <th className="px-4 py-3">Packing Lists</th>
-              <th className="px-4 py-3">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+      {/* Main Content Layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Trips Table - Takes up 2/3 of the space on large screens */}
+        <div className="xl:col-span-2">
+          {/* Trips Table */}
+          <div className="overflow-x-auto rounded-xl shadow-md border border-green-200">
+            <table className="w-full text-left">
+              <thead className="bg-green-50">
+                <tr>
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Destination</th>
+                  <th className="px-4 py-3">Dates</th>
+                  <th className="px-4 py-3">Packing Lists</th>
+                  <th className="px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
             <AnimatePresence>
               {trips.map((trip) => (
                 <motion.tr
@@ -357,6 +362,13 @@ export default function AllTripsTable() {
           </tbody>
         </table>
       </div>
+    </div>
+
+    {/* Trending News Sidebar - Takes up 1/3 of the space on large screens */}
+    <div className="xl:col-span-1">
+      <TrendingNews maxItems={8} showCompact={false} />
+    </div>
+  </div>
 
       {/* Drawer, Modal & Prompt remain the same as your original code */}
       {/* Edit Drawer */}
