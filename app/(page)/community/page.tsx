@@ -6,6 +6,7 @@ import InstagramPost from "../../../components/community/InstagramPost";
 import StoriesBar from "../../../components/community/StoriesBar";
 import CreatePostFAB from "../../../components/community/CreatePostFAB";
 import { usePostStore } from "@/store/postStore";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 
 // Define a type for trending/reading posts
 interface CommunityPostSection {
@@ -22,7 +23,15 @@ interface CommunityPost {
 export default function Page() {
   const [readingPost, setReadingPost] = useState<CommunityPost | null>(null);
   const [showCreatePost, setShowCreatePost] = useState(false);
-  const { posts, fetchPosts, loading, error } = usePostStore();
+  const [newPost, setNewPost] = useState({
+    title: '',
+    description: '',
+    tags: '',
+    imageUrl: ''
+  });
+  
+  const { posts, fetchPosts, loading, error, addComment, createPost, toggleLike } = usePostStore();
+  const currentUser = useCurrentUser();
 
   React.useEffect(() => {
     fetchPosts();
@@ -36,24 +45,109 @@ export default function Page() {
     post.description
   );
 
-  const handleLike = (postId: string) => {
-    console.log('Liked post:', postId);
-    // Implement like functionality
+  const handleLike = async (postId: string) => {
+    if (!currentUser) {
+      alert('Please login to like posts');
+      return;
+    }
+    
+    try {
+      await toggleLike(postId);
+    } catch (error) {
+      console.error('Failed to like post:', error);
+    }
   };
 
-  const handleComment = (postId: string, comment: string) => {
-    console.log('Comment on post:', postId, comment);
-    // Implement comment functionality
+  const handleComment = async (postId: string, comment: string) => {
+    if (!currentUser) {
+      alert('Please login to comment');
+      return;
+    }
+    
+    try {
+      await addComment(postId, comment, currentUser.displayName || currentUser.email || 'Anonymous');
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+      alert('Failed to add comment. Please try again.');
+    }
   };
 
-  const handleShare = (postId: string) => {
-    console.log('Share post:', postId);
-    // Implement share functionality
+  const handleShare = async (postId: string) => {
+    const post = validPosts.find(p => p._id === postId);
+    if (!post) return;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: post.title,
+          text: post.description,
+          url: `${window.location.origin}/community/post/${postId}`
+        });
+      } catch (error) {
+        console.error('Error sharing:', error);
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(`${window.location.origin}/community/post/${postId}`);
+        alert('Link copied to clipboard!');
+      } catch (error) {
+        console.error('Failed to copy link:', error);
+      }
+    }
   };
 
   const handleSave = (postId: string) => {
-    console.log('Save post:', postId);
-    // Implement save functionality
+    // Save to localStorage for now
+    const savedPosts = JSON.parse(localStorage.getItem('savedPosts') || '[]');
+    if (!savedPosts.includes(postId)) {
+      savedPosts.push(postId);
+      localStorage.setItem('savedPosts', JSON.stringify(savedPosts));
+      alert('Post saved!');
+    } else {
+      alert('Post already saved!');
+    }
+  };
+
+  const handleCreatePost = async () => {
+    if (!currentUser) {
+      alert('Please login to create a post');
+      return;
+    }
+
+    if (!newPost.title.trim() || !newPost.description.trim()) {
+      alert('Please fill in the title and description');
+      return;
+    }
+
+    try {
+      const tagsArray = newPost.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+      
+      await createPost({
+        title: newPost.title,
+        description: newPost.description,
+        tags: tagsArray,
+        imageUrl: newPost.imageUrl,
+        status: 'Published',
+        date: new Date().toISOString(),
+        comments: [],
+        likeCount: 0
+      });
+
+      // Reset form
+      setNewPost({
+        title: '',
+        description: '',
+        tags: '',
+        imageUrl: ''
+      });
+      setShowCreatePost(false);
+      
+      alert('Post created successfully!');
+    } catch (error) {
+      console.error('Failed to create post:', error);
+      alert('Failed to create post. Please try again.');
+    }
   };
 
   return (
@@ -67,17 +161,49 @@ export default function Page() {
         
         {/* Main Feed */}
         <div className="max-w-md mx-auto bg-gray-50 pb-20">
+          {/* User Status Check */}
+          {!currentUser && (
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mx-4 my-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-blue-700">
+                    Please login to like, comment, and create posts.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Loading State */}
           {loading && (
             <div className="flex justify-center items-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+              <span className="ml-2 text-gray-600">Loading posts...</span>
             </div>
           )}
           
           {/* Error State */}
           {error && (
-            <div className="text-center py-8">
-              <p className="text-red-500">{error}</p>
+            <div className="text-center py-8 mx-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center justify-center mb-2">
+                  <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-red-600 font-medium">{error}</p>
+                <button 
+                  onClick={() => fetchPosts()}
+                  className="mt-2 bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg text-sm transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
             </div>
           )}
           
@@ -102,6 +228,7 @@ export default function Page() {
               <InstagramPost
                 key={post._id || `post-${Math.random()}`}
                 post={post}
+                currentUser={currentUser}
                 onLike={handleLike}
                 onComment={handleComment}
                 onShare={handleShare}
@@ -144,8 +271,12 @@ export default function Page() {
                   </svg>
                 </button>
                 <h2 className="text-lg font-semibold">Create Post</h2>
-                <button className="bg-green-500 text-white px-4 py-1 rounded-full text-sm font-semibold hover:bg-green-600 transition-colors">
-                  Share
+                <button 
+                  onClick={handleCreatePost}
+                  disabled={loading || !newPost.title.trim() || !newPost.description.trim()}
+                  className="bg-green-500 text-white px-4 py-1 rounded-full text-sm font-semibold hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Sharing...' : 'Share'}
                 </button>
               </div>
               
@@ -154,34 +285,79 @@ export default function Page() {
                 {/* User Info */}
                 <div className="flex items-center space-x-3">
                   <img
-                    src="https://ui-avatars.com/api/?name=You&background=22c55e&color=fff&size=40"
+                    src={currentUser?.photoURL || "https://ui-avatars.com/api/?name=You&background=22c55e&color=fff&size=40"}
                     alt="Your avatar"
                     className="w-10 h-10 rounded-full"
                   />
-                  <span className="font-semibold">You</span>
+                  <span className="font-semibold">{currentUser?.displayName || currentUser?.email || 'You'}</span>
                 </div>
+                
+                {/* Title Input */}
+                <input
+                  type="text"
+                  placeholder="Post title..."
+                  value={newPost.title}
+                  onChange={(e) => setNewPost(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:border-green-400 transition-colors text-lg font-semibold"
+                />
                 
                 {/* Caption Input */}
                 <textarea
                   placeholder="What's on your mind about eco-friendly travel?"
-                  className="w-full h-32 resize-none border-none outline-none text-lg placeholder-gray-500"
+                  value={newPost.description}
+                  onChange={(e) => setNewPost(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full h-32 resize-none border border-gray-200 rounded-lg p-3 outline-none focus:border-green-400 transition-colors"
                 />
                 
-                {/* Image Upload Area */}
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-green-400 transition-colors cursor-pointer">
-                  <svg className="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <p className="text-gray-500">Add photos or videos</p>
-                </div>
+                {/* Image URL Input */}
+                <input
+                  type="url"
+                  placeholder="Image URL (optional)"
+                  value={newPost.imageUrl}
+                  onChange={(e) => setNewPost(prev => ({ ...prev, imageUrl: e.target.value }))}
+                  className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:border-green-400 transition-colors"
+                />
+                
+                {/* Image Preview */}
+                {newPost.imageUrl && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <img
+                      src={newPost.imageUrl}
+                      alt="Preview"
+                      className="w-full h-48 object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
                 
                 {/* Tags Input */}
                 <input
                   type="text"
-                  placeholder="Add tags (e.g., #ecotravel #sustainability)"
+                  placeholder="Add tags separated by commas (e.g., ecotravel, sustainability, green)"
+                  value={newPost.tags}
+                  onChange={(e) => setNewPost(prev => ({ ...prev, tags: e.target.value }))}
                   className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:border-green-400 transition-colors"
                 />
+                
+                {/* Tag Preview */}
+                {newPost.tags && (
+                  <div className="flex flex-wrap gap-2">
+                    {newPost.tags.split(',').map((tag, index) => {
+                      const trimmedTag = tag.trim();
+                      if (!trimmedTag) return null;
+                      return (
+                        <span 
+                          key={index} 
+                          className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm"
+                        >
+                          #{trimmedTag}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>

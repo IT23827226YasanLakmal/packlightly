@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Post } from '@/types';
+import { User } from 'firebase/auth';
 
 interface InstagramPostProps {
   post: Post;
@@ -8,6 +9,7 @@ interface InstagramPostProps {
   onComment?: (postId: string, comment: string) => void;
   onShare?: (postId: string) => void;
   onSave?: (postId: string) => void;
+  currentUser?: User | null;
 }
 
 const InstagramPost: React.FC<InstagramPostProps> = ({
@@ -16,6 +18,7 @@ const InstagramPost: React.FC<InstagramPostProps> = ({
   onComment,
   onShare,
   onSave,
+  currentUser,
 }) => {
   const [showComments, setShowComments] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -24,6 +27,10 @@ const InstagramPost: React.FC<InstagramPostProps> = ({
   const [likesCount, setLikesCount] = useState(post.likeCount || 0);
 
   const handleDoubleClick = () => {
+    if (!currentUser) {
+      alert('Please login to like posts');
+      return;
+    }
     if (!liked) {
       setLiked(true);
       setLikesCount(prev => prev + 1);
@@ -32,6 +39,10 @@ const InstagramPost: React.FC<InstagramPostProps> = ({
   };
 
   const handleLikeClick = () => {
+    if (!currentUser) {
+      alert('Please login to like posts');
+      return;
+    }
     setLiked(!liked);
     setLikesCount(prev => liked ? prev - 1 : prev + 1);
     onLike?.(post._id || '');
@@ -39,6 +50,10 @@ const InstagramPost: React.FC<InstagramPostProps> = ({
 
   const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) {
+      alert('Please login to comment');
+      return;
+    }
     if (commentText.trim()) {
       onComment?.(post._id || '', commentText);
       setCommentText('');

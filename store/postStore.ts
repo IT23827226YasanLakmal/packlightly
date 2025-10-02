@@ -14,6 +14,7 @@ interface PostStore {
   updatePost: (id: string, post: Partial<Post>) => Promise<void>;
   deletePost: (id: string) => Promise<void>;
   addComment: (postId: string, text: string, user?: string) => Promise<void>;
+  toggleLike: (postId: string) => Promise<void>;
 }
 
 export const usePostStore = create<PostStore>((set, get) => ({
@@ -97,6 +98,37 @@ export const usePostStore = create<PostStore>((set, get) => ({
       await get().fetchPosts();
     } catch {
       set({ error: 'Failed to add comment', loading: false });
+    }
+  },
+
+  toggleLike: async (postId) => {
+    try {
+      // Optimistic update
+      const currentPosts = get().posts;
+      const updatedPosts = currentPosts.map(post => {
+        if (post._id === postId) {
+          const currentLikes = post.likeCount || 0;
+          return {
+            ...post,
+            likeCount: currentLikes + 1 // For now, just increment
+          };
+        }
+        return post;
+      });
+      set({ posts: updatedPosts });
+
+      // API call - adjust endpoint based on your API
+      await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts/${postId}/like`, {
+        method: 'POST',
+      });
+      
+      // Refresh posts to get the latest data
+      await get().fetchPosts();
+    } catch (error) {
+      console.error('Failed to toggle like:', error);
+      // Revert optimistic update on error
+      await get().fetchPosts();
+      set({ error: 'Failed to like post' });
     }
   },
 }));
