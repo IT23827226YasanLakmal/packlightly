@@ -168,23 +168,25 @@ export default function ReportsPage() {
           <StatCard
             icon={FileText}
             label="Total Reports"
-            value={overview.totalReports.toString()}
+            value={(overview.totalReports || 0).toString()}
           />
           <StatCard
             icon={Calendar}
             label="This Month"
-            value={overview.reportsThisMonth.toString()}
-            delta={`+${Math.round((overview.reportsThisMonth / overview.totalReports) * 100)}%`}
+            value={(overview.reportsThisMonth || 0).toString()}
+            delta={overview.totalReports && overview.reportsThisMonth ? 
+              `+${Math.round((overview.reportsThisMonth / overview.totalReports) * 100)}%` : '+0%'
+            }
           />
           <StatCard
             icon={TrendingUp}
             label="Popular Types"
-            value={overview.popularTypes.length.toString()}
+            value={(overview.popularTypes?.length || 0).toString()}
           />
           <StatCard
             icon={Users}
             label="Recent Activity"
-            value={overview.recentActivity.length.toString()}
+            value={(overview.recentActivity?.length || 0).toString()}
           />
         </div>
       )}

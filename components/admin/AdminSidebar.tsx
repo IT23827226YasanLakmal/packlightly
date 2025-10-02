@@ -3,8 +3,21 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Home, Package, Newspaper, Settings, LogOut, User } from "lucide-react";
 import Link from "next/link";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebaseClient";
+import { useRouter } from "next/navigation";
 
 export default function AdminSidebar() {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push("/login");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
   const nav = [
     { label: "Overview", icon: Home, href: "/admin" },
     { label: "Inventory", icon: Package, href: "/admin/eco-inventory" },
@@ -77,6 +90,7 @@ export default function AdminSidebar() {
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.97 }}
+          onClick={handleLogout}
           className="w-full flex items-center justify-center gap-2 rounded-xl 
             bg-gradient-to-r from-green-500 to-green-700 
             text-white py-3 font-semibold 
