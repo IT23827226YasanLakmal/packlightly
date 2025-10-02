@@ -53,11 +53,11 @@ export default function MyPostsPage() {
 
   //filter post
   const filteredPosts = posts
-    .filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()))
+    .filter(p => p && p.title && p.title.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) =>
       sortBy === "newest"
-        ? new Date(b.date).getTime() - new Date(a.date).getTime()
-        : new Date(a.date).getTime() - new Date(b.date).getTime()
+        ? new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
+        : new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime()
     );
   //pagination
   const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
@@ -157,7 +157,7 @@ export default function MyPostsPage() {
                   {post.imageUrl && (
                     <SafeImage 
                       src={post.imageUrl} 
-                      alt={post.title} 
+                      alt={post.title || 'Post image'} 
                       width={400}
                       height={160}
                       className="rounded-t-3xl h-40 w-full object-cover" 
@@ -165,10 +165,10 @@ export default function MyPostsPage() {
                     />
                   )}
                   <div className="p-5 flex flex-col flex-1">
-                    <h2 className="text-lg font-semibold text-black">{post.title}</h2>
-                    <p className="text-sm text-black mt-1 line-clamp-3">{post.description}</p>
+                    <h2 className="text-lg font-semibold text-black">{post.title || 'Untitled'}</h2>
+                    <p className="text-sm text-black mt-1 line-clamp-3">{post.description || 'No description'}</p>
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {post.tags.map(tag => <span key={tag} className="text-xs bg-green-700/30 px-2 py-1 rounded">{tag}</span>)}
+                      {(post.tags || []).map(tag => <span key={tag} className="text-xs bg-green-700/30 px-2 py-1 rounded">{tag}</span>)}
                     </div>
                     <div className="flex justify-between items-center mt-5">
                       <div className="flex gap-2">
@@ -176,7 +176,7 @@ export default function MyPostsPage() {
                         <button onClick={() => handleDeletePost(post._id!)} className="p-2 rounded-full hover:bg-red-900/30 text-red-400 transition"><Trash2 size={18} /></button>
                       </div>
                       <div className="flex gap-4 items-center">
-                        <div className="flex items-center gap-1 text-emerald-400 font-medium"><Heart size={16} /> {post.comments.length}</div>
+                        <div className="flex items-center gap-1 text-emerald-400 font-medium"><Heart size={16} /> {(post.comments || []).length}</div>
                         <div onClick={() => toggleComments(post._id!)} className="flex items-center gap-1 text-emerald-400 font-medium cursor-pointer">
                           <MessageCircle size={16} /> {post.comments.length}
                         </div>

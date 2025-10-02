@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Post } from '@/types';
 import { User } from 'firebase/auth';
+import { usePostStore } from '@/store/postStore';
+import Image from 'next/image';
 
 interface InstagramPostProps {
   post: Post;
@@ -21,31 +23,60 @@ const InstagramPost: React.FC<InstagramPostProps> = ({
   currentUser,
 }) => {
   const [showComments, setShowComments] = useState(false);
-  const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [commentText, setCommentText] = useState('');
-  const [likesCount, setLikesCount] = useState(post.likeCount || 0);
+  const [showHeartAnimation, setShowHeartAnimation] = useState(false);
+  
+  // Get loading state from the store
+  const isLikingPost = usePostStore((state) => state.isLikingPost);
+  const isLiking = isLikingPost(post._id || '');
+  
+  // Get liked state directly from post data - no local state needed
+  const isLikedByCurrentUser = currentUser && post.likedBy ? post.likedBy.includes(currentUser.uid) : false;
+  const likesCount = post.likeCount || 0;
 
-  const handleDoubleClick = () => {
+  const handleDoubleClick = async () => {
     if (!currentUser) {
       alert('Please login to like posts');
       return;
     }
-    if (!liked) {
-      setLiked(true);
-      setLikesCount(prev => prev + 1);
-      onLike?.(post._id || '');
+    
+    // Prevent multiple rapid clicks and only allow liking if not already liked and not currently processing
+    if (isLiking || isLikedByCurrentUser) {
+      return;
+    }
+    
+    setShowHeartAnimation(true);
+    setTimeout(() => setShowHeartAnimation(false), 600);
+    
+    try {
+      await onLike?.(post._id || '');
+    } catch (error) {
+      console.error('Error in double-click like:', error);
     }
   };
 
-  const handleLikeClick = () => {
+  const handleLikeClick = async () => {
     if (!currentUser) {
       alert('Please login to like posts');
       return;
     }
-    setLiked(!liked);
-    setLikesCount(prev => liked ? prev - 1 : prev + 1);
-    onLike?.(post._id || '');
+    
+    // Prevent rapid clicking using store's loading state
+    if (isLiking) {
+      return;
+    }
+    
+    console.log('InstagramPost: Like button clicked for post:', post._id);
+    console.log('InstagramPost: Current user:', currentUser.uid);
+    console.log('InstagramPost: Current liked state:', isLikedByCurrentUser);
+    console.log('InstagramPost: Post likedBy array:', post.likedBy);
+    
+    try {
+      await onLike?.(post._id || '');
+    } catch (error) {
+      console.error('Error in like click:', error);
+    }
   };
 
   const handleCommentSubmit = (e: React.FormEvent) => {
@@ -78,9 +109,12 @@ const InstagramPost: React.FC<InstagramPostProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center space-x-3">
-          <img
+          <Image
             src={profileImage}
             alt={username}
+            width={40}
+            height={40}
+            unoptimized
             className="w-10 h-10 rounded-full border-2 border-gradient-to-r from-pink-500 to-orange-500"
           />
           <div>
@@ -103,15 +137,17 @@ const InstagramPost: React.FC<InstagramPostProps> = ({
           className="relative bg-gray-100 cursor-pointer"
           onDoubleClick={handleDoubleClick}
         >
-          <img
+          <Image
             src={post.imageUrl}
             alt={post.title}
+            width={500}
+            height={500}
             className="w-full aspect-square object-cover"
           />
           {/* Double-tap heart animation */}
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
-            animate={liked ? { scale: [0, 1.3, 1], opacity: [0, 1, 0] } : {}}
+            animate={showHeartAnimation ? { scale: [0, 1.3, 1], opacity: [0, 1, 0] } : {}}
             transition={{ duration: 0.6 }}
             className="absolute inset-0 flex items-center justify-center pointer-events-none"
           >
@@ -126,18 +162,30 @@ const InstagramPost: React.FC<InstagramPostProps> = ({
           <div className="flex items-center space-x-4">
             <button
               onClick={handleLikeClick}
-              className={`transition-colors ${liked ? 'text-red-500' : 'text-gray-700 hover:text-gray-500'}`}
+              disabled={isLiking}
+              className={`relative transition-colors ${
+                isLiking 
+                  ? 'text-gray-400 cursor-not-allowed' 
+                  : isLikedByCurrentUser 
+                    ? 'text-red-500' 
+                    : 'text-gray-700 hover:text-gray-500'
+              }`}
             >
               <motion.svg
-                whileTap={{ scale: 1.2 }}
-                className="w-6 h-6"
-                fill={liked ? 'currentColor' : 'none'}
+                whileTap={{ scale: isLiking ? 1 : 1.2 }}
+                className={`w-6 h-6 ${isLiking ? 'opacity-50' : ''}`}
+                fill={isLikedByCurrentUser ? 'currentColor' : 'none'}
                 stroke="currentColor"
                 strokeWidth="2"
                 viewBox="0 0 24 24"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </motion.svg>
+              {isLiking && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
             </button>
             <button
               onClick={() => setShowComments(!showComments)}

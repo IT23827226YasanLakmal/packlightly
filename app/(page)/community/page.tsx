@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import Header from "../../../components/Header";
 import InstagramPost from "../../../components/community/InstagramPost";
 import StoriesBar from "../../../components/community/StoriesBar";
@@ -34,6 +35,7 @@ export default function Page() {
   const currentUser = useCurrentUser();
 
   React.useEffect(() => {
+    console.log('Community page: Fetching posts...');
     fetchPosts();
   }, [fetchPosts]);
 
@@ -45,16 +47,34 @@ export default function Page() {
     post.description
   );
 
+  // Log posts when they change
+  React.useEffect(() => {
+    console.log('Community page: Posts updated:', posts);
+    console.log('Community page: Valid posts count:', validPosts.length);
+    if (currentUser) {
+      console.log('Community page: Current user:', currentUser.uid);
+    }
+  }, [posts, validPosts, currentUser]);
+
   const handleLike = async (postId: string) => {
     if (!currentUser) {
       alert('Please login to like posts');
       return;
     }
     
+    if (!postId) {
+      console.error('No post ID provided for like operation');
+      alert('Error: Invalid post. Please refresh the page.');
+      return;
+    }
+
+    console.log('Handling like for post:', postId, 'by user:', currentUser.uid);
+    
     try {
-      await toggleLike(postId);
+      await toggleLike(postId, currentUser.uid);
     } catch (error) {
       console.error('Failed to like post:', error);
+      alert('Failed to like post. Please try again.');
     }
   };
 
@@ -131,7 +151,8 @@ export default function Page() {
         status: 'Published',
         date: new Date().toISOString(),
         comments: [],
-        likeCount: 0
+        likeCount: 0,
+        likedBy: [] // Initialize empty likedBy array
       });
 
       // Reset form
@@ -284,9 +305,12 @@ export default function Page() {
               <div className="p-4 space-y-4">
                 {/* User Info */}
                 <div className="flex items-center space-x-3">
-                  <img
+                  <Image
                     src={currentUser?.photoURL || "https://ui-avatars.com/api/?name=You&background=22c55e&color=fff&size=40"}
                     alt="Your avatar"
+                    width={40}
+                    height={40}
+                    unoptimized
                     className="w-10 h-10 rounded-full"
                   />
                   <span className="font-semibold">{currentUser?.displayName || currentUser?.email || 'You'}</span>
@@ -321,9 +345,12 @@ export default function Page() {
                 {/* Image Preview */}
                 {newPost.imageUrl && (
                   <div className="border rounded-lg overflow-hidden">
-                    <img
+                    <Image
                       src={newPost.imageUrl}
                       alt="Preview"
+                      width={500}
+                      height={192}
+                      unoptimized
                       className="w-full h-48 object-cover"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
@@ -384,7 +411,14 @@ export default function Page() {
             >
               <h2 className="text-2xl font-bold mb-4">{readingPost.title}</h2>
               <p className="text-gray-600 mb-6">{readingPost.description}</p>
-              <img src={readingPost.imageUrl} alt="" className="rounded-xl mb-6 w-full" />
+              <Image 
+                src={readingPost.imageUrl} 
+                alt={readingPost.title || ""} 
+                width={600}
+                height={400}
+                unoptimized
+                className="rounded-xl mb-6 w-full" 
+              />
               <div className="space-y-4">
                 {readingPost.content.map((section, i) => (
                   <details

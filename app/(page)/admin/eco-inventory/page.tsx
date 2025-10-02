@@ -32,7 +32,6 @@ function ProductImageWithFallback({ src, alt }: { src: string; alt: string }) {
 
 // Default empty product for Add mode
 const emptyProduct: Product = {
-  _id: undefined,
   name: "",
   category: "",
   eco: 3,
@@ -210,7 +209,18 @@ export default function AdminEcoInventoryPage() {
   // helper to merge changes safely (works even if editing is null)
   const updateEditing = (patch: Partial<Product>) => {
     setEditing((prev) => {
-      const next = prev ? { ...prev, ...patch } : { ...emptyProduct, ...patch };
+      // Ensure we always have a valid object with proper defaults
+      const base = prev || { ...emptyProduct };
+      const next = { ...base, ...patch };
+      
+      // Ensure all string fields are never undefined
+      next.name = next.name || "";
+      next.category = next.category || "";
+      next.description = next.description || "";
+      next.imageLink = next.imageLink || "";
+      next.availableLocation = next.availableLocation || "";
+      next.eco = next.eco || 3;
+      
       // debug log — remove when confident
       console.log("updateEditing ->", patch, "next:", next);
       return next;
@@ -448,7 +458,7 @@ export default function AdminEcoInventoryPage() {
                   <label className="text-sm text-green-300">Name</label>
                   <input
                     type="text"
-                    value={editing.name}
+                    value={editing.name || ""}
                     onChange={(e) => updateEditing({ name: e.target.value })}
                     onBlur={() => setTouchedFields(prev => ({ ...prev, name: true }))}
                     className={`w-full rounded-xl border bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 ${
@@ -467,7 +477,7 @@ export default function AdminEcoInventoryPage() {
                   <label className="text-sm text-green-300">Image Link</label>
                   <input
                     type="url"
-                    value={editing.imageLink}
+                    value={editing.imageLink || ""}
                     onChange={e => updateEditing({ imageLink: e.target.value })}
                     onBlur={() => setTouchedFields(prev => ({ ...prev, imageLink: true }))}
                     className={`w-full rounded-xl border bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 ${
@@ -486,7 +496,7 @@ export default function AdminEcoInventoryPage() {
                   <label className="text-sm text-green-300">Category</label>
                   <input
                     type="text"
-                    value={editing.category}
+                    value={editing.category || ""}
                     onChange={(e) => updateEditing({ category: e.target.value })}
                     onBlur={() => setTouchedFields(prev => ({ ...prev, category: true }))}
                     className={`w-full rounded-xl border bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 ${
@@ -504,7 +514,7 @@ export default function AdminEcoInventoryPage() {
                 <div>
                   <label className="text-sm text-green-300">Eco Rating</label>
                   <select
-                    value={editing.eco}
+                    value={editing.eco || 3}
                     onChange={(e) => updateEditing({ eco: Number(e.target.value) })}
                     className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
                   >
@@ -520,7 +530,7 @@ export default function AdminEcoInventoryPage() {
                 <div>
                   <label className="text-sm text-green-300">Description</label>
                   <textarea
-                    value={editing.description}
+                    value={editing.description || ""}
                     onChange={(e) => updateEditing({ description: e.target.value })}
                     onBlur={() => setTouchedFields(prev => ({ ...prev, description: true }))}
                     className={`w-full rounded-xl border bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 resize-none h-20 ${
@@ -533,7 +543,7 @@ export default function AdminEcoInventoryPage() {
                   {validationErrors.description && touchedFields.description && (
                     <p className="text-red-400 text-xs mt-1">{validationErrors.description}</p>
                   )}
-                  <p className="text-green-400 text-xs mt-1">{editing.description?.length || 0}/500 characters</p>
+                  <p className="text-green-400 text-xs mt-1">{(editing.description || "").length}/500 characters</p>
                 </div>
 
                 <div>

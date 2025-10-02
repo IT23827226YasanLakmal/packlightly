@@ -18,6 +18,7 @@ export interface Post {
   imageUrl?: string;       // Optional image URL
   comments: Comment[];     // List of comments
   likeCount?: number;      // Number of likes
+  likedBy?: string[];      // Array of user IDs who liked this post
 }
 
 export interface NewsArticle {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 
 interface Story {
   id: string;
@@ -46,9 +47,12 @@ const StoriesBar: React.FC<StoriesBarProps> = ({ stories = [] }) => {
                     : 'ring-2 ring-gradient-to-tr from-yellow-400 via-red-500 to-purple-500'
                   : 'ring-2 ring-gray-300'
             } rounded-full p-0.5`}>
-              <img
+              <Image
                 src={story.avatar}
                 alt={story.username}
+                width={56}
+                height={56}
+                unoptimized
                 className="w-14 h-14 rounded-full object-cover"
               />
               {story.id === '1' && (
