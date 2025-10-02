@@ -155,3 +155,71 @@ export interface UIStore {
   activeTab: 'weather' | 'checklist' | 'smart';
   setActiveTab: (tab: 'weather' | 'checklist' | 'smart') => void;
 }
+
+// Report Types
+export interface ReportType {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+}
+
+export interface ReportOverview {
+  totalReports: number;
+  reportsThisMonth: number;
+  popularTypes: string[];
+  recentActivity: Array<{
+    id: string;
+    type: string;
+    createdAt: string;
+    status: string;
+  }>;
+}
+
+export interface Report {
+  _id?: string;
+  userId: string;
+  type: string;
+  title: string;
+  description?: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  data?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  errorMessage?: string;
+}
+
+export interface ReportGenerateRequest {
+  type: string;
+  title: string;
+  description?: string;
+  parameters?: Record<string, unknown>;
+}
+
+export interface ReportStore {
+  reports: Report[];
+  reportTypes: ReportType[];
+  overview: ReportOverview | null;
+  selectedReport: Report | null;
+  loading: boolean;
+  error: string | null;
+  
+  // Report types
+  getTypes: () => Promise<void>;
+  
+  // Overview
+  getOverview: () => Promise<void>;
+  
+  // Report management
+  fetchReports: () => Promise<void>;
+  generateReport: (request: ReportGenerateRequest) => Promise<string>;
+  generateReportSync: (request: ReportGenerateRequest) => Promise<Report>;
+  getReport: (id: string) => Promise<void>;
+  regenerateReport: (id: string) => Promise<void>;
+  exportReport: (id: string, format: string) => Promise<void>;
+  deleteReport: (id: string) => Promise<void>;
+  
+  // UI state
+  setSelectedReport: (report: Report | null) => void;
+}

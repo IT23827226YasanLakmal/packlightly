@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useProductStore } from '@/store/productStore';
 import { Product } from '@/types';
 import { TrendingUp, Star, Leaf, MapPin, Package, Camera, Award } from 'lucide-react';
-import Image from 'next/image';
+import SafeImage from '@/components/SafeImage';
 
 interface TrendingInventoryItemsProps {
   maxItems?: number;
@@ -24,12 +24,21 @@ interface ProductWithScore {
 }
 
 const TrendingInventoryItems: React.FC<TrendingInventoryItemsProps> = ({ 
-  maxItems = 5, 
+  maxItems = 3,  // Changed from 5 to 3
   showCompact = false 
 }) => {
-  const { products } = useProductStore();
+  const { products, fetchProducts, loading } = useProductStore();
+
+  // Fetch products on component mount
+  useEffect(() => {
+    if (products.length === 0) {
+      fetchProducts();
+    }
+  }, [fetchProducts, products.length]);
 
   const trendingProducts = useMemo((): ProductWithScore[] => {
+    if (!products || products.length === 0) return [];
+
     // Calculate popularity score for each product
     const calculatePopularityScore = (product: Product): number => {
       let score = 0;
@@ -64,21 +73,39 @@ const TrendingInventoryItems: React.FC<TrendingInventoryItemsProps> = ({
       return Math.round(score * 10) / 10;
     };
 
-    const productsWithScores: ProductWithScore[] = products.map(product => ({
-      id: product._id?.toString() || Math.random().toString(),
-      name: product.name || 'Unnamed Product',
-      description: product.description || 'No description available',
-      category: product.category || 'Uncategorized',
-      eco: product.eco || 0,
-      imageLink: product.imageLink || '',
-      availableLocation: product.availableLocation || [],
-      popularityScore: calculatePopularityScore(product)
-    }));
+    const productsWithScores: ProductWithScore[] = products.map(product => {
+      // Safe ID extraction - handle various possible ID formats
+      let productId: string;
+      
+      if (product._id) {
+        // If _id exists, safely convert to string
+        productId = typeof product._id === 'object' && product._id.toString 
+          ? product._id.toString() 
+          : String(product._id);
+      } else if (product._id) {
+        // Fallback to id field if _id doesn't exist
+        productId = String(product._id);
+      } else {
+        // Final fallback
+        productId = Math.random().toString();
+      }
+
+      return {
+        id: productId,
+        name: product.name || 'Unnamed Product',
+        description: product.description || 'No description available',
+        category: product.category || 'Uncategorized',
+        eco: product.eco || 0,
+        imageLink: product.imageLink || '',
+        availableLocation: product.availableLocation || [],
+        popularityScore: calculatePopularityScore(product)
+      };
+    });
 
     // Sort by popularity score and return top items
     return productsWithScores
       .sort((a, b) => b.popularityScore - a.popularityScore)
-      .slice(0, maxItems);
+      .slice(0, maxItems); // This will now slice to 3 by default
   }, [products, maxItems]);
 
   const getCategoryIcon = (category: string) => {
@@ -99,6 +126,19 @@ const TrendingInventoryItems: React.FC<TrendingInventoryItemsProps> = ({
     if (rating >= 3) return 'text-yellow-600';
     return 'text-red-600';
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-md p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <TrendingUp className="text-emerald-600" size={20} />
+          <h2 className="text-lg font-semibold text-gray-900">Trending Items</h2>
+        </div>
+        <p className="text-gray-600 text-sm">Loading trending items...</p>
+      </div>
+    );
+  }
 
   if (trendingProducts.length === 0) {
     return (
@@ -140,21 +180,15 @@ const TrendingInventoryItems: React.FC<TrendingInventoryItemsProps> = ({
           >
             {/* Product Image */}
             <div className="flex-shrink-0">
-              {product.imageLink ? (
-                <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100">
-                  <Image
-                    src={product.imageLink}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                    sizes="48px"
-                  />
-                </div>
-              ) : (
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-emerald-100 to-green-200 flex items-center justify-center">
-                  {getCategoryIcon(product.category)}
-                </div>
-              )}
+              <SafeImage 
+                src={product.imageLink} 
+                alt={product.name} 
+                width={48}
+                height={48}
+                className="rounded-lg"
+                fallbackType="category"
+                category={product.category}
+              />
             </div>
 
             {/* Product Info */}

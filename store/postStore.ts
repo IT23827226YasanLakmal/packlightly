@@ -10,8 +10,8 @@ interface PostStore {
 
   fetchPosts: () => Promise<void>;
   fetchMyPosts: () => Promise<void>;
-  createPost: (post: Partial<Post>, imageFile?: File) => Promise<void>;
-  updatePost: (id: string, post: Partial<Post>, imageFile?: File) => Promise<void>;
+  createPost: (post: Partial<Post>) => Promise<void>;
+  updatePost: (id: string, post: Partial<Post>) => Promise<void>;
   deletePost: (id: string) => Promise<void>;
   addComment: (postId: string, text: string, user?: string) => Promise<void>;
 }
@@ -41,35 +41,12 @@ export const usePostStore = create<PostStore>((set, get) => ({
     }
   },
 
-  createPost: async (post, imageFile) => {
+  createPost: async (post) => {
     set({ loading: true, error: null });
     try {
-      const postData: Partial<Post> = { ...post };
-
-      if (imageFile) {
-        const formData = new FormData();
-        formData.append('image', imageFile);
-        const imageRes = await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
-          method: 'POST',
-          body: formData,
-        });
-        console.log('Image upload response:', imageRes);
-        if (imageRes && imageRes.url) {
-          postData.imageUrl = imageRes.url;
-        } else {
-          alert('Image upload failed or did not return a url: ' + JSON.stringify(imageRes));
-          console.error('Image upload failed or did not return a url:', imageRes);
-        }
-      }
-
-      if (!postData.imageUrl && imageFile) {
-        set({ error: 'Image upload failed, post not created', loading: false });
-        return;
-      }
-
       await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts`, {
         method: 'POST',
-        body: JSON.stringify(postData),
+        body: JSON.stringify(post),
       });
 
       await get().fetchPosts();
@@ -79,24 +56,12 @@ export const usePostStore = create<PostStore>((set, get) => ({
     }
   },
 
-  updatePost: async (id, post, imageFile) => {
+  updatePost: async (id, post) => {
     set({ loading: true, error: null });
     try {
-      const postData: Partial<Post> = { ...post };
-
-      if (imageFile) {
-        const formData = new FormData();
-        formData.append('image', imageFile);
-        const imageRes = await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
-          method: 'POST',
-          body: formData, 
-        });
-        postData.imageUrl = imageRes.url;
-      }
-
-  await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts/${id}`, {
+      await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts/${id}`, {
         method: 'PUT',
-        body: JSON.stringify(postData),
+        body: JSON.stringify(post),
       });
 
       await get().fetchPosts();

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "./Card";
 import { Button } from "./Button";
 import { ArrowRight, ArrowLeft } from "lucide-react";
+import SafeImage from "@/components/SafeImage";
 
 const carouselData = [
   {
@@ -55,10 +56,13 @@ export default function CoolNewsCarousel() {
           transition={{ duration: 0.6 }}
         >
           <Card className="overflow-hidden">
-            <img
+            <SafeImage
               src={carouselData[currentIndex].image}
               alt={carouselData[currentIndex].title}
-              className="h-64 md:h-96 w-full object-cover rounded-t-2xl"
+              width={1600}
+              height={384}
+              className="h-64 md:h-96 w-full rounded-t-2xl"
+              fallbackType="news"
             />
             <CardContent>
               <motion.h2

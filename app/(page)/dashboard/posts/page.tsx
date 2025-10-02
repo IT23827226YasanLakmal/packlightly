@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Edit2, Heart, MessageCircle, X, Bold, Italic, Underline, Heading2, List, Quote, Image, Eye } from "lucide-react";
+import { Plus, Trash2, Edit2, Heart, MessageCircle, X, Bold, Italic, Underline, Heading2, List, Quote, Eye } from "lucide-react";
 import { usePostStore } from "@/store/postStore"; // import your post store
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { Post, Comment } from "@/types";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import SafeImage from "@/components/SafeImage";
 
 export default function MyPostsPage() {
   const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loading, error } = usePostStore();
@@ -21,7 +22,7 @@ export default function MyPostsPage() {
 
   // Comments state
   const [expandedPosts, setExpandedPosts] = useState<string[]>([]);
-  const [commentsData, setCommentsData] = useState<Record<string, Comment[]>>({});
+  const [commentsData] = useState<Record<string, Comment[]>>({});
 
   // Confirmation dialog state
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -83,15 +84,15 @@ export default function MyPostsPage() {
     setModalOpen(true);
   };
 
-  const savePost = async (post: Post, imageFile?: File) => {
+  const savePost = async (post: Post) => {
     if (post._id) {
-      await updatePost(post._id, post, imageFile);
+      await updatePost(post._id, post);
     } else {
       if (!user) {
         // User not logged in - silently return
         return;
       }
-      await createPost({ ...post, ownerId: user.uid }, imageFile);
+      await createPost({ ...post, ownerId: user.uid });
     }
     setModalOpen(false);
   };
@@ -153,7 +154,16 @@ export default function MyPostsPage() {
             <AnimatePresence>
               {paginatedPosts.map(post => (
                 <motion.div key={post._id} initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -25 }} layout className="flex flex-col justify-between backdrop-blur-xl rounded-3xl border border-green-700/40 shadow-xl hover:shadow-emerald-800/50 transition">
-                  {post.imageUrl && <img src={post.imageUrl} alt={post.title} className="rounded-t-3xl h-40 w-full object-cover" />}
+                  {post.imageUrl && (
+                    <SafeImage 
+                      src={post.imageUrl} 
+                      alt={post.title} 
+                      width={400}
+                      height={160}
+                      className="rounded-t-3xl h-40 w-full object-cover" 
+                      fallbackType="post"
+                    />
+                  )}
                   <div className="p-5 flex flex-col flex-1">
                     <h2 className="text-lg font-semibold text-black">{post.title}</h2>
                     <p className="text-sm text-black mt-1 line-clamp-3">{post.description}</p>
@@ -252,50 +262,122 @@ export default function MyPostsPage() {
 // Modal Component
 // ========================
 // Inside MyPostsPage.tsx (replace the old PostModal)
-function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post | null; onClose: () => void; onSave: (post: Post, imageFile?: File) => void }) {
+function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post | null; onClose: () => void; onSave: (post: Post) => void }) {
   const [title, setTitle] = useState(post?.title || "");
   const [content, setContent] = useState(post?.description || "");
   const [tags, setTags] = useState(post?.tags.join(", ") || "");
   const [preview, setPreview] = useState(false);
   const [status, setStatus] = useState<"Draft" | "Published">(post?.status || "Draft");
-
-  const [image, setImage] = useState<string | null>(post?.imageUrl || null); // For preview
-  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null); // For upload
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [imageUrl, setImageUrl] = useState(post?.imageUrl || "");
+  const [imageError, setImageError] = useState("");
+  const [validatingImage, setValidatingImage] = useState(false);
+  const [validationTimeout, setValidationTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setTitle(post?.title || "");
     setContent(post?.description || "");
     setTags(post?.tags.join(", ") || "");
     setStatus(post?.status || "Draft");
-    setImage(post?.imageUrl || null);
-    setSelectedImageFile(null);
-  }, [post]);
+    setImageUrl(post?.imageUrl || "");
+    setImageError("");
+    
+    // Clear validation timeout when post changes
+    if (validationTimeout) {
+      clearTimeout(validationTimeout);
+      setValidationTimeout(null);
+    }
+  }, [post, validationTimeout]);
 
-  const applyFormat = (format: string) => setContent(prev => prev + format);
+  // Image validation function
+  const validateImageUrl = async (url: string) => {
+    if (!url.trim()) {
+      setImageError("");
+      return;
+    }
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setImage(reader.result as string);
-      reader.readAsDataURL(file);
+    setValidatingImage(true);
+    setImageError("");
+
+    try {
+      // Check if URL is valid using a safer approach
+      if (!isValidUrl(url)) {
+        setImageError("Invalid URL format");
+        return;
+      }
+
+      // Handle special cases for known image hosting services
+      if (isUnsplashUrl(url)) {
+        setImageError(""); // Unsplash URLs are generally valid
+        return;
+      }
+      
+      // Check if URL points to an image
+      const response = await fetch(url, { method: 'HEAD' });
+      const contentType = response.headers.get('content-type');
+      
+      if (!contentType || !contentType.startsWith('image/')) {
+        setImageError("URL does not point to a valid image");
+      }
+    } catch (error) {
+      console.log("Image validation error:", error);
+      setImageError("Unable to validate image URL");
+    } finally {
+      setValidatingImage(false);
     }
   };
 
+  // Check if URL is from Unsplash
+  const isUnsplashUrl = (url: string) => {
+    return url.includes('unsplash.com') || url.includes('images.unsplash.com');
+  };
+
+  // Safe URL validation helper
+  const isValidUrl = (string: string) => {
+    try {
+      new URL(string);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // Handle image URL change with debounced validation
+  const handleImageUrlChange = (url: string) => {
+    setImageUrl(url);
+    
+    // Clear existing timeout
+    if (validationTimeout) {
+      clearTimeout(validationTimeout);
+    }
+    
+    if (url.trim()) {
+      // Debounce validation by 500ms
+      const timeout = setTimeout(() => {
+        validateImageUrl(url);
+      }, 500);
+      setValidationTimeout(timeout);
+    } else {
+      setImageError("");
+      setValidatingImage(false);
+    }
+  };
+
+  const applyFormat = (format: string) => setContent(prev => prev + format);
+
   const handleSubmit = () => {
     if (!post) return;
-    onSave(
-      {
-        ...post,
-        title,
-        description: content,
-        tags: tags.split(",").map(t => t.trim()),
-        status,
-      },
-      selectedImageFile || undefined
-    );
+    if (imageError) {
+      alert("Please fix the image URL error before saving.");
+      return;
+    }
+    onSave({
+      ...post,
+      title,
+      description: content,
+      tags: tags.split(",").map(t => t.trim()),
+      status,
+      imageUrl: imageUrl.trim(),
+    });
     onClose();
   };
 
@@ -316,10 +398,27 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
             {/* Title */}
             <input type="text" placeholder="Post Title..." value={title} onChange={e => setTitle(e.target.value)} className="px-5 py-3 text-lg font-semibold text-white placeholder-green-300 border-b border-green-700/30 focus:ring-2 focus:ring-emerald-500 outline-none transition" />
 
+            {/* Image URL Input */}
+            <div className="px-5 py-3 border-b border-green-700/30">
+              <input 
+                type="url" 
+                placeholder="Image URL (optional)..." 
+                value={imageUrl} 
+                onChange={e => handleImageUrlChange(e.target.value)} 
+                className="w-full text-white placeholder-green-300 focus:ring-2 focus:ring-emerald-500 outline-none transition bg-transparent" 
+              />
+              {validatingImage && (
+                <p className="text-xs text-yellow-400 mt-1">Validating image...</p>
+              )}
+              {imageError && (
+                <p className="text-xs text-red-400 mt-1">{imageError}</p>
+              )}
+            </div>
+
             {/* Toolbar */}
             {!preview && (
               <motion.div className="flex flex-wrap gap-3 px-5 py-3 border-b border-green-700/30 rounded-b-xl shadow-inner" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-                {[Bold, Italic, Underline, Heading2, List, Quote, Image, Eye].map((Icon, i) => {
+                {[Bold, Italic, Underline, Heading2, List, Quote, Eye].map((Icon, i) => {
                   const actions = [
                     () => applyFormat("**bold**"),
                     () => applyFormat("*italic*"),
@@ -327,7 +426,6 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
                     () => applyFormat("\n## Subheading\n"),
                     () => applyFormat("\n- List item\n"),
                     () => applyFormat("\n> Quote\n"),
-                    () => fileInputRef.current?.click(),
                     () => setPreview(!preview),
                   ];
                   return (
@@ -336,7 +434,6 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
                     </motion.button>
                   );
                 })}
-                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
               </motion.div>
             )}
 
@@ -345,13 +442,33 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
               {preview ? (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} className="prose max-w-none text-white">
                   <h2>{title}</h2>
-                  {image && <img src={image} alt="uploaded" className="rounded-xl my-4 shadow-lg" />}
+                  {imageUrl && (
+                    <SafeImage 
+                      src={imageUrl} 
+                      alt="uploaded" 
+                      width={600}
+                      height={300}
+                      className="rounded-xl my-4 shadow-lg max-h-60" 
+                      fallbackType="post"
+                    />
+                  )}
                   <p>{content}</p>
                 </motion.div>
               ) : (
                 <textarea value={content} onChange={e => setContent(e.target.value)} className="w-full h-[300px] resize-none p-4 text-white rounded-xl border border-green-700/30 focus:ring-2 focus:ring-emerald-500 outline-none shadow-inner transition placeholder-green-300" placeholder="Write your post..." />
               )}
-              {image && !preview && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4"><img src={image} alt="preview" className="rounded-xl max-h-60 shadow-lg" /></motion.div>}
+              {imageUrl && !preview && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4">
+                  <SafeImage 
+                    src={imageUrl} 
+                    alt="preview" 
+                    width={600}
+                    height={240}
+                    className="rounded-xl max-h-60 shadow-lg" 
+                    fallbackType="post"
+                  />
+                </motion.div>
+              )}
             </div>
 
             {/* Footer */}
