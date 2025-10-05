@@ -364,7 +364,11 @@ export default function AllTripsTable() {
       </div>
     </div>
 
-    
+    {/* Trending News Sidebar - Takes up 1/3 of the space on large screens */}
+    <div className="xl:col-span-1">
+      <TrendingNews maxItems={8} showCompact={false} />
+    </div>
+  </div>
 
       {/* Drawer, Modal & Prompt remain the same as your original code */}
       {/* Edit Drawer */}
