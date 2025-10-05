@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Edit2, Heart, MessageCircle, X, Bold, Italic, Underline, Heading2, List, Quote, Eye } from "lucide-react";
 import { usePostStore } from "@/store/postStore"; // import your post store
@@ -271,7 +271,7 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
   const [imageUrl, setImageUrl] = useState(post?.imageUrl || "");
   const [imageError, setImageError] = useState("");
   const [validatingImage, setValidatingImage] = useState(false);
-  const [validationTimeout, setValidationTimeout] = useState<NodeJS.Timeout | null>(null);
+  const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setTitle(post?.title || "");
@@ -282,11 +282,22 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
     setImageError("");
     
     // Clear validation timeout when post changes
-    if (validationTimeout) {
-      clearTimeout(validationTimeout);
-      setValidationTimeout(null);
-    }
-  }, [post, validationTimeout]);
+    return () => {
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+        validationTimeoutRef.current = null;
+      }
+    };
+  }, [post]);
+
+  // Cleanup timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Image validation function
   const validateImageUrl = async (url: string) => {
@@ -301,7 +312,7 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
     try {
       // Check if URL is valid using a safer approach
       if (!isValidUrl(url)) {
-        setImageError("Invalid URL format");
+        setImageError("Please enter a valid URL starting with http:// or https://");
         return;
       }
 
@@ -320,7 +331,7 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
       }
     } catch (error) {
       console.log("Image validation error:", error);
-      setImageError("Unable to validate image URL");
+      setImageError("Unable to validate image URL - please check the URL is correct");
     } finally {
       setValidatingImage(false);
     }
@@ -334,7 +345,20 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
   // Safe URL validation helper
   const isValidUrl = (string: string) => {
     try {
-      new URL(string);
+      // Check if string is empty or just whitespace
+      if (!string || string.trim().length === 0) {
+        return false;
+      }
+      
+      // Trim the string to remove any leading/trailing whitespace
+      const trimmedString = string.trim();
+      
+      // Check if it starts with http or https
+      if (!trimmedString.startsWith('http://') && !trimmedString.startsWith('https://')) {
+        return false;
+      }
+      
+      new URL(trimmedString);
       return true;
     } catch {
       return false;
@@ -346,19 +370,30 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
     setImageUrl(url);
     
     // Clear existing timeout
-    if (validationTimeout) {
-      clearTimeout(validationTimeout);
+    if (validationTimeoutRef.current) {
+      clearTimeout(validationTimeoutRef.current);
+      validationTimeoutRef.current = null;
+    }
+    
+    // Clear any existing errors immediately for empty input
+    if (!url.trim()) {
+      setImageError("");
+      setValidatingImage(false);
+      return;
+    }
+    
+    // Basic format check before validation
+    if (url.trim() && !url.trim().startsWith('http')) {
+      setImageError("URL must start with http:// or https://");
+      setValidatingImage(false);
+      return;
     }
     
     if (url.trim()) {
       // Debounce validation by 500ms
-      const timeout = setTimeout(() => {
+      validationTimeoutRef.current = setTimeout(() => {
         validateImageUrl(url);
       }, 500);
-      setValidationTimeout(timeout);
-    } else {
-      setImageError("");
-      setValidatingImage(false);
     }
   };
 
@@ -402,16 +437,17 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
             <div className="px-5 py-3 border-b border-green-700/30">
               <input 
                 type="url" 
-                placeholder="Image URL (optional)..." 
+                placeholder="Image URL (e.g., https://images.unsplash.com/your-image-url)" 
                 value={imageUrl} 
                 onChange={e => handleImageUrlChange(e.target.value)} 
                 className="w-full text-white placeholder-green-300 focus:ring-2 focus:ring-emerald-500 outline-none transition bg-transparent" 
               />
+              <p className="text-xs text-green-400 mt-1">💡 Paste a direct image URL starting with https://</p>
               {validatingImage && (
-                <p className="text-xs text-yellow-400 mt-1">Validating image...</p>
+                <p className="text-xs text-yellow-400 mt-1">⏳ Validating image...</p>
               )}
               {imageError && (
-                <p className="text-xs text-red-400 mt-1">{imageError}</p>
+                <p className="text-xs text-red-400 mt-1">❌ {imageError}</p>
               )}
             </div>
 
