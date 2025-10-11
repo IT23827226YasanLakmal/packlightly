@@ -1,7 +1,9 @@
 "use client";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 export default function HeroSection() {
+  const router = useRouter();
   return (
     <section className="relative flex flex-col items-center text-center gap-6 py-20 overflow-hidden">
       {/* Floating leaves */}
@@ -36,10 +38,16 @@ export default function HeroSection() {
         transition={{ delay: 0.8 }}
         className="flex gap-4 mt-6"
       >
-        <button className="px-6 py-3 bg-gradient-to-r from-green-400 to-emerald-600 text-white font-semibold rounded-full shadow hover:scale-105 transition">
-          Explore Tips
+        <button 
+          onClick={() => router.push('/dashboard/trips')}
+          className="px-6 py-3 bg-gradient-to-r from-green-400 to-emerald-600 text-white font-semibold rounded-full shadow hover:scale-105 transition"
+        >
+          Get Started
         </button>
-        <button className="px-6 py-3 border border-green-400 text-green-800 rounded-full shadow hover:bg-green-100 transition">
+        <button 
+          onClick={() => router.push('/community')}
+          className="px-6 py-3 border border-green-400 text-green-800 rounded-full shadow hover:bg-green-100 transition"
+        >
           Join Community
         </button>
       </motion.div>
