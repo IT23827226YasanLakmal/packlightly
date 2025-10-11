@@ -60,7 +60,8 @@ export default function ReportsPage() {
     fetchReports,
     generateReport,
     deleteReport,
-    exportReport
+    exportReport,
+    injectMockData
   } = useReportStore();
 
   // UI state for report generation
@@ -92,11 +93,17 @@ export default function ReportsPage() {
   useEffect(() => {
     // Initialize report data
     const initializeData = async () => {
-      await Promise.all([
-        getTypes(),
-        getOverview(),
-        fetchReports()
-      ]);
+      console.log('🔍 Initializing report data...');
+      try {
+        await Promise.all([
+          getTypes(),
+          getOverview(),
+          fetchReports()
+        ]);
+        console.log('✅ Report data initialization complete');
+      } catch (error) {
+        console.error('❌ Error initializing report data:', error);
+      }
     };
 
     initializeData();
@@ -124,7 +131,20 @@ export default function ReportsPage() {
       { name: "Eco Backpack", value: 70 },
       { name: "Bamboo Toothbrush", value: 60 },
     ]);
-  }, [getTypes, getOverview, fetchReports]);
+  }, [getTypes, getOverview, fetchReports, injectMockData]);
+
+  // Debug useEffect to log data changes
+  useEffect(() => {
+    console.log('📊 Report Types updated:', reportTypes);
+  }, [reportTypes]);
+
+  useEffect(() => {
+    console.log('📈 Overview updated:', overview);
+  }, [overview]);
+
+  useEffect(() => {
+    console.log('📋 Reports updated:', reports);
+  }, [reports]);
 
   const tooltipStyle = {
     backgroundColor: "#111",
@@ -154,12 +174,21 @@ export default function ReportsPage() {
             <p className="text-green-300 text-sm">Insights on user activity & eco impact</p>
           </div>
         </div>
-        <button 
-          onClick={() => setShowGenerateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition"
-        >
-          <Plus size={18} /> Generate Report
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowGenerateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition"
+          >
+            <Plus size={18} /> Generate Report
+          </button>
+          {/* TEMPORARY: Mock data button for testing */}
+          <button 
+            onClick={() => injectMockData()}
+            className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition text-sm"
+          >
+            🎭 Test Data
+          </button>
+        </div>
       </motion.div>
 
       {/* Overview Stats */}
@@ -315,6 +344,7 @@ export default function ReportsPage() {
                     <p className="text-green-300 text-sm">{report.type}</p>
                     <p className="text-green-400 text-xs">
                       Created: {new Date(report.createdAt).toLocaleDateString()}
+                      {report.reportAge && <span className="ml-2">({report.reportAge})</span>}
                     </p>
                     <span className={`inline-block px-2 py-1 rounded-full text-xs mt-2 ${
                       report.status === 'completed' ? 'bg-green-600/20 text-green-400' :
@@ -322,8 +352,17 @@ export default function ReportsPage() {
                       report.status === 'failed' ? 'bg-red-600/20 text-red-400' :
                       'bg-gray-600/20 text-gray-400'
                     }`}>
-                      {report.status}
+                      {report.statusDisplay || report.status}
                     </span>
+                    {report.tags && report.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {report.tags.slice(0, 3).map((tag, index) => (
+                          <span key={index} className="px-2 py-1 bg-emerald-600/20 text-emerald-300 rounded-md text-xs">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="relative group">
@@ -333,19 +372,19 @@ export default function ReportsPage() {
                       <div className="absolute right-0 top-full mt-1 bg-black/90 border border-green-700/40 rounded-xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
                         <div className="space-y-1 min-w-[80px]">
                           <button
-                            onClick={() => handleExportReport(report._id!, 'pdf')}
+                            onClick={() => handleExportReport(report._id || report.id!, 'pdf')}
                             className="block w-full text-left px-3 py-2 text-sm text-green-300 hover:text-white hover:bg-green-700/20 rounded-lg transition"
                           >
                             PDF
                           </button>
                           <button
-                            onClick={() => handleExportReport(report._id!, 'csv')}
+                            onClick={() => handleExportReport(report._id || report.id!, 'csv')}
                             className="block w-full text-left px-3 py-2 text-sm text-green-300 hover:text-white hover:bg-green-700/20 rounded-lg transition"
                           >
                             CSV
                           </button>
                           <button
-                            onClick={() => handleExportReport(report._id!, 'xlsx')}
+                            onClick={() => handleExportReport(report._id || report.id!, 'xlsx')}
                             className="block w-full text-left px-3 py-2 text-sm text-green-300 hover:text-white hover:bg-green-700/20 rounded-lg transition"
                           >
                             Excel
@@ -354,7 +393,7 @@ export default function ReportsPage() {
                       </div>
                     </div>
                     <button
-                      onClick={() => setViewingReport(report._id!)}
+                      onClick={() => setViewingReport(report._id || report.id!)}
                       className="p-2 text-blue-300 hover:text-white hover:bg-blue-700/20 rounded-lg transition"
                       title="View Report"
                     >
@@ -362,7 +401,7 @@ export default function ReportsPage() {
                     </button>
                     {report.status === 'completed' && (
                       <button
-                        onClick={() => handleRegenerateReport(report._id!)}
+                        onClick={() => handleRegenerateReport(report._id || report.id!)}
                         className="p-2 text-yellow-300 hover:text-white hover:bg-yellow-700/20 rounded-lg transition"
                         title="Regenerate Report"
                       >
@@ -370,7 +409,7 @@ export default function ReportsPage() {
                       </button>
                     )}
                     <button
-                      onClick={() => setDeleteConfirmId(report._id!)}
+                      onClick={() => setDeleteConfirmId(report._id || report.id!)}
                       className="p-2 text-red-300 hover:text-white hover:bg-red-700/20 rounded-lg transition"
                       title="Delete Report"
                     >
@@ -399,7 +438,7 @@ export default function ReportsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             {(() => {
-              const report = reports.find(r => r._id === viewingReport);
+              const report = reports.find(r => (r._id || r.id) === viewingReport);
               if (!report) return <div className="text-white">Report not found</div>;
               
               return (
@@ -431,18 +470,70 @@ export default function ReportsPage() {
                         </span>
                       </div>
                       <div>
-                        <label className="block text-green-300 text-sm mb-1">Created</label>
-                        <div className="text-white">{new Date(report.createdAt).toLocaleString()}</div>
+                        <label className="block text-green-300 text-sm mb-1">Generated</label>
+                        <div className="text-white">
+                          {report.formattedGeneratedAt || new Date(report.generatedAt).toLocaleString()}
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-green-300 text-sm mb-1">Updated</label>
-                        <div className="text-white">{new Date(report.updatedAt).toLocaleString()}</div>
+                        <label className="block text-green-300 text-sm mb-1">Format</label>
+                        <div className="text-white">{report.format}</div>
                       </div>
                     </div>
-                    {report.description && (
+                    {report.tags && report.tags.length > 0 && (
                       <div>
-                        <label className="block text-green-300 text-sm mb-1">Description</label>
-                        <div className="text-white">{report.description}</div>
+                        <label className="block text-green-300 text-sm mb-1">Tags</label>
+                        <div className="flex flex-wrap gap-2">
+                          {report.tags.map((tag, index) => (
+                            <span key={index} className="px-2 py-1 bg-emerald-600/20 text-emerald-300 rounded-md text-xs">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {report.filters && (
+                      <div>
+                        <label className="block text-green-300 text-sm mb-1">Filters Applied</label>
+                        <div className="bg-black/30 border border-green-700/30 rounded-xl p-3">
+                          <pre className="text-green-300 text-sm whitespace-pre-wrap">
+                            {JSON.stringify(report.filters, null, 2)}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+                    {report.data?.summary && (
+                      <div>
+                        <label className="block text-green-300 text-sm mb-1">Summary Statistics</label>
+                        <div className="bg-black/30 border border-green-700/30 rounded-xl p-3">
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            {Object.entries(report.data.summary).map(([key, value]) => (
+                              value !== 0 && value !== null && value !== undefined && (
+                                <div key={key} className="text-sm">
+                                  <div className="text-green-400 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</div>
+                                  <div className="text-white font-medium">{String(value)}</div>
+                                </div>
+                              )
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {report.data?.charts && report.data.charts.length > 0 && (
+                      <div>
+                        <label className="block text-green-300 text-sm mb-1">Charts Available</label>
+                        <div className="bg-black/30 border border-green-700/30 rounded-xl p-3">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {report.data.charts.map((chart, index) => (
+                              <div key={index} className="border border-green-700/20 rounded-lg p-3">
+                                <div className="text-white font-medium text-sm">{chart.title}</div>
+                                <div className="text-green-300 text-xs mt-1">
+                                  Type: {chart.type.toUpperCase()} | {chart.data.length} data points
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     )}
                     {report.data && (
@@ -466,7 +557,7 @@ export default function ReportsPage() {
                   </div>
                   <div className="flex gap-3 pt-6 border-t border-green-700/30 mt-6">
                     <button
-                      onClick={() => handleExportReport(report._id!, 'pdf')}
+                      onClick={() => handleExportReport(report._id || report.id!, 'pdf')}
                       className="flex items-center gap-2 px-4 py-2 bg-green-600/20 text-green-300 rounded-xl hover:bg-green-600/30 transition"
                     >
                       <Download size={16} />
@@ -475,7 +566,7 @@ export default function ReportsPage() {
                     {report.status === 'completed' && (
                       <button
                         onClick={() => {
-                          handleRegenerateReport(report._id!);
+                          handleRegenerateReport(report._id || report.id!);
                           setViewingReport(null);
                         }}
                         className="flex items-center gap-2 px-4 py-2 bg-yellow-600/20 text-yellow-300 rounded-xl hover:bg-yellow-600/30 transition"

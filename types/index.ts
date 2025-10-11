@@ -179,16 +179,43 @@ export interface ReportOverview {
 
 export interface Report {
   _id?: string;
-  userId: string;
-  type: string;
+  id?: string; // API also provides this
+  ownerUid: string;
   title: string;
-  description?: string;
+  type: string;
+  generatedAt: string;
+  format: string;
+  isScheduled: boolean;
+  scheduleFrequency?: string;
+  lastGenerated?: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
-  data?: Record<string, unknown>;
+  tags: string[];
+  filters?: {
+    dateRange?: {
+      startDate: string;
+      endDate: string;
+    };
+  };
+  data?: {
+    summary?: Record<string, unknown>;
+    charts?: Array<{
+      type: string;
+      title: string;
+      data: number[];
+      labels: string[];
+      _id?: string;
+      id?: string;
+    }>;
+    details?: Record<string, unknown>;
+  };
   createdAt: string;
   updatedAt: string;
-  completedAt?: string;
+  formattedGeneratedAt?: string;
+  statusDisplay?: string;
+  reportAge?: string;
+  __v?: number;
   errorMessage?: string;
+  description?: string; // Keep for backward compatibility
 }
 
 export interface ReportGenerateRequest {
@@ -223,4 +250,7 @@ export interface ReportStore {
   
   // UI state
   setSelectedReport: (report: Report | null) => void;
+  
+  // TEMPORARY: For testing
+  injectMockData: () => void;
 }

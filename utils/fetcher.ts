@@ -26,24 +26,49 @@ export async function fetcherWithTokenConfig(url: string, options: RequestInit =
 }
 // utils/fetcher.ts
 export async function fetcherWithToken(url: string) {
-  const token = await getToken(); // <- implement this
+  console.log('🌐 Making API call to:', url);
+  const token = await getToken(); 
+  
+  if (!token) {
+    console.log('⚠️ No token available, making request without authentication');
+  }
+  
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  
+  // Only add Authorization header if token exists
+  if (token) {
+    (headers as Record<string, string>).Authorization = `Bearer ${token}`;
+  }
+  
   const res = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`, // attach token
-    },
+    headers,
   });
+  
+  console.log('📡 API response status:', res.status);
+  
   if (!res.ok) {
-    throw new Error("Failed to fetch");
+    console.error('❌ API request failed with status:', res.status);
+    throw new Error(`Failed to fetch: ${res.status} ${res.statusText}`);
   }
   return res.json();
 }
 
 // Example: if using Firebase
 export async function getToken() {
-  const user = (await import("firebase/auth")).getAuth().currentUser;
-  if (user) {
-    return user.getIdToken();
+  console.log('🔐 Getting authentication token...');
+  try {
+    const user = (await import("firebase/auth")).getAuth().currentUser;
+    if (user) {
+      const token = await user.getIdToken();
+      console.log('✅ Token obtained for user:', user.uid);
+      return token;
+    }
+    console.log('⚠️ No authenticated user found');
+    return null;
+  } catch (error) {
+    console.error('❌ Error getting token:', error);
+    return null;
   }
-  return null;
 }
