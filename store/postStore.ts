@@ -11,9 +11,9 @@ interface PostStore {
 
   fetchPosts: () => Promise<void>;
   fetchMyPosts: () => Promise<void>;
-  createPost: (post: Partial<Post>) => Promise<void>;
-  updatePost: (id: string, post: Partial<Post>) => Promise<void>;
-  deletePost: (id: string) => Promise<void>;
+  createPost: (post: Partial<Post>, refreshFn?: () => Promise<void>) => Promise<void>;
+  updatePost: (id: string, post: Partial<Post>, refreshFn?: () => Promise<void>) => Promise<void>;
+  deletePost: (id: string, refreshFn?: () => Promise<void>) => Promise<void>;
   addComment: (postId: string, text: string, user?: string) => Promise<void>;
   toggleLike: (postId: string, userId?: string) => Promise<void>;
   isLikingPost: (postId: string) => boolean;
@@ -63,7 +63,7 @@ export const usePostStore = create<PostStore>((set, get) => ({
     }
   },
 
-  createPost: async (post) => {
+  createPost: async (post, refreshFn) => {
     set({ loading: true, error: null });
     try {
       await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts`, {
@@ -71,14 +71,16 @@ export const usePostStore = create<PostStore>((set, get) => ({
         body: JSON.stringify(post),
       });
 
-      await get().fetchPosts();
+      // Use the provided refresh function or default to fetchPosts
+      const refresh = refreshFn || get().fetchPosts;
+      await refresh();
     } catch (err) {
       console.error('Failed to create post:', err);
       set({ error: 'Failed to create post', loading: false });
     }
   },
 
-  updatePost: async (id, post) => {
+  updatePost: async (id, post, refreshFn) => {
     set({ loading: true, error: null });
     try {
       await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts/${id}`, {
@@ -86,13 +88,15 @@ export const usePostStore = create<PostStore>((set, get) => ({
         body: JSON.stringify(post),
       });
 
-      await get().fetchPosts();
+      // Use the provided refresh function or default to fetchPosts
+      const refresh = refreshFn || get().fetchPosts;
+      await refresh();
     } catch {
       set({ error: 'Failed to update post', loading: false });
     }
   },
 
-  deletePost: async (id) => {
+  deletePost: async (id, refreshFn) => {
     if (!id) {
       set({ error: 'Invalid post ID for deletion', loading: false });
       return;
@@ -102,7 +106,13 @@ export const usePostStore = create<PostStore>((set, get) => ({
       await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts/${id}`, {
         method: 'DELETE',
       });
+      
+      // If a refresh function is provided, use it, otherwise just remove from local state
+      if (refreshFn) {
+        await refreshFn();
+      } else {
         set({ posts: get().posts.filter(p => p._id !== id), loading: false });
+      }
     } catch {
       set({ error: 'Failed to delete post', loading: false });
     }

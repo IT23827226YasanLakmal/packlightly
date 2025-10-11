@@ -10,7 +10,7 @@ import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import SafeImage from "@/components/SafeImage";
 
 export default function MyPostsPage() {
-  const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loading, error } = usePostStore();
+  const { posts, fetchMyPosts, createPost, updatePost, deletePost, addComment, loading, error } = usePostStore();
   const user = useCurrentUser();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
@@ -29,8 +29,8 @@ export default function MyPostsPage() {
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    fetchMyPosts();
+  }, [fetchMyPosts]);
 
   const handleDeletePost = (postId: string) => {
     setPostToDelete(postId);
@@ -39,7 +39,7 @@ export default function MyPostsPage() {
 
   const handleConfirmDelete = async () => {
     if (postToDelete) {
-      await deletePost(postToDelete);
+      await deletePost(postToDelete, fetchMyPosts);
       setExpandedPosts(prev => prev.filter(pid => pid !== postToDelete));
       setPostToDelete(null);
     }
@@ -86,13 +86,13 @@ export default function MyPostsPage() {
 
   const savePost = async (post: Post) => {
     if (post._id) {
-      await updatePost(post._id, post);
+      await updatePost(post._id, post, fetchMyPosts);
     } else {
       if (!user) {
         // User not logged in - silently return
         return;
       }
-      await createPost({ ...post, ownerId: user.uid });
+      await createPost({ ...post, ownerId: user.uid }, fetchMyPosts);
     }
     setModalOpen(false);
   };
