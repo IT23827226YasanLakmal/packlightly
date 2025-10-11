@@ -59,10 +59,16 @@ export async function fetcherWithToken(url: string) {
 export async function getToken() {
   console.log('🔐 Getting authentication token...');
   try {
-    const user = (await import("firebase/auth")).getAuth().currentUser;
+    const { auth } = await import("@/lib/firebaseClient");
+    const user = auth.currentUser;
+    
+    console.log('👤 Current user:', user ? `${user.uid} (${user.email})` : 'null');
+    
     if (user) {
-      const token = await user.getIdToken();
+      console.log('🔄 Requesting fresh ID token...');
+      const token = await user.getIdToken(true); // Force refresh token
       console.log('✅ Token obtained for user:', user.uid);
+      console.log('🔍 Token preview:', token ? `${token.substring(0, 50)}...` : 'null');
       return token;
     }
     console.log('⚠️ No authenticated user found');

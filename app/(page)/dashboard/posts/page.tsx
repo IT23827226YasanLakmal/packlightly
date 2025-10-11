@@ -11,7 +11,7 @@ import SafeImage from "@/components/SafeImage";
 
 export default function MyPostsPage() {
   const { posts, fetchMyPosts, createPost, updatePost, deletePost, addComment, loading, error } = usePostStore();
-  const user = useCurrentUser();
+  const { user } = useCurrentUser();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const [currentPage, setCurrentPage] = useState(1);

@@ -32,7 +32,7 @@ export default function Page() {
   });
   
   const { posts, fetchPosts, loading, error, addComment, createPost, toggleLike } = usePostStore();
-  const currentUser = useCurrentUser();
+  const { user: currentUser } = useCurrentUser();
 
   React.useEffect(() => {
     console.log('Community page: Fetching posts...');

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { fetcherWithToken, fetcherWithTokenConfig } from '@/utils/fetcher';
+import { fetcherWithToken, fetcherWithTokenConfig, getToken } from '@/utils/fetcher';
 import { 
   Report, 
   ReportGenerateRequest, 
@@ -141,32 +141,88 @@ export const useReportStore = create<ReportStore>((set, get) => ({
   exportReport: async (id: string, format: string) => {
     set({ loading: true, error: null });
     try {
+      console.log(`🔐 Attempting to export report ${id} as ${format}...`);
+      
+      // Get Firebase ID token properly
+      const token = await getToken();
+      console.log('🔍 Token received:', token ? `${token.substring(0, 50)}...` : 'null');
+      
+      if (!token) {
+        console.error('❌ No authentication token available');
+        throw new Error('No authentication token available');
+      }
+
+      // Validate token format (Firebase JWT tokens should have 3 parts separated by dots)
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        console.error('❌ Invalid token format. Expected JWT with 3 parts, got:', tokenParts.length);
+        throw new Error('Invalid token format');
+      }
+
+      console.log('📡 Making export request to:', `${process.env.NEXT_PUBLIC_API_URL}/reports/export/${id}/${format}`);
+      
+      // Don't set Content-Type for file downloads - let the server set it
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/reports/export/${id}/${format}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
 
+      console.log('📋 Response status:', response.status);
+      console.log('📋 Response content-type:', response.headers.get('content-type'));
+
       if (!response.ok) {
-        throw new Error('Failed to export report');
+        const errorText = await response.text();
+        console.error('❌ Export failed:', response.status, errorText);
+        throw new Error(`Failed to export report: ${response.status} ${errorText}`);
       }
+
+      // Get the content-type from response to determine file extension
+      const contentType = response.headers.get('content-type') || '';
+      console.log('📄 Content type:', contentType);
+
+      // Map format to proper file extension
+      const getFileExtension = (format: string, contentType: string) => {
+        switch (format.toLowerCase()) {
+          case 'csv':
+            return 'csv';
+          case 'json':
+            return 'json';
+          default:
+            // Try to determine from content-type
+            if (contentType.includes('json')) return 'json';
+            if (contentType.includes('csv')) return 'csv';
+            return format; // fallback
+        }
+      };
+
+      const fileExtension = getFileExtension(format, contentType);
+      const filename = `report-${id}.${fileExtension}`;
 
       // Handle file download
       const blob = await response.blob();
+      console.log('📦 Blob size:', blob.size, 'bytes');
+      console.log('📦 Blob type:', blob.type);
+      
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      a.download = `report-${id}.${format}`;
+      a.download = filename;
       document.body.appendChild(a);
+      
+      console.log('💾 Downloading file:', filename);
       a.click();
+      
+      // Cleanup
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
+      console.log('✅ Export completed successfully');
       set({ loading: false });
     } catch (error) {
-      console.error('Failed to export report:', error);
+      console.error('❌ Failed to export report:', error);
       set({ error: 'Failed to export report', loading: false });
     }
   },
