@@ -4,18 +4,109 @@ import {
     createUserWithEmailAndPassword,
     signInWithPopup,
     GoogleAuthProvider,
+    updateProfile,
 } from "firebase/auth";
-import { auth } from "@/lib/firebaseClient";
+import { auth, db } from "@/lib/firebaseClient";
+import {
+    doc,
+    setDoc,
+    serverTimestamp,
+} from "firebase/firestore";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import AuthGuard from "@/components/AuthGuard";
 
 export default function SignupPage() {
+    return (
+        <AuthGuard requireAuth={false}>
+            <SignupForm />
+        </AuthGuard>
+    );
+}
+
+function SignupForm() {
     const [formData, setFormData] = useState({
         name: "",
         email: "",
         password: "",
+        confirmPassword: "",
     });
     const [message, setMessage] = useState("");
     const [loading, setLoading] = useState(false);
+    const router = useRouter();
+
+    // 🔹 Helper: Validate form inputs
+    const validateForm = (): boolean => {
+        if (!formData.name.trim()) {
+            setMessage("Full name is required");
+            return false;
+        }
+        
+        if (formData.name.trim().length < 2) {
+            setMessage("Name must be at least 2 characters long");
+            return false;
+        }
+        
+        if (!formData.email) {
+            setMessage("Email is required");
+            return false;
+        }
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            setMessage("Please enter a valid email address");
+            return false;
+        }
+        
+        if (!formData.password) {
+            setMessage("Password is required");
+            return false;
+        }
+        
+        if (formData.password.length < 6) {
+            setMessage("Password must be at least 6 characters long");
+            return false;
+        }
+        
+        if (formData.password !== formData.confirmPassword) {
+            setMessage("Passwords do not match");
+            return false;
+        }
+        
+        return true;
+    };
+
+    // 🔹 Helper: Get user-friendly error message
+    const getErrorMessage = (error: unknown): string => {
+        if (!(error instanceof Error)) return "An unknown error occurred";
+        
+        const firebaseError = error as { code?: string; message: string };
+        if (!firebaseError.code) return firebaseError.message;
+        
+        switch (firebaseError.code) {
+            case "auth/email-already-in-use":
+                return "An account with this email already exists";
+            case "auth/invalid-email":
+                return "Please enter a valid email address";
+            case "auth/weak-password":
+                return "Password is too weak. Please choose a stronger password";
+            case "auth/network-request-failed":
+                return "Network error. Please check your connection";
+            default:
+                return firebaseError.message || "Signup failed";
+        }
+    };
+
+    // 🔹 Helper: Create user in Firestore
+    const createUserInFirestore = async (uid: string, email: string, name: string) => {
+        const userRef = doc(db, "users", uid);
+        await setDoc(userRef, {
+            email,
+            name: name.trim(),
+            role: "user",
+            createdAt: serverTimestamp(),
+        });
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -24,21 +115,41 @@ export default function SignupPage() {
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
         setMessage("");
+        
+        if (!validateForm()) {
+            return;
+        }
+        
+        setLoading(true);
         try {
-            await createUserWithEmailAndPassword(
+            // Create user account
+            const userCredential = await createUserWithEmailAndPassword(
                 auth,
                 formData.email,
                 formData.password
             );
-            setMessage("Signup successful! You can now log in.");
-        } catch (error) {
-            if (error instanceof Error) {
-                setMessage(error.message);
-            } else {
-                setMessage("An unknown error occurred.");
-            }
+
+            // Update user profile with display name
+            await updateProfile(userCredential.user, {
+                displayName: formData.name.trim()
+            });
+
+            // Create user document in Firestore
+            await createUserInFirestore(
+                userCredential.user.uid,
+                formData.email,
+                formData.name
+            );
+
+            setMessage("Account created successfully! Redirecting...");
+            
+            // Redirect to dashboard after successful signup
+            setTimeout(() => {
+                router.push("/dashboard/trips");
+            }, 1500);
+        } catch (error: unknown) {
+            setMessage(getErrorMessage(error));
         } finally {
             setLoading(false);
         }
@@ -50,13 +161,22 @@ export default function SignupPage() {
         try {
             const provider = new GoogleAuthProvider();
             const userCredential = await signInWithPopup(auth, provider);
-            setMessage("Google sign-up successful! You can now continue.");
-        } catch (error) {
-            if (error instanceof Error) {
-                setMessage(error.message);
-            } else {
-                setMessage("Google sign-up failed.");
-            }
+            
+            // Create or update user in Firestore
+            await createUserInFirestore(
+                userCredential.user.uid,
+                userCredential.user.email || "",
+                userCredential.user.displayName || "Google User"
+            );
+            
+            setMessage("Google sign-up successful! Redirecting...");
+            
+            // Redirect to dashboard
+            setTimeout(() => {
+                router.push("/dashboard/trips");
+            }, 1500);
+        } catch (error: unknown) {
+            setMessage(getErrorMessage(error));
         } finally {
             setLoading(false);
         }
@@ -90,6 +210,14 @@ export default function SignupPage() {
                         name="password"
                         type="password"
                         value={formData.password}
+                        onChange={handleChange}
+                        disabled={loading}
+                    />
+                    <FloatingInput
+                        label="Confirm Password"
+                        name="confirmPassword"
+                        type="password"
+                        value={formData.confirmPassword}
                         onChange={handleChange}
                         disabled={loading}
                     />
