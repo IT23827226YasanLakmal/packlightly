@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, CalendarDays, Globe2, Trash2, Edit2 } from "lucide-react";
+import { Plus, CalendarDays, Globe2, Trash2, Edit2, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNewsStore } from "@/store/newsStore";
 import { NewsArticle } from "@/types";
 
@@ -17,13 +17,18 @@ const emptyNews: NewsArticle = {
 };
 
 export default function NewsPage() {
-  const { news, fetchNews, createNews, updateNews, deleteNews, loading } = useNewsStore();
+  const { news, fetchNews, createNews, updateNews, deleteNews, saveNewsToDatabase, loading } = useNewsStore();
   const [query, setQuery] = React.useState("");
   const [editing, setEditing] = React.useState<NewsArticle | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState<NewsArticle | null>(null);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isFetchingNews, setIsFetchingNews] = React.useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [itemsPerPage, setItemsPerPage] = React.useState(10);
 
   useEffect(() => {
     fetchNews();
@@ -127,12 +132,35 @@ export default function NewsPage() {
     setConfirmDelete(null);
   }
 
+  async function handleFetchNewsFromAPI() {
+    setIsFetchingNews(true);
+    try {
+      await saveNewsToDatabase();
+    } catch (error) {
+      console.error("Failed to fetch news from API:", error);
+    } finally {
+      setIsFetchingNews(false);
+    }
+  }
+
   const filteredNews = news.filter(
     (n) =>
       n.title.toLowerCase().includes(query.toLowerCase()) ||
       n.description?.toLowerCase().includes(query.toLowerCase()) ||
       n.source_id.toLowerCase().includes(query.toLowerCase())
   );
+
+  // Pagination calculations
+  const totalItems = filteredNews.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedNews = filteredNews.slice(startIndex, endIndex);
+
+  // Reset to first page when search query changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [query]);
 
   return (
     <section className="px-6 lg:px-10 py-6 space-y-6">
@@ -149,12 +177,22 @@ export default function NewsPage() {
             <p className="text-green-300 text-sm">Manage news articles and updates</p>
           </div>
         </div>
-        <button
-          onClick={openAdd}
-          className="rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-4 py-2 font-semibold flex items-center gap-2 hover:from-emerald-700 hover:to-emerald-800 transition"
-        >
-          <Plus className="w-5 h-5" /> Add News
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleFetchNewsFromAPI}
+            disabled={isFetchingNews || loading}
+            className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 font-semibold flex items-center gap-2 hover:from-blue-700 hover:to-blue-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="w-5 h-5" /> 
+            {isFetchingNews ? "Fetching..." : "Fetch News"}
+          </button>
+          <button
+            onClick={openAdd}
+            className="rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-4 py-2 font-semibold flex items-center gap-2 hover:from-emerald-700 hover:to-emerald-800 transition"
+          >
+            <Plus className="w-5 h-5" /> Add News
+          </button>
+        </div>
       </motion.div>
 
       {/* Search */}
@@ -184,7 +222,7 @@ export default function NewsPage() {
             </thead>
             <tbody>
               <AnimatePresence initial={false}>
-                {filteredNews.map((n) => (
+                {paginatedNews.map((n) => (
                   <motion.tr
                     key={n._id?.toString() || Math.random()}
                     layout
@@ -228,6 +266,79 @@ export default function NewsPage() {
           </table>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalItems > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl bg-white/10 dark:bg-black/20 backdrop-blur-xl border border-green-700/30 p-4">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-green-300">
+              Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} articles
+            </span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="rounded-lg border border-green-500/30 bg-black/30 text-white px-3 py-1 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value={5}>5 per page</option>
+              <option value={10}>10 per page</option>
+              <option value={20}>20 per page</option>
+              <option value={50}>50 per page</option>
+            </select>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-green-500/30 bg-black/30 text-white px-3 py-2 text-sm font-medium hover:bg-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-8 h-8 rounded-lg text-sm font-medium transition ${
+                      currentPage === pageNum
+                        ? 'bg-emerald-600 text-white'
+                        : 'border border-green-500/30 bg-black/30 text-white hover:bg-emerald-900/20'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-green-500/30 bg-black/30 text-white px-3 py-2 text-sm font-medium hover:bg-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Drawer for Add/Edit News */}
       <AnimatePresence>
@@ -343,13 +454,19 @@ export default function NewsPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm text-green-300">Publish Date</label>
-                  <input
-                    type="date"
-                    value={editing.pubDate?.slice(0, 10)}
-                    onChange={(e) => updateEditing({ pubDate: e.target.value })}
-                    className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
+                  <label className="text-sm text-green-300 flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4" />
+                    Publish Date
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={editing.pubDate?.slice(0, 10)}
+                      onChange={(e) => updateEditing({ pubDate: e.target.value })}
+                      className="w-full rounded-xl border border-green-500/30 bg-black/30 text-white py-2 px-3 pr-10 outline-none focus:ring-2 focus:ring-emerald-500 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:opacity-70 [&::-webkit-calendar-picker-indicator]:hover:opacity-100"
+                    />
+                    <CalendarDays className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-400 pointer-events-none" />
+                  </div>
                 </div>
 
                 <div>

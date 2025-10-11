@@ -10,6 +10,7 @@ interface NewsStore {
   createNews: (article: Partial<NewsArticle>) => Promise<void>;
   updateNews: (id: string, article: Partial<NewsArticle>) => Promise<void>;
   deleteNews: (id: string) => Promise<void>;
+  saveNewsToDatabase: () => Promise<void>;
 }
 
 export const useNewsStore = create<NewsStore>((set) => ({
@@ -85,6 +86,27 @@ fetchNews: async () => {
       set((state) => ({ news: state.news.filter((n) => n._id !== id), loading: false }));
     } catch {
       set({ error: "Failed to delete news", loading: false });
+    }
+  },
+
+  saveNewsToDatabase: async () => {
+    set({ loading: true, error: null });
+    try {
+      // Call the /fetch endpoint to get news from NewsData.io and save to database
+      await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/news/fetch`);
+      
+      // After successful fetch, refresh the news list to show newly added articles
+      const response = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/news`);
+      
+      // response has { success, news }
+      const articles = Array.isArray(response.news) ? response.news : [];
+      
+      // Convert _id to string for React
+      const normalized = articles.map((n: NewsArticle) => ({ ...n, _id: n._id?.toString() }));
+      
+      set({ news: normalized, loading: false });
+    } catch {
+      set({ error: "Failed to fetch and save news from NewsData.io", loading: false });
     }
   },
 }));

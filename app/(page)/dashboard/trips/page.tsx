@@ -88,10 +88,14 @@ export default function AllTripsTable() {
 
     if (!trip.title.trim()) {
       errors.title = "Title is required";
+    } else if (/^\d+$/.test(trip.title.trim())) {
+      errors.title = "Trip name cannot be only numbers";
     }
 
     if (!trip.destination.trim()) {
       errors.destination = "Destination is required";
+    } else if (/^\d+$/.test(trip.destination.trim())) {
+      errors.destination = "Destination cannot be only numbers";
     }
 
     if (!trip.startDate) {
