@@ -70,6 +70,8 @@ export default function ReportsPage() {
   const [reportTitle, setReportTitle] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [viewingReport, setViewingReport] = useState<string | null>(null);
+  const [testDataLoaded, setTestDataLoaded] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Handle report export with different formats
   const handleExportReport = async (reportId: string, format: 'pdf' | 'csv' | 'xlsx' | 'json') => {
@@ -136,7 +138,15 @@ export default function ReportsPage() {
   // Debug useEffect to log data changes
   useEffect(() => {
     console.log('📊 Report Types updated:', reportTypes);
-  }, [reportTypes]);
+    if (reportTypes.length > 0) {
+      console.log('✅ Data loaded successfully! Found', reportTypes.length, 'report types');
+      // If we have report types and testDataLoaded is false, it means mock data was injected
+      if (!testDataLoaded) {
+        console.log('📝 Mock data detected - updating testDataLoaded state');
+        setTestDataLoaded(true);
+      }
+    }
+  }, [reportTypes, testDataLoaded]);
 
   useEffect(() => {
     console.log('📈 Overview updated:', overview);
@@ -145,6 +155,18 @@ export default function ReportsPage() {
   useEffect(() => {
     console.log('📋 Reports updated:', reports);
   }, [reports]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownOpen && !(event.target as Element).closest('.custom-dropdown')) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [dropdownOpen]);
 
   const tooltipStyle = {
     backgroundColor: "#111",
@@ -183,10 +205,19 @@ export default function ReportsPage() {
           </button>
           {/* TEMPORARY: Mock data button for testing */}
           <button 
-            onClick={() => injectMockData()}
-            className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition text-sm"
+            onClick={() => {
+              console.log('🎭 Loading test data...');
+              injectMockData();
+              setTestDataLoaded(true);
+              console.log('🔄 Test data injection initiated');
+            }}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl transition text-sm ${
+              testDataLoaded 
+                ? 'bg-green-600 text-white' 
+                : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800'
+            }`}
           >
-            🎭 Test Data
+            {testDataLoaded ? '✅ Data Loaded' : '🎭 Load Test Data'}
           </button>
         </div>
       </motion.div>
@@ -235,21 +266,86 @@ export default function ReportsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-xl font-bold text-white mb-4">Generate New Report</h3>
+            {reportTypes.length === 0 && (
+              <div className="bg-yellow-900/20 border border-yellow-700/40 rounded-xl p-3 mb-4">
+                <p className="text-yellow-300 text-sm">
+                  ⚠️ No report types available. Close this modal and click the &ldquo;Load Test Data&rdquo; button to populate sample data, then try again.
+                </p>
+              </div>
+            )}
+            {reportTypes.length > 0 && testDataLoaded && (
+              <div className="bg-green-900/20 border border-green-700/40 rounded-xl p-3 mb-4">
+                <p className="text-green-300 text-sm">
+                  ✅ Test data loaded! Found {reportTypes.length} report types available for generation.
+                </p>
+              </div>
+            )}
             <div className="space-y-4">
               <div>
-                <label className="block text-green-300 text-sm mb-2">Report Type</label>
-                <select
-                  value={selectedReportType}
-                  onChange={(e) => setSelectedReportType(e.target.value)}
-                  className="w-full px-3 py-2 bg-black/50 border border-green-700/30 rounded-xl text-white focus:border-green-500 focus:outline-none"
-                >
-                  <option value="">Select a report type</option>
-                  {reportTypes.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.name}
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-green-300 text-sm mb-2">
+                  Report Type {reportTypes.length === 0 && <span className="text-yellow-400">(No types loaded - try &ldquo;Test Data&rdquo; button)</span>}
+                </label>
+                
+                {/* Custom Dropdown - Full Control over styling */}
+                <div className="relative custom-dropdown">
+                  <button
+                    type="button"
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                    className="w-full px-3 py-2 bg-gray-800 border border-green-700/30 rounded-xl text-white focus:border-green-500 focus:outline-none text-left flex justify-between items-center"
+                  >
+                    <span>
+                      {selectedReportType 
+                        ? (() => {
+                            const selectedType = reportTypes.find(t => (t.id || t.value) === selectedReportType);
+                            return selectedType?.name || selectedType?.label || 'Unknown';
+                          })()
+                        : (reportTypes.length === 0 ? 'No report types available' : 'Select a report type')
+                      }
+                    </span>
+                    <svg 
+                      className={`fill-current h-4 w-4 text-white transform transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                    </svg>
+                  </button>
+                  
+                  {/* Dropdown Menu */}
+                  {dropdownOpen && (
+                    <div className="absolute z-10 w-full mt-1 bg-gray-800 border border-green-700/30 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                      {reportTypes.length === 0 ? (
+                        <div className="px-3 py-2 text-gray-400 text-sm">No report types available</div>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedReportType("");
+                              setDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-3 py-2 text-white hover:bg-green-700/20 transition-colors"
+                          >
+                            Select a report type
+                          </button>
+                          {reportTypes.map((type, index) => (
+                            <button
+                              key={(type.id || type.value) || `report-type-${index}`}
+                              type="button"
+                              onClick={() => {
+                                setSelectedReportType(type.id || type.value || '');
+                                setDropdownOpen(false);
+                              }}
+                              className="w-full text-left px-3 py-2 text-white hover:bg-green-700/20 transition-colors border-t border-green-700/20 first:border-t-0"
+                            >
+                              {type.name || type.label}
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-green-300 text-sm mb-2">Report Title</label>
@@ -333,7 +429,7 @@ export default function ReportsPage() {
           <div className="space-y-3">
             {reports.map((report) => (
               <motion.div
-                key={report._id}
+                key={report._id || report.id || Math.random().toString()}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-black/20 border border-green-700/20 rounded-2xl p-4 hover:border-green-600/40 transition"
@@ -357,7 +453,7 @@ export default function ReportsPage() {
                     {report.tags && report.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {report.tags.slice(0, 3).map((tag, index) => (
-                          <span key={index} className="px-2 py-1 bg-emerald-600/20 text-emerald-300 rounded-md text-xs">
+                          <span key={`tag-${index}`} className="px-2 py-1 bg-emerald-600/20 text-emerald-300 rounded-md text-xs">
                             {tag}
                           </span>
                         ))}
@@ -491,7 +587,7 @@ export default function ReportsPage() {
                         <label className="block text-green-300 text-sm mb-1">Tags</label>
                         <div className="flex flex-wrap gap-2">
                           {report.tags.map((tag, index) => (
-                            <span key={index} className="px-2 py-1 bg-emerald-600/20 text-emerald-300 rounded-md text-xs">
+                            <span key={`modal-tag-${index}`} className="px-2 py-1 bg-emerald-600/20 text-emerald-300 rounded-md text-xs">
                               {tag}
                             </span>
                           ))}
@@ -515,7 +611,7 @@ export default function ReportsPage() {
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                             {Object.entries(report.data.summary).map(([key, value]) => (
                               value !== 0 && value !== null && value !== undefined && (
-                                <div key={key} className="text-sm">
+                                <div key={`summary-${key}`} className="text-sm">
                                   <div className="text-green-400 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</div>
                                   <div className="text-white font-medium">{String(value)}</div>
                                 </div>
@@ -531,7 +627,7 @@ export default function ReportsPage() {
                         <div className="bg-black/30 border border-green-700/30 rounded-xl p-3">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {report.data.charts.map((chart, index) => (
-                              <div key={index} className="border border-green-700/20 rounded-lg p-3">
+                              <div key={`chart-${index}`} className="border border-green-700/20 rounded-lg p-3">
                                 <div className="text-white font-medium text-sm">{chart.title}</div>
                                 <div className="text-green-300 text-xs mt-1">
                                   Type: {chart.type.toUpperCase()} | {chart.data.length} data points
@@ -654,7 +750,7 @@ export default function ReportsPage() {
             >
               {userActivityData.map((entry, index) => (
                 <Cell
-                  key={`cell-${index}`}
+                  key={`user-activity-cell-${index}`}
                   fill={activeBarIndex === index ? HOVER_COLORS[index % HOVER_COLORS.length] : COLORS[index % COLORS.length]}
                 />
               ))}
@@ -684,7 +780,7 @@ export default function ReportsPage() {
             >
               {ecoImpactData.map((entry, index) => (
                 <Cell
-                  key={`cell-${index}`}
+                  key={`eco-impact-cell-${index}`}
                   fill={activePieIndex === index ? HOVER_COLORS[index % HOVER_COLORS.length] : COLORS[index % COLORS.length]}
                 />
               ))}
@@ -720,7 +816,7 @@ export default function ReportsPage() {
             >
               {topItemsData.map((entry, index) => (
                 <Cell
-                  key={`cell-${index}`}
+                  key={`top-items-cell-${index}`}
                   fill={activeTopItemIndex === index ? HOVER_COLORS[index % HOVER_COLORS.length] : COLORS[index % COLORS.length]}
                 />
               ))}

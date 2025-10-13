@@ -159,10 +159,12 @@ export interface UIStore {
 
 // Report Types
 export interface ReportType {
-  id: string;
-  name: string;
+  id?: string;
+  name?: string;
+  value?: string;
+  label?: string;
   description: string;
-  category: string;
+  category?: string;
 }
 
 export interface ReportOverview {

@@ -256,9 +256,12 @@ export const useReportStore = create<ReportStore>((set, get) => ({
     console.log('🎭 Injecting mock data for testing...');
     set({
       reportTypes: [
-        { id: '1', name: 'User Activity Report', description: 'User activity analysis', category: 'Analytics' },
-        { id: '2', name: 'Eco Impact Report', description: 'Environmental impact metrics', category: 'Environmental' },
-        { id: '3', name: 'Packing Trends Report', description: 'Popular packing items analysis', category: 'Analytics' }
+        { value: 'trip_analytics', label: 'Trip Analytics', description: 'Analyze your trip patterns and trends' },
+        { value: 'packing_statistics', label: 'Packing Statistics', description: 'Statistics on your packing lists and items' },
+        { value: 'user_activity', label: 'User Activity', description: 'Your activity and engagement metrics' },
+        { value: 'eco_impact', label: 'Eco Impact', description: 'Environmental impact of your travel choices' },
+        { value: 'budget_analysis', label: 'Budget Analysis', description: 'Analysis of your travel spending patterns' },
+        { value: 'destination_trends', label: 'Destination Trends', description: 'Popular destinations and travel trends' }
       ],
       reports: [
         {
