@@ -225,6 +225,16 @@ export interface ReportGenerateRequest {
   title: string;
   description?: string;
   parameters?: Record<string, unknown>;
+  filters?: {
+    dateRange?: {
+      startDate?: string;
+      endDate?: string;
+    };
+    includeArchived?: boolean;
+    minRecords?: number;
+    categories?: string[];
+    [key: string]: unknown;
+  };
 }
 
 export interface ReportStore {

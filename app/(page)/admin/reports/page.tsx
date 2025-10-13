@@ -27,6 +27,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { useReportStore } from "@/store/reportStore";
+import { ReportGenerateRequest } from "@/types";
 import StatCard from "@/components/admin/StatCard";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 
@@ -72,6 +73,18 @@ export default function ReportsPage() {
   const [viewingReport, setViewingReport] = useState<string | null>(null);
   const [testDataLoaded, setTestDataLoaded] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  
+  // Filter states
+  const [filters, setFilters] = useState({
+    dateRange: {
+      startDate: "",
+      endDate: ""
+    },
+    includeArchived: false,
+    minRecords: "",
+    categories: [] as string[]
+  });
+  const [showFilters, setShowFilters] = useState(false);
 
   // Handle report export with different formats
   const handleExportReport = async (reportId: string, format: 'pdf' | 'csv' | 'xlsx' | 'json') => {
@@ -357,9 +370,120 @@ export default function ReportsPage() {
                   placeholder="Enter report title"
                 />
               </div>
+
+              {/* Filters Section */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <label className="block text-green-300 text-sm">Report Filters</label>
+                    {(filters.dateRange.startDate || filters.dateRange.endDate || filters.minRecords || filters.includeArchived) && (
+                      <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded-full">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="text-xs text-green-400 hover:text-green-300 transition"
+                  >
+                    {showFilters ? 'Hide Filters' : 'Show Filters'}
+                  </button>
+                </div>
+                
+                {showFilters && (
+                  <div className="space-y-3 p-3 bg-black/20 border border-green-700/20 rounded-xl">
+                    {/* Date Range */}
+                    <div>
+                      <label className="block text-green-300 text-xs mb-1">Date Range</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="date"
+                          value={filters.dateRange.startDate}
+                          onChange={(e) => setFilters({
+                            ...filters,
+                            dateRange: { ...filters.dateRange, startDate: e.target.value }
+                          })}
+                          min="2025-09-01"
+                          max={filters.dateRange.endDate || new Date().toISOString().split('T')[0]}
+                          className="w-full px-2 py-1 bg-gray-800 border border-green-700/30 rounded-lg text-white text-sm focus:border-green-500 focus:outline-none"
+                          placeholder="Start Date"
+                        />
+                        <input
+                          type="date"
+                          value={filters.dateRange.endDate}
+                          onChange={(e) => setFilters({
+                            ...filters,
+                            dateRange: { ...filters.dateRange, endDate: e.target.value }
+                          })}
+                          min={filters.dateRange.startDate || "2025-09-01"}
+                          max={new Date().toISOString().split('T')[0]}
+                          className="w-full px-2 py-1 bg-gray-800 border border-green-700/30 rounded-lg text-white text-sm focus:border-green-500 focus:outline-none"
+                          placeholder="End Date"
+                        />
+                      </div>
+                      <div className="mt-1">
+                        <p className="text-green-400 text-xs">
+                          Available date range: Sep 1, 2025 - {new Date().toLocaleDateString()}
+                        </p>
+                        {filters.dateRange.startDate && filters.dateRange.endDate && 
+                         new Date(filters.dateRange.startDate) > new Date(filters.dateRange.endDate) && (
+                          <p className="text-red-400 text-xs mt-1">
+                            ⚠️ Start date cannot be after end date
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Additional Filters */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-green-300 text-xs mb-1">Min Records</label>
+                        <input
+                          type="number"
+                          value={filters.minRecords}
+                          onChange={(e) => setFilters({
+                            ...filters,
+                            minRecords: e.target.value
+                          })}
+                          className="w-full px-2 py-1 bg-gray-800 border border-green-700/30 rounded-lg text-white text-sm focus:border-green-500 focus:outline-none"
+                          placeholder="Min records"
+                          min="0"
+                        />
+                      </div>
+                      <div className="flex items-center mt-4">
+                        <input
+                          type="checkbox"
+                          id="includeArchived"
+                          checked={filters.includeArchived}
+                          onChange={(e) => setFilters({
+                            ...filters,
+                            includeArchived: e.target.checked
+                          })}
+                          className="mr-2 rounded border-green-700/30 bg-gray-800 text-green-500 focus:ring-green-500"
+                        />
+                        <label htmlFor="includeArchived" className="text-green-300 text-xs">
+                          Include archived data
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={() => setShowGenerateModal(false)}
+                  onClick={() => {
+                    setShowGenerateModal(false);
+                    setSelectedReportType("");
+                    setReportTitle("");
+                    setFilters({
+                      dateRange: { startDate: "", endDate: "" },
+                      includeArchived: false,
+                      minRecords: "",
+                      categories: []
+                    });
+                    setShowFilters(false);
+                  }}
                   className="flex-1 px-4 py-2 border border-green-700/40 text-green-300 rounded-xl hover:bg-green-700/20 transition"
                 >
                   Cancel
@@ -368,19 +492,53 @@ export default function ReportsPage() {
                   onClick={async () => {
                     if (selectedReportType && reportTitle) {
                       try {
+                        // Prepare filters object, only include non-empty values
+                        const reportFilters: NonNullable<ReportGenerateRequest['filters']> = {};
+                        
+                        if (filters.dateRange.startDate || filters.dateRange.endDate) {
+                          reportFilters.dateRange = {
+                            ...(filters.dateRange.startDate && { startDate: filters.dateRange.startDate }),
+                            ...(filters.dateRange.endDate && { endDate: filters.dateRange.endDate })
+                          };
+                        }
+                        
+                        if (filters.minRecords) {
+                          reportFilters.minRecords = parseInt(filters.minRecords);
+                        }
+                        
+                        if (filters.includeArchived) {
+                          reportFilters.includeArchived = filters.includeArchived;
+                        }
+                        
                         await generateReport({
                           type: selectedReportType,
                           title: reportTitle,
+                          filters: reportFilters
                         });
+                        
+                        // Reset form
                         setShowGenerateModal(false);
                         setSelectedReportType("");
                         setReportTitle("");
+                        setFilters({
+                          dateRange: { startDate: "", endDate: "" },
+                          includeArchived: false,
+                          minRecords: "",
+                          categories: []
+                        });
+                        setShowFilters(false);
                       } catch (error) {
                         console.error('Error generating report:', error);
                       }
                     }
                   }}
-                  disabled={!selectedReportType || !reportTitle || loading}
+                  disabled={
+                    !selectedReportType || 
+                    !reportTitle || 
+                    loading ||
+                    (Boolean(filters.dateRange.startDate && filters.dateRange.endDate && 
+                     new Date(filters.dateRange.startDate) > new Date(filters.dateRange.endDate)))
+                  }
                   className="flex-1 px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition disabled:opacity-50"
                 >
                   {loading ? 'Generating...' : 'Generate'}
