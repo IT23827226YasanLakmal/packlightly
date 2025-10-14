@@ -1,18 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import {
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
 import { 
   Download, 
   BarChart as BarIcon, 
@@ -24,12 +12,28 @@ import {
   Trash2,
   Eye,
   Calendar,
-  TrendingUp
+  TrendingUp,
+  Database,
+  Sparkles
 } from "lucide-react";
 import { useReportStore } from "@/store/reportStore";
 import { ReportGenerateRequest } from "@/types";
 import StatCard from "@/components/admin/StatCard";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import EnhancedChart from "@/components/reports/EnhancedChart";
+import SampleDataGenerator from "@/components/reports/SampleDataGenerator";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell
+} from "recharts";
 
 const COLORS = ["#34D399", "#10B981", "#059669", "#047857", "#065F46"];
 const HOVER_COLORS = ["#6EE7B7", "#34D399", "#2DD4BF", "#22C55E", "#10B981"];
@@ -557,7 +561,7 @@ export default function ReportsPage() {
             <h2 className="text-lg font-semibold text-white">Generated Reports</h2>
           </div>
           <button
-            onClick={fetchReports}
+            onClick={() => fetchReports()}
             className="flex items-center gap-2 px-3 py-2 text-green-300 hover:text-white hover:bg-green-700/20 rounded-xl transition"
           >
             <RefreshCw size={16} />

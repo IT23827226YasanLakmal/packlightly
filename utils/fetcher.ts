@@ -52,6 +52,19 @@ export async function fetcherWithToken(url: string) {
     console.error('❌ API request failed with status:', res.status);
     throw new Error(`Failed to fetch: ${res.status} ${res.statusText}`);
   }
+
+  // Check if the response is a file download based on content-type
+  const contentType = res.headers.get('content-type');
+  console.log('📄 Response content-type:', contentType);
+  
+  if (contentType && !contentType.includes('application/json')) {
+    // Return blob for file downloads (PDF, CSV, XLSX, etc.)
+    console.log('📦 Returning response as blob');
+    return res.blob();
+  }
+  
+  // Return JSON for normal API responses
+  console.log('📋 Returning response as JSON');
   return res.json();
 }
 
