@@ -82,9 +82,19 @@ export default function ReportsPage() {
     },
     includeArchived: false,
     minRecords: "",
-    categories: [] as string[]
+    categories: [] as string[],
+    // Backend customization options
+    includeOptionalFields: true,
+    specificFields: [] as string[],
+    lightweight: false,
+    // Additional filter options
+    userSegments: [] as string[],
+    geographicRegions: [] as string[],
+    sustainabilityLevels: [] as string[],
+    budgetRanges: [] as string[]
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Handle report export with different formats
   const handleExportReport = async (reportId: string, format: 'pdf' | 'csv' | 'xlsx' | 'json') => {
@@ -376,11 +386,22 @@ export default function ReportsPage() {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <label className="block text-green-300 text-sm">Report Filters</label>
-                    {(filters.dateRange.startDate || filters.dateRange.endDate || filters.minRecords || filters.includeArchived) && (
-                      <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded-full">
-                        Active
-                      </span>
-                    )}
+                    {(() => {
+                      const activeFilterCount = [
+                        filters.dateRange.startDate, filters.dateRange.endDate, filters.minRecords,
+                        filters.includeArchived && 'archived',
+                        !filters.includeOptionalFields && 'no-optional',
+                        filters.lightweight && 'lightweight',
+                        ...filters.specificFields, ...filters.categories, ...filters.userSegments,
+                        ...filters.geographicRegions, ...filters.sustainabilityLevels, ...filters.budgetRanges
+                      ].filter(Boolean).length;
+                      
+                      return activeFilterCount > 0 ? (
+                        <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded-full">
+                          {activeFilterCount} Active
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
                   <button
                     type="button"
@@ -435,7 +456,7 @@ export default function ReportsPage() {
                       </div>
                     </div>
 
-                    {/* Additional Filters */}
+                    {/* Basic Filters */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-green-300 text-xs mb-1">Min Records</label>
@@ -467,6 +488,156 @@ export default function ReportsPage() {
                         </label>
                       </div>
                     </div>
+
+                    {/* Report Customization Options */}
+                    <div className="border-t border-green-700/20 pt-3">
+                      <label className="block text-green-300 text-xs mb-2">Report Customization</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="includeOptionalFields"
+                            checked={filters.includeOptionalFields}
+                            onChange={(e) => setFilters({
+                              ...filters,
+                              includeOptionalFields: e.target.checked
+                            })}
+                            className="mr-2 rounded border-green-700/30 bg-gray-800 text-green-500 focus:ring-green-500"
+                          />
+                          <label htmlFor="includeOptionalFields" className="text-green-300 text-xs">
+                            Include optional fields
+                          </label>
+                        </div>
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="lightweight"
+                            checked={filters.lightweight}
+                            onChange={(e) => setFilters({
+                              ...filters,
+                              lightweight: e.target.checked
+                            })}
+                            className="mr-2 rounded border-green-700/30 bg-gray-800 text-green-500 focus:ring-green-500"
+                          />
+                          <label htmlFor="lightweight" className="text-green-300 text-xs">
+                            Lightweight report
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Advanced Filters Toggle */}
+                    <div className="border-t border-green-700/20 pt-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                        className="text-xs text-green-400 hover:text-green-300 transition flex items-center gap-1"
+                      >
+                        {showAdvancedFilters ? '▼' : '▶'} Advanced Filters
+                      </button>
+                      
+                      {showAdvancedFilters && (
+                        <div className="mt-3 space-y-3 p-3 bg-black/10 border border-green-700/10 rounded-lg">
+                          {/* Specific Fields Input */}
+                          <div>
+                            <label className="block text-green-300 text-xs mb-1">
+                              Specific Fields (comma-separated)
+                            </label>
+                            <input
+                              type="text"
+                              value={filters.specificFields.join(', ')}
+                              onChange={(e) => setFilters({
+                                ...filters,
+                                specificFields: e.target.value.split(',').map(f => f.trim()).filter(f => f)
+                              })}
+                              className="w-full px-2 py-1 bg-gray-800 border border-green-700/30 rounded-lg text-white text-sm focus:border-green-500 focus:outline-none"
+                              placeholder="e.g., title, date, status"
+                            />
+                          </div>
+
+                          {/* Categories Input */}
+                          <div>
+                            <label className="block text-green-300 text-xs mb-1">
+                              Categories (comma-separated)
+                            </label>
+                            <input
+                              type="text"
+                              value={filters.categories.join(', ')}
+                              onChange={(e) => setFilters({
+                                ...filters,
+                                categories: e.target.value.split(',').map(c => c.trim()).filter(c => c)
+                              })}
+                              className="w-full px-2 py-1 bg-gray-800 border border-green-700/30 rounded-lg text-white text-sm focus:border-green-500 focus:outline-none"
+                              placeholder="e.g., trip, eco, budget"
+                            />
+                          </div>
+
+                          {/* Additional Filter Categories */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-green-300 text-xs mb-1">
+                                User Segments
+                              </label>
+                              <input
+                                type="text"
+                                value={filters.userSegments.join(', ')}
+                                onChange={(e) => setFilters({
+                                  ...filters,
+                                  userSegments: e.target.value.split(',').map(s => s.trim()).filter(s => s)
+                                })}
+                                className="w-full px-2 py-1 bg-gray-800 border border-green-700/30 rounded-lg text-white text-sm focus:border-green-500 focus:outline-none"
+                                placeholder="e.g., premium, basic"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-green-300 text-xs mb-1">
+                                Geographic Regions
+                              </label>
+                              <input
+                                type="text"
+                                value={filters.geographicRegions.join(', ')}
+                                onChange={(e) => setFilters({
+                                  ...filters,
+                                  geographicRegions: e.target.value.split(',').map(r => r.trim()).filter(r => r)
+                                })}
+                                className="w-full px-2 py-1 bg-gray-800 border border-green-700/30 rounded-lg text-white text-sm focus:border-green-500 focus:outline-none"
+                                placeholder="e.g., Asia, Europe"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-green-300 text-xs mb-1">
+                                Sustainability Levels
+                              </label>
+                              <input
+                                type="text"
+                                value={filters.sustainabilityLevels.join(', ')}
+                                onChange={(e) => setFilters({
+                                  ...filters,
+                                  sustainabilityLevels: e.target.value.split(',').map(l => l.trim()).filter(l => l)
+                                })}
+                                className="w-full px-2 py-1 bg-gray-800 border border-green-700/30 rounded-lg text-white text-sm focus:border-green-500 focus:outline-none"
+                                placeholder="e.g., high, medium, low"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-green-300 text-xs mb-1">
+                                Budget Ranges
+                              </label>
+                              <input
+                                type="text"
+                                value={filters.budgetRanges.join(', ')}
+                                onChange={(e) => setFilters({
+                                  ...filters,
+                                  budgetRanges: e.target.value.split(',').map(b => b.trim()).filter(b => b)
+                                })}
+                                className="w-full px-2 py-1 bg-gray-800 border border-green-700/30 rounded-lg text-white text-sm focus:border-green-500 focus:outline-none"
+                                placeholder="e.g., 0-500, 500-1000"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -480,9 +651,17 @@ export default function ReportsPage() {
                       dateRange: { startDate: "", endDate: "" },
                       includeArchived: false,
                       minRecords: "",
-                      categories: []
+                      categories: [],
+                      includeOptionalFields: true,
+                      specificFields: [],
+                      lightweight: false,
+                      userSegments: [],
+                      geographicRegions: [],
+                      sustainabilityLevels: [],
+                      budgetRanges: []
                     });
                     setShowFilters(false);
+                    setShowAdvancedFilters(false);
                   }}
                   className="flex-1 px-4 py-2 border border-green-700/40 text-green-300 rounded-xl hover:bg-green-700/20 transition"
                 >
@@ -492,9 +671,10 @@ export default function ReportsPage() {
                   onClick={async () => {
                     if (selectedReportType && reportTitle) {
                       try {
-                        // Prepare filters object, only include non-empty values
+                        // Prepare filters object to match backend expectations
                         const reportFilters: NonNullable<ReportGenerateRequest['filters']> = {};
                         
+                        // Core filters
                         if (filters.dateRange.startDate && filters.dateRange.endDate) {
                           reportFilters.dateRange = {
                             startDate: filters.dateRange.startDate,
@@ -509,6 +689,40 @@ export default function ReportsPage() {
                         
                         if (filters.includeArchived) {
                           reportFilters.includeArchived = filters.includeArchived;
+                        }
+
+                        if (filters.categories.length > 0) {
+                          reportFilters.categories = filters.categories;
+                        }
+
+                        // Backend customization options - these will be extracted by your backend
+                        if (!filters.includeOptionalFields) {
+                          reportFilters.includeOptionalFields = filters.includeOptionalFields;
+                        }
+
+                        if (filters.specificFields.length > 0) {
+                          reportFilters.specificFields = filters.specificFields;
+                        }
+
+                        if (filters.lightweight) {
+                          reportFilters.lightweight = filters.lightweight;
+                        }
+
+                        // Additional filter categories
+                        if (filters.userSegments.length > 0) {
+                          reportFilters.userSegments = filters.userSegments;
+                        }
+
+                        if (filters.geographicRegions.length > 0) {
+                          reportFilters.geographicRegions = filters.geographicRegions;
+                        }
+
+                        if (filters.sustainabilityLevels.length > 0) {
+                          reportFilters.sustainabilityLevels = filters.sustainabilityLevels;
+                        }
+
+                        if (filters.budgetRanges.length > 0) {
+                          reportFilters.budgetRanges = filters.budgetRanges;
                         }
                         
                         await generateReport({
@@ -525,9 +739,17 @@ export default function ReportsPage() {
                           dateRange: { startDate: "", endDate: "" },
                           includeArchived: false,
                           minRecords: "",
-                          categories: []
+                          categories: [],
+                          includeOptionalFields: true,
+                          specificFields: [],
+                          lightweight: false,
+                          userSegments: [],
+                          geographicRegions: [],
+                          sustainabilityLevels: [],
+                          budgetRanges: []
                         });
                         setShowFilters(false);
+                        setShowAdvancedFilters(false);
                       } catch (error) {
                         console.error('Error generating report:', error);
                       }

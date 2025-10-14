@@ -411,6 +411,10 @@ export interface ReportFilters {
   geographicRegions?: string[];
   sustainabilityLevels?: string[];
   budgetRanges?: string[];
+  // Backend customization options (extracted by service layer)
+  includeOptionalFields?: boolean;
+  specificFields?: string[] | null;
+  lightweight?: boolean;
   [key: string]: unknown;
 }
 
