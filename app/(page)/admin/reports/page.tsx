@@ -12,16 +12,12 @@ import {
   Trash2,
   Eye,
   Calendar,
-  TrendingUp,
-  Database,
-  Sparkles
+  TrendingUp
 } from "lucide-react";
 import { useReportStore } from "@/store/reportStore";
 import { ReportGenerateRequest } from "@/types";
 import StatCard from "@/components/admin/StatCard";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
-import EnhancedChart from "@/components/reports/EnhancedChart";
-import SampleDataGenerator from "@/components/reports/SampleDataGenerator";
 import {
   ResponsiveContainer,
   BarChart,
@@ -499,10 +495,11 @@ export default function ReportsPage() {
                         // Prepare filters object, only include non-empty values
                         const reportFilters: NonNullable<ReportGenerateRequest['filters']> = {};
                         
-                        if (filters.dateRange.startDate || filters.dateRange.endDate) {
+                        if (filters.dateRange.startDate && filters.dateRange.endDate) {
                           reportFilters.dateRange = {
-                            ...(filters.dateRange.startDate && { startDate: filters.dateRange.startDate }),
-                            ...(filters.dateRange.endDate && { endDate: filters.dateRange.endDate })
+                            startDate: filters.dateRange.startDate,
+                            endDate: filters.dateRange.endDate,
+                            preset: 'custom'
                           };
                         }
                         
