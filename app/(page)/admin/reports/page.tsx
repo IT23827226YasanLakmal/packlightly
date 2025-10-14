@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { 
   Download, 
@@ -15,6 +15,10 @@ import {
   TrendingUp
 } from "lucide-react";
 import { useReportStore } from "@/store/reportStore";
+import { useAdminStore } from "@/store/adminStore";
+import { useProductStore } from "@/store/productStore";
+import { useUserStore } from "@/store/userStore";
+import { usePostStore } from "@/store/postStore";
 import { ReportGenerateRequest } from "@/types";
 import StatCard from "@/components/admin/StatCard";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
@@ -41,13 +45,11 @@ interface ChartData {
 }
 
 export default function ReportsPage() {
-  const [userActivityData, setUserActivityData] = useState<ChartData[]>([]);
-  const [ecoImpactData, setEcoImpactData] = useState<ChartData[]>([]);
-  const [topItemsData, setTopItemsData] = useState<ChartData[]>([]);
-
-  const [activeBarIndex, setActiveBarIndex] = useState<number | null>(null);
-  const [activeTopItemIndex, setActiveTopItemIndex] = useState<number | null>(null);
-  const [activePieIndex, setActivePieIndex] = useState<number | null>(null);
+  // Store hooks for dynamic data
+  const { loading: adminLoading, fetchAdminStats } = useAdminStore();
+  const { products, fetchProducts, loading: productsLoading } = useProductStore();
+  const { users, fetchUsers, loading: usersLoading } = useUserStore();
+  const { posts, fetchPosts, loading: postsLoading } = usePostStore();
 
   // Report store hooks
   const {
@@ -63,6 +65,114 @@ export default function ReportsPage() {
     deleteReport,
     exportReport,
   } = useReportStore();
+
+  // Compute dynamic chart data
+  const chartData = useMemo(() => {
+    // User Activity Data - based on posts created over months
+    const userActivityData = [];
+    if (posts.length > 0) {
+      const monthlyData: { [key: string]: number } = {};
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      
+      months.forEach(month => monthlyData[month] = 0);
+      
+      posts.forEach(post => {
+        if (post.date) {
+          const date = new Date(post.date);
+          const month = months[date.getMonth()];
+          monthlyData[month] = (monthlyData[month] || 0) + 1;
+        }
+      });
+
+      const currentMonth = new Date().getMonth();
+      for (let i = 4; i >= 0; i--) {
+        const monthIndex = (currentMonth - i + 12) % 12;
+        const month = months[monthIndex];
+        userActivityData.push({
+          name: month,
+          Users: monthlyData[month] || 0
+        });
+      }
+    } else {
+      // Fallback data
+      userActivityData.push(
+        { name: "Jan", Users: 0 },
+        { name: "Feb", Users: 0 },
+        { name: "Mar", Users: 0 },
+        { name: "Apr", Users: 0 },
+        { name: "May", Users: 0 }
+      );
+    }
+
+    // Eco Impact Data - based on product categories and eco scores
+    const ecoImpactData = [];
+    if (products.length > 0) {
+      const categoryData: { [key: string]: { total: number; count: number } } = {};
+      
+      products.forEach(product => {
+        const category = product.category || "Other";
+        const ecoScore = product.eco || 0;
+        
+        if (!categoryData[category]) {
+          categoryData[category] = { total: 0, count: 0 };
+        }
+        
+        categoryData[category].total += ecoScore;
+        categoryData[category].count += 1;
+      });
+
+      const topCategories = Object.entries(categoryData)
+        .map(([category, data]) => ({
+          name: category,
+          value: Math.round(data.total)
+        }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 4);
+
+      ecoImpactData.push(...topCategories);
+    } else {
+      // Fallback data
+      ecoImpactData.push(
+        { name: "No Data", value: 0 }
+      );
+    }
+
+    // Top Items Data - based on most common product names
+    const topItemsData = [];
+    if (products.length > 0) {
+      const itemCounts: { [key: string]: number } = {};
+      
+      products.forEach(product => {
+        const name = product.name || "Unknown Item";
+        itemCounts[name] = (itemCounts[name] || 0) + 1;
+      });
+
+      const topItems = Object.entries(itemCounts)
+        .map(([name, count]) => ({
+          name: name.length > 15 ? name.substring(0, 15) + "..." : name,
+          value: count
+        }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
+
+      topItemsData.push(...topItems);
+    } else {
+      // Fallback data
+      topItemsData.push(
+        { name: "No Items", value: 0 }
+      );
+    }
+
+    return {
+      userActivityData,
+      ecoImpactData,
+      topItemsData
+    };
+  }, [posts, products]);
+
+  const [activeBarIndex, setActiveBarIndex] = useState<number | null>(null);
+  const [activeTopItemIndex, setActiveTopItemIndex] = useState<number | null>(null);
+  const [activePieIndex, setActivePieIndex] = useState<number | null>(null);
 
   // UI state for report generation
   const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -134,47 +244,25 @@ export default function ReportsPage() {
   };
 
   useEffect(() => {
-    // Initialize report data
+    // Initialize report data and fetch dynamic data
     const initializeData = async () => {
-
       try {
         await Promise.all([
           getTypes(),
           getOverview(),
-          fetchReports()
+          fetchReports(),
+          fetchAdminStats(),
+          fetchProducts(),
+          fetchUsers(),
+          fetchPosts()
         ]);
-
       } catch (error) {
         console.error('Error in initialization:', error);
       }
     };
 
     initializeData();
-
-    // Set static chart data (this could come from API in the future)
-    setUserActivityData([
-      { name: "Jan", Users: 45 },
-      { name: "Feb", Users: 60 },
-      { name: "Mar", Users: 75 },
-      { name: "Apr", Users: 50 },
-      { name: "May", Users: 90 },
-    ]);
-
-    setEcoImpactData([
-      { name: "CO₂ Saved", value: 400 },
-      { name: "Plastic Avoided", value: 300 },
-      { name: "Reusable Items", value: 300 },
-      { name: "Waste Reduced", value: 200 },
-    ]);
-
-    setTopItemsData([
-      { name: "Reusable Bottle", value: 120 },
-      { name: "Travel Mug", value: 90 },
-      { name: "Solar Charger", value: 80 },
-      { name: "Eco Backpack", value: 70 },
-      { name: "Bamboo Toothbrush", value: 60 },
-    ]);
-  }, [getTypes, getOverview, fetchReports]);
+  }, [getTypes, getOverview, fetchReports, fetchAdminStats, fetchProducts, fetchUsers, fetchPosts]);
 
   // Debug useEffect to log data changes
   useEffect(() => {
@@ -234,10 +322,33 @@ export default function ReportsPage() {
           <Users className="w-8 h-8 text-emerald-400" />
           <div>
             <h1 className="text-2xl font-bold text-white">Reports Dashboard</h1>
-            <p className="text-green-300 text-sm">Insights on user activity & eco impact</p>
+            <p className="text-green-300 text-sm">
+              Real-time insights on user activity & eco impact • 
+              {(adminLoading || productsLoading || usersLoading || postsLoading) ? 
+                " Loading..." : 
+                ` ${products.length} products, ${users.length} users, ${posts.length} posts`
+              }
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => {
+              fetchAdminStats();
+              fetchProducts();
+              fetchUsers(); 
+              fetchPosts();
+            }}
+            disabled={adminLoading || productsLoading || usersLoading || postsLoading}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl transition text-sm ${
+              adminLoading || productsLoading || usersLoading || postsLoading
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:from-emerald-700 hover:to-emerald-800'
+            }`}
+          >
+            <RefreshCw className={`w-4 h-4 ${(adminLoading || productsLoading || usersLoading || postsLoading) ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
           <button 
             onClick={() => setShowGenerateModal(true)}
             disabled={isGenerating || !!deletingId || !!exportingId || !!regeneratingId}
@@ -258,40 +369,36 @@ export default function ReportsPage() {
               </>
             )}
           </button>
-          
-
-        
         </div>
       </motion.div>
 
       {/* Overview Stats */}
-      {overview && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard
-            icon={FileText}
-            label="Total Reports"
-            value={(overview.totalReports || 0).toString()}
-          />
-          <StatCard
-            icon={Calendar}
-            label="This Month"
-            value={(overview.reportsThisMonth || 0).toString()}
-            delta={overview.totalReports && overview.reportsThisMonth ? 
-              `+${Math.round((overview.reportsThisMonth / overview.totalReports) * 100)}%` : '+0%'
-            }
-          />
-          <StatCard
-            icon={TrendingUp}
-            label="Popular Types"
-            value={(overview.popularTypes?.length || 0).toString()}
-          />
-          <StatCard
-            icon={Users}
-            label="Recent Activity"
-            value={(overview.recentActivity?.length || 0).toString()}
-          />
-        </div>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          icon={FileText}
+          label="Total Reports"
+          value={loading ? "..." : (overview?.totalReports || reports.length || 0).toString()}
+          delta={overview?.totalReports ? `${overview.totalReports} reports` : undefined}
+        />
+        <StatCard
+          icon={Calendar}
+          label="Total Products"
+          value={productsLoading ? "..." : products.length.toString()}
+          delta={!productsLoading && products.length > 0 ? `${products.length} items` : undefined}
+        />
+        <StatCard
+          icon={TrendingUp}
+          label="Total Users"
+          value={usersLoading ? "..." : users.length.toString()}
+          delta={!usersLoading && users.length > 0 ? `${users.length} registered` : undefined}
+        />
+        <StatCard
+          icon={Users}
+          label="Community Posts"
+          value={postsLoading ? "..." : posts.length.toString()}
+          delta={!postsLoading && posts.length > 0 ? `${posts.filter(p => p.status === "Published").length} published` : undefined}
+        />
+      </div>
 
       {/* Report Generation Modal */}
       {showGenerateModal && (
@@ -1259,98 +1366,125 @@ export default function ReportsPage() {
         <div className="flex items-center gap-2 mb-4">
           <BarIcon className="w-5 h-5 text-emerald-300" />
           <h2 className="text-lg font-semibold text-white">User Activity</h2>
+          {(postsLoading || adminLoading) && (
+            <RefreshCw className="w-4 h-4 text-emerald-300 animate-spin ml-2" />
+          )}
         </div>
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart
-            data={userActivityData}
-            margin={{ top: 10, right: 30, left: 0, bottom: 5 }}
-            style={{ backgroundColor: "transparent" }}
-          >
-            <XAxis dataKey="name" stroke="#10B981" />
-            <YAxis stroke="#10B981" />
-            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#34D399" }} />
-            <Legend wrapperStyle={legendStyle} />
-            <Bar
-              dataKey="Users"
-              radius={[5, 5, 0, 0]}
-              onMouseEnter={(_, index) => setActiveBarIndex(index)}
-              onMouseLeave={() => setActiveBarIndex(null)}
+        {(postsLoading || adminLoading) ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-green-300 text-sm">Loading activity data...</div>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart
+              data={chartData.userActivityData}
+              margin={{ top: 10, right: 30, left: 0, bottom: 5 }}
+              style={{ backgroundColor: "transparent" }}
             >
-              {userActivityData.map((entry, index) => (
-                <Cell
-                  key={`user-activity-cell-${index}`}
-                  fill={activeBarIndex === index ? HOVER_COLORS[index % HOVER_COLORS.length] : COLORS[index % COLORS.length]}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+              <XAxis dataKey="name" stroke="#10B981" />
+              <YAxis stroke="#10B981" />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#34D399" }} />
+              <Legend wrapperStyle={legendStyle} />
+              <Bar
+                dataKey="Users"
+                radius={[5, 5, 0, 0]}
+                onMouseEnter={(_, index) => setActiveBarIndex(index)}
+                onMouseLeave={() => setActiveBarIndex(null)}
+              >
+                {chartData.userActivityData.map((entry: ChartData, index: number) => (
+                  <Cell
+                    key={`user-activity-cell-${index}`}
+                    fill={activeBarIndex === index ? HOVER_COLORS[index % HOVER_COLORS.length] : COLORS[index % COLORS.length]}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
       {/* Eco Impact */}
       <div className="rounded-3xl bg-black/30 backdrop-blur-xl border border-green-700/30 p-6 shadow-md">
         <div className="flex items-center gap-2 mb-4">
           <PieIcon className="w-5 h-5 text-emerald-300" />
-          <h2 className="text-lg font-semibold text-white">Eco Impact</h2>
+          <h2 className="text-lg font-semibold text-white">Category Eco Impact</h2>
+          {(productsLoading || adminLoading) && (
+            <RefreshCw className="w-4 h-4 text-emerald-300 animate-spin ml-2" />
+          )}
         </div>
-        <ResponsiveContainer width="100%" height={250}>
-          <PieChart style={{ backgroundColor: "transparent" }}>
-            <Pie
-              data={ecoImpactData}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
-              onMouseEnter={(_, index) => setActivePieIndex(index)}
-              onMouseLeave={() => setActivePieIndex(null)}
-              label={{ fill: "#fff" }}
-            >
-              {ecoImpactData.map((entry, index) => (
-                <Cell
-                  key={`eco-impact-cell-${index}`}
-                  fill={activePieIndex === index ? HOVER_COLORS[index % HOVER_COLORS.length] : COLORS[index % COLORS.length]}
-                />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#34D399" }} />
-            <Legend wrapperStyle={legendStyle} />
-          </PieChart>
-        </ResponsiveContainer>
+        {(productsLoading || adminLoading) ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-green-300 text-sm">Loading eco impact data...</div>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart style={{ backgroundColor: "transparent" }}>
+              <Pie
+                data={chartData.ecoImpactData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                onMouseEnter={(_, index) => setActivePieIndex(index)}
+                onMouseLeave={() => setActivePieIndex(null)}
+                label={{ fill: "#fff" }}
+              >
+                {chartData.ecoImpactData.map((entry: ChartData, index: number) => (
+                  <Cell
+                    key={`eco-impact-cell-${index}`}
+                    fill={activePieIndex === index ? HOVER_COLORS[index % HOVER_COLORS.length] : COLORS[index % COLORS.length]}
+                  />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#34D399" }} />
+              <Legend wrapperStyle={legendStyle} />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
       {/* Top Packed Items */}
       <div className="rounded-3xl bg-black/30 backdrop-blur-xl border border-green-700/30 p-6 shadow-md">
         <div className="flex items-center gap-2 mb-4">
           <BarIcon className="w-5 h-5 text-emerald-300" />
-          <h2 className="text-lg font-semibold text-white">Top Packed Items</h2>
+          <h2 className="text-lg font-semibold text-white">Most Common Products</h2>
+          {(productsLoading || adminLoading) && (
+            <RefreshCw className="w-4 h-4 text-emerald-300 animate-spin ml-2" />
+          )}
         </div>
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart
-            data={topItemsData}
-            layout="vertical"
-            margin={{ left: 50 }}
-            style={{ backgroundColor: "transparent" }}
-          >
-            <XAxis type="number" stroke="#10B981" />
-            <YAxis dataKey="name" type="category" stroke="#10B981" />
-            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#34D399" }} />
-            <Legend wrapperStyle={legendStyle} />
-            <Bar
-              dataKey="value"
-              radius={[5, 5, 5, 5]}
-              onMouseEnter={(_, index) => setActiveTopItemIndex(index)}
-              onMouseLeave={() => setActiveTopItemIndex(null)}
+        {(productsLoading || adminLoading) ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-green-300 text-sm">Loading product data...</div>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart
+              data={chartData.topItemsData}
+              layout="vertical"
+              margin={{ left: 50 }}
+              style={{ backgroundColor: "transparent" }}
             >
-              {topItemsData.map((entry, index) => (
-                <Cell
-                  key={`top-items-cell-${index}`}
-                  fill={activeTopItemIndex === index ? HOVER_COLORS[index % HOVER_COLORS.length] : COLORS[index % COLORS.length]}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+              <XAxis type="number" stroke="#10B981" />
+              <YAxis dataKey="name" type="category" stroke="#10B981" />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#34D399" }} />
+              <Legend wrapperStyle={legendStyle} />
+              <Bar
+                dataKey="value"
+                radius={[5, 5, 5, 5]}
+                onMouseEnter={(_, index) => setActiveTopItemIndex(index)}
+                onMouseLeave={() => setActiveTopItemIndex(null)}
+              >
+                {chartData.topItemsData.map((entry: ChartData, index: number) => (
+                  <Cell
+                    key={`top-items-cell-${index}`}
+                    fill={activeTopItemIndex === index ? HOVER_COLORS[index % HOVER_COLORS.length] : COLORS[index % COLORS.length]}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </section>
   );
