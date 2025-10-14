@@ -42,6 +42,8 @@ export default function PackingListOverviewPage() {
     checkAllCategory,
     uncheckAllCategory,
     getAISuggestions,
+    addItem,
+    saveToServer,
   } = useChecklistStore();
 
   /** UI State */
@@ -158,6 +160,7 @@ export default function PackingListOverviewPage() {
   const [smartRemoved, setSmartRemoved] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [aiSuggestionsFetched, setAiSuggestionsFetched] = useState(false);
+  const [savingItems, setSavingItems] = useState<Set<string>>(new Set());
 
   // Function to fetch AI suggestions when smart tab is clicked
   const fetchAISuggestions = useCallback(async () => {
@@ -244,19 +247,50 @@ export default function PackingListOverviewPage() {
     uncheckAllCategory(category);
   }, [uncheckAllCategory]);
 
-  const handleAddSuggestionToChecklist = useCallback((category: string, item: Item) => {
-    setChecklistCats({
-      ...checklistCats,
-      [category]: [
-        ...(checklistCats[category] || []),
-        ...(checklistCats[category]?.find((i: Item) => i.name.toLowerCase() === item.name.toLowerCase()) ? [] : [item])
-      ]
-    });
-  }, [checklistCats, setChecklistCats]);
+  const handleAddSuggestionToChecklist = useCallback(async (category: string, item: Item) => {
+    const itemKey = `${category}-${item.name}`;
+    
+    try {
+      // Add to saving state
+      setSavingItems(prev => new Set(prev).add(itemKey));
+      
+      // Add item to local state using store's addItem function
+      addItem(category, item);
+      
+      // Save to database
+      await saveToServer(selectedListId, category);
+      console.log(`✅ Successfully added and saved item "${item.name}" to category "${category}"`);
+      
+    } catch (error) {
+      console.error(`❌ Failed to save item "${item.name}" to database:`, error);
+      
+      // You could also show a toast notification here
+      alert(`Failed to save item "${item.name}" to database. Please try again.`);
+    } finally {
+      // Remove from saving state
+      setSavingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemKey);
+        return newSet;
+      });
+    }
+  }, [addItem, selectedListId, saveToServer, setSavingItems]);
 
   const handleRemoveSmart = useCallback((label: string) => {
     setSmartRemoved((prev) => (prev.includes(label) ? prev : [...prev, label]));
   }, []);
+
+  /** Helper function to normalize category names and fix common typos */
+  const normalizeCategoryName = (categoryName: string): string => {
+    const normalized = categoryName.toLowerCase().trim();
+    
+    // Fix common typos
+    if (normalized.includes('safetly')) {
+      return categoryName.replace(/safetly/gi, 'safety');
+    }
+    
+    return categoryName;
+  };
 
   /** Category Icons - Dynamic mapping */
   const getCategoryIcon = (categoryName: string): string => {
@@ -268,7 +302,7 @@ export default function PackingListOverviewPage() {
     if (name.includes('documents') || name.includes('document') || name.includes('papers')) return '📄';
     if (name.includes('miscellaneous') || name.includes('misc') || name.includes('other')) return '📦';
     if (name.includes('food') || name.includes('snacks')) return '🍪';
-    if (name.includes('medical') || name.includes('health')) return '💊';
+    if (name.includes('medical') || name.includes('health') || name.includes('safety') || name.includes('safetly')) return '💊';
     if (name.includes('accessories') || name.includes('accessory')) return '👜';
     return '📋'; // Default icon
   };
@@ -488,6 +522,7 @@ export default function PackingListOverviewPage() {
                   const ecoCount = checklistCats[cat].filter((i) => !removedItems.includes(i.name) && i.eco).length;
                   const isActive = cat === activeCategory;
                   const allChecked = total > 0 && checkedCount === total;
+                  const normalizedCatName = normalizeCategoryName(cat);
 
                   return (
                     <button
@@ -499,8 +534,8 @@ export default function PackingListOverviewPage() {
                           : 'bg-gray-100 text-gray-700 hover:bg-green-50 hover:text-green-700'}
                       `}
                     >
-                      <span>{getCategoryIcon(cat)}</span>
-                      <span>{cat}</span>
+                      <span>{getCategoryIcon(normalizedCatName)}</span>
+                      <span>{normalizedCatName}</span>
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${allChecked ? 'bg-green-500 text-white' : 'bg-white/30'
                         }`}>
                         {checkedCount}/{total} ✓
@@ -658,14 +693,25 @@ export default function PackingListOverviewPage() {
                     </div>
                   ) : (
                     Object.keys(smartCats).map((cat) => {
-                      const items = (smartCats[cat] || []).filter((i) => !smartRemoved.includes(i.name));
-                      console.log(`Category ${cat}:`, { totalItems: smartCats[cat]?.length, filteredItems: items.length, items });
+                      // Filter out items that are already in the checklist OR manually removed from suggestions
+                      const checklistItems = checklistCats[cat] || [];
+                      const checklistItemNames = checklistItems.map(item => item.name.toLowerCase());
+                      
+                      const items = (smartCats[cat] || []).filter((i) => 
+                        !smartRemoved.includes(i.name) && 
+                        !checklistItemNames.includes(i.name.toLowerCase())
+                      );
+                      
                       if (!items.length) return null;
+                      
+                      // Normalize the category name to fix typos
+                      const normalizedCatName = normalizeCategoryName(cat);
+                      
                       return (
                         <div key={`smart-${cat}`} className="bg-white rounded-2xl p-4 shadow border border-gray-100">
                           <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                            <span>{getCategoryIcon(cat)}</span>
-                            {titleCase(cat)}
+                            <span>{getCategoryIcon(normalizedCatName)}</span>
+                            {titleCase(normalizedCatName)}
                           </h3>
                           <ul className="space-y-2">
                             {items.map((it) => (
@@ -699,10 +745,24 @@ export default function PackingListOverviewPage() {
                                   </button>
                                   <button
                                     onClick={() => handleAddSuggestionToChecklist(cat, it)}
-                                    className="px-2 py-1 rounded-lg bg-emerald-500 text-white text-xs hover:bg-emerald-600"
+                                    disabled={savingItems.has(`${cat}-${it.name}`)}
+                                    className={`px-2 py-1 rounded-lg text-white text-xs transition-all duration-200 flex items-center gap-1 ${
+                                      savingItems.has(`${cat}-${it.name}`)
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-emerald-500 hover:bg-emerald-600'
+                                    }`}
                                     title="Add to Checklist"
                                   >
-                                    Add
+                                    {savingItems.has(`${cat}-${it.name}`) ? (
+                                      <>
+                                        <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        Saving...
+                                      </>
+                                    ) : (
+                                      'Add'
+                                    )}
                                   </button>
                                 </div>
                               </li>

@@ -305,7 +305,13 @@ export const useChecklistStore = create<ChecklistState>()(
             console.log(`📝 Items count:`, category.items?.length || 0);
             
             if (category.category && category.items && Array.isArray(category.items)) {
-              const categoryName = category.category;
+              // Normalize category name to fix common typos
+              let categoryName = category.category;
+              if (categoryName.toLowerCase().includes('safetly')) {
+                categoryName = categoryName.replace(/safetly/gi, 'safety');
+                console.log(`🔧 Fixed category name typo: "${category.category}" → "${categoryName}"`);
+              }
+              
               aiSuggestions[categoryName] = category.items.map((item: AISuggestionItem) => ({
                 name: item.name,
                 qty: item.qty || 1,
