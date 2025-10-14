@@ -100,10 +100,10 @@ import SampleDataGenerator from '@/components/reports/SampleDataGenerator';
 
 ### 2. Generate Reports
 ```typescript
-const { generateEnhancedReport, generateSampleReport } = useReportStore();
+const { generateReport, generateSampleReport } = useReportStore();
 
-// Generate a real report
-const reportId = await generateEnhancedReport({
+// Generate a real report using the enhanced endpoint
+const report = await generateReport({
   type: 'trip_analytics',
   title: 'Q4 2024 Travel Analysis',
   filters: {
@@ -146,7 +146,7 @@ The frontend is designed to work with these API endpoints:
 ```
 GET    /api/reports/formats        # Get format specifications
 GET    /api/reports/sample/:type   # Get sample data
-POST   /api/reports/enhanced       # Generate enhanced reports
+POST   /api/reports/generate       # ✅ Enhanced with your filters
 GET    /api/reports/analytics      # Get system analytics
 POST   /api/reports/:id/schedule   # Schedule reports
 GET    /api/reports/:id/export     # Export reports

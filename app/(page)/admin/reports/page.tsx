@@ -386,22 +386,15 @@ export default function ReportsPage() {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <label className="block text-green-300 text-sm">Report Filters</label>
-                    {(() => {
-                      const activeFilterCount = [
-                        filters.dateRange.startDate, filters.dateRange.endDate, filters.minRecords,
-                        filters.includeArchived && 'archived',
-                        !filters.includeOptionalFields && 'no-optional',
-                        filters.lightweight && 'lightweight',
-                        ...filters.specificFields, ...filters.categories, ...filters.userSegments,
-                        ...filters.geographicRegions, ...filters.sustainabilityLevels, ...filters.budgetRanges
-                      ].filter(Boolean).length;
-                      
-                      return activeFilterCount > 0 ? (
-                        <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded-full">
-                          {activeFilterCount} Active
-                        </span>
-                      ) : null;
-                    })()}
+                    {(filters.dateRange.startDate || filters.dateRange.endDate || filters.minRecords || 
+                      filters.includeArchived || !filters.includeOptionalFields || filters.lightweight ||
+                      filters.specificFields.length > 0 || filters.categories.length > 0 ||
+                      filters.userSegments.length > 0 || filters.geographicRegions.length > 0 ||
+                      filters.sustainabilityLevels.length > 0 || filters.budgetRanges.length > 0) && (
+                      <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded-full">
+                        Active
+                      </span>
+                    )}
                   </div>
                   <button
                     type="button"

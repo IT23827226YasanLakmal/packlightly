@@ -156,8 +156,8 @@ export const useReportStore = create<ReportStore>((set, get) => ({
     }
   },
 
-  generateReport: async (request: ReportGenerateRequest): Promise<string> => {
-    console.log('📊 Generating report...', request);
+  generateReport: async (request: ReportGenerateRequest): Promise<Report> => {
+    console.log('� Generating enhanced report...', request);
     set({ loading: true, error: null });
     try {
       const data = await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/reports/generate`, {
@@ -166,40 +166,6 @@ export const useReportStore = create<ReportStore>((set, get) => ({
       });
       set({ loading: false });
       // Refresh reports list to include the new report
-      await get().fetchReports();
-      return data.id || data._id; // Return the report ID
-    } catch (error) {
-      console.error('Failed to generate report:', error);
-      set({ error: 'Failed to generate report', loading: false });
-      throw error;
-    }
-  },
-
-  generateReportSync: async (request: ReportGenerateRequest): Promise<Report> => {
-    set({ loading: true, error: null });
-    try {
-      const data = await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/reports/generate-sync`, {
-        method: 'POST',
-        body: JSON.stringify(request),
-      });
-      set({ loading: false });
-      return data;
-    } catch (error) {
-      console.error('Failed to generate report sync:', error);
-      set({ error: 'Failed to generate report', loading: false });
-      throw error;
-    }
-  },
-
-  generateEnhancedReport: async (request: ReportGenerateRequest): Promise<Report> => {
-    console.log('🚀 Generating enhanced report...', request);
-    set({ loading: true, error: null });
-    try {
-      const data = await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/reports/enhanced`, {
-        method: 'POST',
-        body: JSON.stringify(request),
-      });
-      set({ loading: false });
       await get().fetchReports();
       return data;
     } catch (error) {

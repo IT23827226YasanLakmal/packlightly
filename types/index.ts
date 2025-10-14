@@ -461,9 +461,7 @@ export interface ReportStore {
   
   // Enhanced report management
   fetchReports: (filters?: ReportFilters) => Promise<void>;
-  generateReport: (request: ReportGenerateRequest) => Promise<string>;
-  generateReportSync: (request: ReportGenerateRequest) => Promise<Report>;
-  generateEnhancedReport: (request: ReportGenerateRequest) => Promise<Report>;
+  generateReport: (request: ReportGenerateRequest) => Promise<Report>;
   getReport: (id: string) => Promise<void>;
   regenerateReport: (id: string) => Promise<void>;
   scheduleReport: (id: string, schedule: ReportGenerateRequest['scheduling']) => Promise<void>;
