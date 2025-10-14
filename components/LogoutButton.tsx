@@ -23,7 +23,7 @@ export default function LogoutButton({
       await signOut(auth);
       router.push("/login");
     } catch (error) {
-      console.error("Logout error:", error);
+
     } finally {
       setLoading(false);
     }

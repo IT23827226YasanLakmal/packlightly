@@ -34,7 +34,7 @@ export default function SampleDataGenerator({ className = "" }: SampleDataGenera
   const generateSampleData = async () => {
     setGenerating(true);
     try {
-      console.log('🧪 Generating sample data for:', selectedType);
+
       
       // Generate sample report
       const report = await generateSampleReport(selectedType);
@@ -42,13 +42,13 @@ export default function SampleDataGenerator({ className = "" }: SampleDataGenera
       
       // Validate the generated data
       if (report.data && validateReportData(report.data)) {
-        console.log('✅ Sample data validation passed');
+
       } else {
-        console.warn('⚠️ Sample data validation failed');
+
       }
       
     } catch (error) {
-      console.error('❌ Failed to generate sample data:', error);
+
     } finally {
       setGenerating(false);
     }

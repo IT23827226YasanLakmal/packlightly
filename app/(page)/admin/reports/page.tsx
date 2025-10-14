@@ -62,7 +62,6 @@ export default function ReportsPage() {
     generateReport,
     deleteReport,
     exportReport,
-    injectMockData
   } = useReportStore();
 
   // UI state for report generation
@@ -101,7 +100,7 @@ export default function ReportsPage() {
     try {
       await exportReport(reportId, format);
     } catch (error) {
-      console.error(`Error exporting report as ${format}:`, error);
+
     }
   };
 
@@ -111,23 +110,23 @@ export default function ReportsPage() {
       const { regenerateReport } = useReportStore.getState();
       await regenerateReport(reportId);
     } catch (error) {
-      console.error('Error regenerating report:', error);
+
     }
   };
 
   useEffect(() => {
     // Initialize report data
     const initializeData = async () => {
-      console.log('🔍 Initializing report data...');
+
       try {
         await Promise.all([
           getTypes(),
           getOverview(),
           fetchReports()
         ]);
-        console.log('✅ Report data initialization complete');
+
       } catch (error) {
-        console.error('❌ Error initializing report data:', error);
+
       }
     };
 
@@ -156,27 +155,27 @@ export default function ReportsPage() {
       { name: "Eco Backpack", value: 70 },
       { name: "Bamboo Toothbrush", value: 60 },
     ]);
-  }, [getTypes, getOverview, fetchReports, injectMockData]);
+  }, [getTypes, getOverview, fetchReports]);
 
   // Debug useEffect to log data changes
   useEffect(() => {
-    console.log('📊 Report Types updated:', reportTypes);
+
     if (reportTypes.length > 0) {
-      console.log('✅ Data loaded successfully! Found', reportTypes.length, 'report types');
+
       // If we have report types and testDataLoaded is false, it means mock data was injected
       if (!testDataLoaded) {
-        console.log('📝 Mock data detected - updating testDataLoaded state');
+
         setTestDataLoaded(true);
       }
     }
   }, [reportTypes, testDataLoaded]);
 
   useEffect(() => {
-    console.log('📈 Overview updated:', overview);
+
   }, [overview]);
 
   useEffect(() => {
-    console.log('📋 Reports updated:', reports);
+
   }, [reports]);
 
   // Close dropdown when clicking outside
@@ -226,22 +225,9 @@ export default function ReportsPage() {
           >
             <Plus size={18} /> Generate Report
           </button>
-          {/* TEMPORARY: Mock data button for testing */}
-          <button 
-            onClick={() => {
-              console.log('🎭 Loading test data...');
-              injectMockData();
-              setTestDataLoaded(true);
-              console.log('🔄 Test data injection initiated');
-            }}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl transition text-sm ${
-              testDataLoaded 
-                ? 'bg-green-600 text-white' 
-                : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800'
-            }`}
-          >
-            {testDataLoaded ? '✅ Data Loaded' : '🎭 Load Test Data'}
-          </button>
+          
+
+        
         </div>
       </motion.div>
 
@@ -296,13 +282,7 @@ export default function ReportsPage() {
                 </p>
               </div>
             )}
-            {reportTypes.length > 0 && testDataLoaded && (
-              <div className="bg-green-900/20 border border-green-700/40 rounded-xl p-3 mb-4">
-                <p className="text-green-300 text-sm">
-                  ✅ Test data loaded! Found {reportTypes.length} report types available for generation.
-                </p>
-              </div>
-            )}
+            
             <div className="space-y-4">
               <div>
                 <label className="block text-green-300 text-sm mb-2">
@@ -744,7 +724,7 @@ export default function ReportsPage() {
                         setShowFilters(false);
                         setShowAdvancedFilters(false);
                       } catch (error) {
-                        console.error('Error generating report:', error);
+
                       }
                     }
                   }}

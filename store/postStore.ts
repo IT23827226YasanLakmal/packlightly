@@ -70,8 +70,8 @@ export const usePostStore = create<PostStore>((set, get) => ({
         comments: post.comments || [] // Ensure comments is always an array
       })).filter(post => post.title && post.description); // Filter out posts without title/description
       
-      console.log('PostStore: Fetched and sanitized posts:', sanitizedPosts);
-      console.log('PostStore: Pagination info - Page:', page, 'Total Pages:', totalPages, 'Total Posts:', totalPosts);
+
+
       
       set({ 
         posts: sanitizedPosts, 
@@ -82,7 +82,7 @@ export const usePostStore = create<PostStore>((set, get) => ({
         postsPerPage: limit
       });
     } catch (error) {
-      console.error('PostStore: Failed to fetch posts:', error);
+
       set({ error: 'Failed to fetch posts', loading: false });
     }
   },
@@ -113,7 +113,7 @@ export const usePostStore = create<PostStore>((set, get) => ({
         await get().fetchPosts(currentPage, postsPerPage);
       }
     } catch (err) {
-      console.error('Failed to create post:', err);
+
       set({ error: 'Failed to create post', loading: false });
     }
   },
@@ -183,13 +183,13 @@ export const usePostStore = create<PostStore>((set, get) => ({
 
   toggleLike: async (postId, userId) => {
     if (!userId) {
-      console.error('No user ID provided for like operation');
+
       set({ error: 'User ID required for liking posts' });
       return;
     }
 
     if (!postId) {
-      console.error('No post ID provided for like operation');
+
       set({ error: 'Post ID required for liking posts' });
       return;
     }
@@ -197,11 +197,11 @@ export const usePostStore = create<PostStore>((set, get) => ({
     // Check if this post is already being liked/unliked
     const currentLikingPosts = get().likingPosts;
     if (currentLikingPosts.has(postId)) {
-      console.log('Post is already being liked/unliked, ignoring request');
+
       return;
     }
 
-    console.log('Toggling like for post:', postId, 'by user:', userId);
+
 
     // Add to liking posts set
     const newLikingPosts = new Set(currentLikingPosts);
@@ -213,19 +213,19 @@ export const usePostStore = create<PostStore>((set, get) => ({
       const likeStatusResponse = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/posts/${postId}/like-status`);
       const { hasLiked } = likeStatusResponse;
       
-      console.log('Current like status from server:', hasLiked);
+
 
       let updatedPost;
       
       if (hasLiked) {
         // User has liked the post, so unlike it
-        console.log('Unliking post...');
+
         updatedPost = await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts/${postId}/unlike`, {
           method: 'POST',
         });
       } else {
         // User hasn't liked the post, so like it
-        console.log('Liking post...');
+
         updatedPost = await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts/${postId}/like`, {
           method: 'POST',
         });
@@ -239,11 +239,11 @@ export const usePostStore = create<PostStore>((set, get) => ({
         );
         
         set({ posts: updatedPosts });
-        console.log('Post updated successfully:', updatedPost);
+
       }
       
     } catch (error: unknown) {
-      console.error('Error toggling like:', error);
+
       
       // Handle specific error cases
       const errorMessage = error instanceof Error ? error.message : String(error);

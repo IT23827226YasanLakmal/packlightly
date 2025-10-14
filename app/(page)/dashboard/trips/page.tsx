@@ -171,24 +171,24 @@ export default function AllTripsTable() {
   });
 
   useEffect(() => {
-    fetchTrips(1, 10).catch(console.error); // Start with page 1 and 10 trips per page
+    fetchTrips(1, 10).catch(() => {}); // Start with page 1 and 10 trips per page
   }, [fetchTrips]);
 
   // Handle page change
   const handlePageChange = async (page: number) => {
-    console.log('Changing to page:', page);
+
     await fetchTrips(page, tripsPerPage);
   };
 
   // Handle trips per page change
   const handleTripsPerPageChange = async (newTripsPerPage: number) => {
-    console.log('Changing trips per page to:', newTripsPerPage);
+
     // Reset to page 1 when changing trips per page
     await fetchTrips(1, newTripsPerPage);
   };
 
   useEffect(() => {
-    fetchPackingLists().catch(console.error);
+    fetchPackingLists().catch(() => {});
   }, [fetchPackingLists]);
 
   // Calculate duration when selectedTrip changes
@@ -276,8 +276,7 @@ export default function AllTripsTable() {
       setShowGeneratePrompt(false);
       // Navigate to packing lists page to show the newly generated list
       router.push(`/dashboard/packinglists?tripId=${selectedTrip._id}`);
-    } catch (error) {
-      console.error('Failed to generate packing list:', error);
+    } catch {
       setGeneratingPackingList(false);
     }
   };

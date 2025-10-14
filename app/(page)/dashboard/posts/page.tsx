@@ -330,7 +330,7 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
         setImageError("URL does not point to a valid image");
       }
     } catch (error) {
-      console.log("Image validation error:", error);
+
       setImageError("Unable to validate image URL - please check the URL is correct");
     } finally {
       setValidatingImage(false);

@@ -23,7 +23,7 @@ export function useCurrentUser() {
           const userWithRole = { ...firebaseUser, role } as UserWithRole;
           setUser(userWithRole);
         } catch (error) {
-          console.error("Error fetching user role:", error);
+
           // Fallback to user without role
           const userWithRole = { ...firebaseUser, role: "user" } as UserWithRole;
           setUser(userWithRole);

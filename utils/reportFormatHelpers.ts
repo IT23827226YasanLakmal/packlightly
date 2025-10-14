@@ -510,7 +510,7 @@ export class ReportValidator {
 
       return true;
     } catch (error) {
-      console.error('Report validation error:', error);
+
       return false;
     }
   }

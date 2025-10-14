@@ -120,7 +120,7 @@ export default function NewsPage() {
       setDrawerOpen(false);
       setEditing(null);
     } catch (err) {
-      console.error("saveItem error:", err);
+
       setErrors({ submit: "Failed to save news article. Please try again." });
     } finally {
       setIsSubmitting(false);
@@ -137,7 +137,7 @@ export default function NewsPage() {
     try {
       await saveNewsToDatabase();
     } catch (error) {
-      console.error("Failed to fetch news from API:", error);
+
     } finally {
       setIsFetchingNews(false);
     }

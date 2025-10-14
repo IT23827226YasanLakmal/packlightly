@@ -155,7 +155,7 @@ function LoginForm() {
         );
       } catch (backendError) {
         // Continue even if backend sync fails
-        console.warn("Backend sync failed:", backendError);
+
       }
 
       // Get role and redirect
@@ -179,7 +179,7 @@ function LoginForm() {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
       const idToken = await userCredential.user.getIdToken();
-      console.log("Google ID Token:", idToken);
+
 
       // Get role and redirect
       const role = await fetchOrCreateUserRole(

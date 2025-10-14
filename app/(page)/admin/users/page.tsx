@@ -490,7 +490,7 @@ export default function Page() {
                       try {
                         await deleteUser(confirmDelete.uid);
                       } catch (error) {
-                        console.error('Failed to delete user:', error);
+
                       } finally {
                         setConfirmDelete(null);
                       }

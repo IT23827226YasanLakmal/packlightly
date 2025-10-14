@@ -222,7 +222,7 @@ export default function AdminEcoInventoryPage() {
       next.eco = next.eco || 3;
       
       // debug log — remove when confident
-      console.log("updateEditing ->", patch, "next:", next);
+
       return next;
     });
   };
@@ -286,7 +286,7 @@ export default function AdminEcoInventoryPage() {
       setIsFormValid(false);
       setTouchedFields({});
     } catch (err) {
-      console.error("saveItem error:", err);
+
     }
   }
 

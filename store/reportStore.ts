@@ -20,11 +20,9 @@ export const useReportStore = create<ReportStore>((set, get) => ({
   error: null,
 
   getTypes: async () => {
-    console.log('🔍 Fetching report types...');
     set({ loading: true, error: null });
     try {
       const response = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/reports/types`);
-      console.log('✅ Report types response:', response);
       
       // Handle different response structures
       let typesData = response;
@@ -33,30 +31,25 @@ export const useReportStore = create<ReportStore>((set, get) => ({
       }
       
       set({ reportTypes: Array.isArray(typesData) ? typesData : [], loading: false });
-    } catch (error) {
-      console.error('❌ Failed to fetch report types:', error);
+    } catch {
       set({ error: 'Failed to fetch report types', loading: false });
     }
   },
 
   getFormats: async (): Promise<ReportType[]> => {
-    console.log('🔍 Fetching report formats...');
     try {
       const response = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/reports/formats`);
       return response.data || response;
-    } catch (error) {
-      console.error('❌ Failed to fetch report formats:', error);
+    } catch {
       return [];
     }
   },
 
   getSampleData: async (type: string): Promise<EnhancedReportData> => {
-    console.log('🔍 Fetching sample data for type:', type);
     try {
       const response = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/reports/sample/${type}`);
       return response.data || response;
-    } catch (error) {
-      console.error('❌ Failed to fetch sample data:', error);
+    } catch {
       // Return generated sample data as fallback
       const sampleData = ReportHelpers.SampleDataGenerator.generateTripData();
       return {
@@ -76,11 +69,9 @@ export const useReportStore = create<ReportStore>((set, get) => ({
   },
 
   getOverview: async () => {
-    console.log('🔍 Fetching report overview...');
     set({ loading: true, error: null });
     try {
       const response = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/reports/overview`);
-      console.log('✅ Report overview response:', response);
       
       // Handle different response structures
       let overviewData = response;
@@ -89,25 +80,22 @@ export const useReportStore = create<ReportStore>((set, get) => ({
       }
       
       set({ overview: overviewData, loading: false });
-    } catch (error) {
-      console.error('❌ Failed to fetch overview:', error);
+    } catch {
       set({ error: 'Failed to fetch overview', loading: false });
     }
   },
 
   getAnalytics: async (): Promise<ReportOverview> => {
-    console.log('🔍 Fetching report analytics...');
     try {
       const response = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/reports/analytics`);
       return response.data || response;
     } catch (error) {
-      console.error('❌ Failed to fetch analytics:', error);
       throw error;
     }
   },
 
   fetchReports: async (filters?: ReportFilters) => {
-    console.log('🔍 Fetching reports...', filters);
+
     set({ loading: true, error: null });
     try {
       let url = `${process.env.NEXT_PUBLIC_API_URL}/reports`;
@@ -130,7 +118,7 @@ export const useReportStore = create<ReportStore>((set, get) => ({
                 params.append(key, String(value));
               }
             } catch (error) {
-              console.warn(`Failed to serialize filter value for key ${key}:`, error);
+
               // Skip this filter if it can't be serialized
             }
           }
@@ -141,7 +129,7 @@ export const useReportStore = create<ReportStore>((set, get) => ({
       }
 
       const response = await fetcherWithToken(url);
-      console.log('✅ Reports response:', response);
+
       
       // Handle different response structures
       let reportsData = response;
@@ -151,13 +139,13 @@ export const useReportStore = create<ReportStore>((set, get) => ({
       
       set({ reports: Array.isArray(reportsData) ? reportsData : [], loading: false });
     } catch (error) {
-      console.error('❌ Failed to fetch reports:', error);
+
       set({ error: 'Failed to fetch reports', loading: false });
     }
   },
 
   generateReport: async (request: ReportGenerateRequest): Promise<Report> => {
-    console.log('� Generating enhanced report...', request);
+
     set({ loading: true, error: null });
     try {
       const data = await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/reports/generate`, {
@@ -169,18 +157,18 @@ export const useReportStore = create<ReportStore>((set, get) => ({
       await get().fetchReports();
       return data;
     } catch (error) {
-      console.error('Failed to generate enhanced report:', error);
+
       set({ error: 'Failed to generate enhanced report', loading: false });
       throw error;
     }
   },
 
   getReport: async (id: string) => {
-    console.log('🔍 Fetching report details...', id);
+
     set({ loading: true, error: null });
     try {
       const data = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/reports/${id}`);
-      console.log('✅ Report details:', data);
+
       
       let reportData = data;
       if (data.success && data.data) {
@@ -189,13 +177,13 @@ export const useReportStore = create<ReportStore>((set, get) => ({
       
       set({ selectedReport: reportData, loading: false });
     } catch (error) {
-      console.error('❌ Failed to fetch report details:', error);
+
       set({ error: 'Failed to fetch report details', loading: false });
     }
   },
 
   regenerateReport: async (id: string) => {
-    console.log('🔄 Regenerating report...', id);
+
     set({ loading: true, error: null });
     try {
       await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/reports/${id}/regenerate`, {
@@ -204,13 +192,13 @@ export const useReportStore = create<ReportStore>((set, get) => ({
       set({ loading: false });
       await get().fetchReports();
     } catch (error) {
-      console.error('❌ Failed to regenerate report:', error);
+
       set({ error: 'Failed to regenerate report', loading: false });
     }
   },
 
   scheduleReport: async (id: string, schedule: ReportGenerateRequest['scheduling']) => {
-    console.log('📅 Scheduling report...', id, schedule);
+
     try {
       await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/reports/${id}/schedule`, {
         method: 'POST',
@@ -218,19 +206,19 @@ export const useReportStore = create<ReportStore>((set, get) => ({
       });
       await get().fetchReports();
     } catch (error) {
-      console.error('❌ Failed to schedule report:', error);
+
       throw error;
     }
   },
 
   exportReport: async (id: string, format: 'json' | 'pdf' | 'csv' | 'xlsx') => {
-    console.log('📤 Exporting report...', id, format);
+
     try {
       const response = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/reports/export/${id}/${format}`);
       
       // Handle file download - response should be a Blob for file downloads
       if (response instanceof Blob) {
-        console.log('📦 Received blob response, creating download link');
+
         const url = window.URL.createObjectURL(response);
         const a = document.createElement('a');
         a.href = url;
@@ -239,32 +227,32 @@ export const useReportStore = create<ReportStore>((set, get) => ({
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-        console.log('✅ File download initiated');
+
       } else {
-        console.log('📋 Received JSON response:', response);
+
         // Handle JSON response if needed
       }
     } catch (error) {
-      console.error('❌ Failed to export report:', error);
+
       throw error;
     }
   },
 
   bulkExport: async (reportIds: string[], format: string) => {
-    console.log('📤 Bulk exporting reports...', reportIds, format);
+
     try {
       await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/reports/bulk-export`, {
         method: 'POST',
         body: JSON.stringify({ reportIds, format }),
       });
     } catch (error) {
-      console.error('❌ Failed to bulk export reports:', error);
+
       throw error;
     }
   },
 
   deleteReport: async (id: string) => {
-    console.log('🗑️ Deleting report...', id);
+
     set({ loading: true, error: null });
     try {
       await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/reports/${id}`, {
@@ -273,26 +261,26 @@ export const useReportStore = create<ReportStore>((set, get) => ({
       set({ loading: false });
       await get().fetchReports();
     } catch (error) {
-      console.error('❌ Failed to delete report:', error);
+
       set({ error: 'Failed to delete report', loading: false });
     }
   },
 
   archiveReport: async (id: string) => {
-    console.log('📁 Archiving report...', id);
+
     try {
       await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/reports/${id}/archive`, {
         method: 'POST',
       });
       await get().fetchReports();
     } catch (error) {
-      console.error('❌ Failed to archive report:', error);
+
       throw error;
     }
   },
 
   duplicateReport: async (id: string, newTitle?: string): Promise<string> => {
-    console.log('📋 Duplicating report...', id, newTitle);
+
     try {
       const response = await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/reports/${id}/duplicate`, {
         method: 'POST',
@@ -301,31 +289,31 @@ export const useReportStore = create<ReportStore>((set, get) => ({
       await get().fetchReports();
       return response.id || response._id;
     } catch (error) {
-      console.error('❌ Failed to duplicate report:', error);
+
       throw error;
     }
   },
 
   subscribeToReport: async (id: string) => {
-    console.log('🔔 Subscribing to report...', id);
+
     try {
       await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/reports/${id}/subscribe`, {
         method: 'POST',
       });
     } catch (error) {
-      console.error('❌ Failed to subscribe to report:', error);
+
       throw error;
     }
   },
 
   unsubscribeFromReport: async (id: string) => {
-    console.log('🔕 Unsubscribing from report...', id);
+
     try {
       await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/reports/${id}/unsubscribe`, {
         method: 'POST',
       });
     } catch (error) {
-      console.error('❌ Failed to unsubscribe from report:', error);
+
       throw error;
     }
   },
@@ -335,7 +323,7 @@ export const useReportStore = create<ReportStore>((set, get) => ({
   },
 
   setFilters: (filters: ReportFilters) => {
-    console.log('🔍 Setting filters...', filters);
+
     // Apply filters and refresh reports
     get().fetchReports(filters);
   },
@@ -345,7 +333,7 @@ export const useReportStore = create<ReportStore>((set, get) => ({
   },
 
   generateSampleReport: async (type: string): Promise<Report> => {
-    console.log('🧪 Generating sample report...', type);
+
     try {
       const sampleData = await get().getSampleData(type);
       const sampleReport: Report = {
@@ -374,7 +362,7 @@ export const useReportStore = create<ReportStore>((set, get) => ({
       };
       return sampleReport;
     } catch (error) {
-      console.error('❌ Failed to generate sample report:', error);
+
       throw error;
     }
   },
@@ -385,7 +373,7 @@ export const useReportStore = create<ReportStore>((set, get) => ({
 
   // Enhanced mock data for testing
   injectMockData: () => {
-    console.log('💉 Injecting enhanced mock data...');
+
     set({
       reportTypes: [
         { 
@@ -559,6 +547,6 @@ export const useReportStore = create<ReportStore>((set, get) => ({
         }
       }
     });
-    console.log('✅ Enhanced mock data injected');
+
   }
 }));

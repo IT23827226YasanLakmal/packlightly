@@ -213,7 +213,7 @@ export const useChecklistStore = create<ChecklistState>()(
           }, 2000);
 
         } catch (error) {
-          console.error('Error updating items:', error);
+
           setSavingStatus({ ...savingStatus, [category]: 'error' });
 
           // Auto-retry after 5 seconds on error
@@ -250,7 +250,7 @@ export const useChecklistStore = create<ChecklistState>()(
           set({ checklistCats, removedItems: [] });
 
         } catch (error) {
-          console.error('Error loading packing list:', error);
+
           throw error;
         }
       },
@@ -259,7 +259,7 @@ export const useChecklistStore = create<ChecklistState>()(
       getAISuggestions: async (listId) => {
         try {
           const token = await getToken();
-          console.log('🤖 Fetching AI suggestions for packing list:', listId);
+
           const response = await fetch(`http://localhost:5000/api/packinglists/${listId}/ai-suggestions`, {
             method: 'GET',
             headers: {
@@ -268,20 +268,16 @@ export const useChecklistStore = create<ChecklistState>()(
             }
           });
 
-          console.log('🌐 AI Suggestions Response Status:', response.status);
+
           
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            console.error('❌ API Error Details:', {
-              status: response.status,
-              statusText: response.statusText,
-              errorData
-            });
+
             throw new Error(errorData.error || `Failed to get AI suggestions: ${response.status} ${response.statusText}`);
           }
 
           const suggestionsResponse: AISuggestionsResponse = await response.json();
-          console.log('🔍 Backend AI Response:', suggestionsResponse);
+
           
           // Handle the new API response format
           if (!suggestionsResponse.success) {
@@ -293,23 +289,23 @@ export const useChecklistStore = create<ChecklistState>()(
             throw new Error('Invalid response format: missing suggestions data');
           }
 
-          console.log('📦 Processing suggestions for trip:', data.tripDestination);
-          console.log('📋 Title:', data.suggestions.title);
-          console.log('🏷️ Categories found:', data.suggestions.categories.length);
+
+
+
 
           // Transform the AI suggestions to match our store structure
           const aiSuggestions: Record<string, Item[]> = {};
           
           data.suggestions.categories.forEach((category: AISuggestionCategory, index: number) => {
-            console.log(`🏷️ Processing category ${index + 1}:`, category.category);
-            console.log(`📝 Items count:`, category.items?.length || 0);
+
+
             
             if (category.category && category.items && Array.isArray(category.items)) {
               // Normalize category name to fix common typos
               let categoryName = category.category;
               if (categoryName.toLowerCase().includes('safetly')) {
                 categoryName = categoryName.replace(/safetly/gi, 'safety');
-                console.log(`🔧 Fixed category name typo: "${category.category}" → "${categoryName}"`);
+
               }
               
               aiSuggestions[categoryName] = category.items.map((item: AISuggestionItem) => ({
@@ -319,23 +315,19 @@ export const useChecklistStore = create<ChecklistState>()(
                 eco: item.eco || false
               }));
               
-              console.log(`✅ Transformed category "${categoryName}":`, aiSuggestions[categoryName].length, 'items');
-              console.log(`📋 Sample items:`, aiSuggestions[categoryName].slice(0, 2));
+
+
             } else {
-              console.warn(`⚠️ Skipping invalid category ${index}:`, category);
+
             }
           });
 
-          console.log('🎯 Final AI Suggestions:', {
-            totalCategories: Object.keys(aiSuggestions).length,
-            categories: Object.keys(aiSuggestions),
-            totalItems: Object.values(aiSuggestions).reduce((total, items) => total + items.length, 0)
-          });
+
 
           return aiSuggestions;
 
         } catch (error) {
-          console.error('❌ Error getting AI suggestions:', error);
+
           throw error;
         }
       },

@@ -35,7 +35,7 @@ export default function AuthGuard({
           const role = userDoc.exists() ? userDoc.data()?.role || "user" : "user";
           setUserRole(role);
         } catch (error) {
-          console.error("Error fetching user role:", error);
+
           setUserRole("user");
         }
       } else {

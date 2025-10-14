@@ -48,19 +48,19 @@ export default function Page() {
   const { user: currentUser } = useCurrentUser();
 
   React.useEffect(() => {
-    console.log('Community page: Fetching posts...');
+
     fetchPosts(1, 10); // Start with page 1 and 10 posts per page
   }, [fetchPosts]);
 
   // Handle page change
   const handlePageChange = async (page: number) => {
-    console.log('Changing to page:', page);
+
     await fetchPosts(page, postsPerPage);
   };
 
   // Handle posts per page change
   const handlePostsPerPageChange = async (newPostsPerPage: number) => {
-    console.log('Changing posts per page to:', newPostsPerPage);
+
     // Reset to page 1 when changing posts per page
     await fetchPosts(1, newPostsPerPage);
   };
@@ -75,10 +75,10 @@ export default function Page() {
 
   // Log posts when they change
   React.useEffect(() => {
-    console.log('Community page: Posts updated:', posts);
-    console.log('Community page: Valid posts count:', validPosts.length);
+
+
     if (currentUser) {
-      console.log('Community page: Current user:', currentUser.uid);
+
     }
   }, [posts, validPosts, currentUser]);
 
@@ -89,17 +89,17 @@ export default function Page() {
     }
     
     if (!postId) {
-      console.error('No post ID provided for like operation');
+
       alert('Error: Invalid post. Please refresh the page.');
       return;
     }
 
-    console.log('Handling like for post:', postId, 'by user:', currentUser.uid);
+
     
     try {
       await toggleLike(postId, currentUser.uid);
     } catch (error) {
-      console.error('Failed to like post:', error);
+
       alert('Failed to like post. Please try again.');
     }
   };
@@ -113,7 +113,7 @@ export default function Page() {
     try {
       await addComment(postId, comment, currentUser.displayName || currentUser.email || 'Anonymous');
     } catch (error) {
-      console.error('Failed to add comment:', error);
+
       alert('Failed to add comment. Please try again.');
     }
   };
@@ -130,7 +130,7 @@ export default function Page() {
           url: `${window.location.origin}/community/post/${postId}`
         });
       } catch (error) {
-        console.error('Error sharing:', error);
+
       }
     } else {
       // Fallback: copy to clipboard
@@ -138,7 +138,7 @@ export default function Page() {
         await navigator.clipboard.writeText(`${window.location.origin}/community/post/${postId}`);
         alert('Link copied to clipboard!');
       } catch (error) {
-        console.error('Failed to copy link:', error);
+
       }
     }
   };
@@ -192,7 +192,7 @@ export default function Page() {
       
       alert('Post created successfully!');
     } catch (error) {
-      console.error('Failed to create post:', error);
+
       alert('Failed to create post. Please try again.');
     }
   };

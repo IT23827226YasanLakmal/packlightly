@@ -94,9 +94,6 @@ export const useTripStore = create<TripStore>((set, get) => ({
         totalTrips = response.total || trips.length;
       }
       
-      console.log('TripStore: Fetched trips:', trips);
-      console.log('TripStore: Pagination info - Page:', page, 'Total Pages:', totalPages, 'Total Trips:', totalTrips);
-      
       set({ 
         trips, 
         loading: false,

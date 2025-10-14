@@ -52,7 +52,7 @@ const InstagramPost: React.FC<InstagramPostProps> = ({
     try {
       await onLike?.(post._id || '');
     } catch (error) {
-      console.error('Error in double-click like:', error);
+
     }
   };
 
@@ -67,15 +67,15 @@ const InstagramPost: React.FC<InstagramPostProps> = ({
       return;
     }
     
-    console.log('InstagramPost: Like button clicked for post:', post._id);
-    console.log('InstagramPost: Current user:', currentUser.uid);
-    console.log('InstagramPost: Current liked state:', isLikedByCurrentUser);
-    console.log('InstagramPost: Post likedBy array:', post.likedBy);
+
+
+
+
     
     try {
       await onLike?.(post._id || '');
     } catch (error) {
-      console.error('Error in like click:', error);
+
     }
   };
 

@@ -259,10 +259,10 @@ export default function PackingListOverviewPage() {
       
       // Save to database
       await saveToServer(selectedListId, category);
-      console.log(`✅ Successfully added and saved item "${item.name}" to category "${category}"`);
+
       
     } catch (error) {
-      console.error(`❌ Failed to save item "${item.name}" to database:`, error);
+
       
       // You could also show a toast notification here
       alert(`Failed to save item "${item.name}" to database. Please try again.`);
