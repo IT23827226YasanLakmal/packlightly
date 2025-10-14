@@ -73,6 +73,13 @@ export default function ReportsPage() {
   const [testDataLoaded, setTestDataLoaded] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   
+  // Loading states for operations
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [exportingId, setExportingId] = useState<string | null>(null);
+  const [exportFormat, setExportFormat] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  
   // Filter states
   const [filters, setFilters] = useState({
     dateRange: {
@@ -97,20 +104,32 @@ export default function ReportsPage() {
 
   // Handle report export with different formats
   const handleExportReport = async (reportId: string, format: 'pdf' | 'csv' | 'xlsx' | 'json') => {
+    if (exportingId || deletingId) return; // Prevent multiple operations
+    
     try {
+      setExportingId(reportId);
+      setExportFormat(format);
       await exportReport(reportId, format);
     } catch (error) {
-
+      console.error('Export failed:', error);
+    } finally {
+      setExportingId(null);
+      setExportFormat(null);
     }
   };
 
   // Handle report regeneration
   const handleRegenerateReport = async (reportId: string) => {
+    if (regeneratingId || deletingId || exportingId) return; // Prevent multiple operations
+    
     try {
+      setRegeneratingId(reportId);
       const { regenerateReport } = useReportStore.getState();
       await regenerateReport(reportId);
     } catch (error) {
-
+      console.error('Regeneration failed:', error);
+    } finally {
+      setRegeneratingId(null);
     }
   };
 
@@ -126,7 +145,7 @@ export default function ReportsPage() {
         ]);
 
       } catch (error) {
-
+        console.error('Error in initialization:', error);
       }
     };
 
@@ -221,9 +240,23 @@ export default function ReportsPage() {
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setShowGenerateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition"
+            disabled={isGenerating || !!deletingId || !!exportingId || !!regeneratingId}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl transition ${
+              isGenerating || !!deletingId || !!exportingId || !!regeneratingId
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:from-emerald-700 hover:to-emerald-800'
+            }`}
           >
-            <Plus size={18} /> Generate Report
+            {isGenerating ? (
+              <>
+                <RefreshCw size={18} className="animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Plus size={18} /> Generate Report
+              </>
+            )}
           </button>
           
 
@@ -642,8 +675,9 @@ export default function ReportsPage() {
                 </button>
                 <button
                   onClick={async () => {
-                    if (selectedReportType && reportTitle) {
+                    if (selectedReportType && reportTitle && !isGenerating) {
                       try {
+                        setIsGenerating(true);
                         // Prepare filters object to match backend expectations
                         const reportFilters: NonNullable<ReportGenerateRequest['filters']> = {};
                         
@@ -724,7 +758,9 @@ export default function ReportsPage() {
                         setShowFilters(false);
                         setShowAdvancedFilters(false);
                       } catch (error) {
-
+                        console.error('Generation failed:', error);
+                      } finally {
+                        setIsGenerating(false);
                       }
                     }
                   }}
@@ -732,12 +768,20 @@ export default function ReportsPage() {
                     !selectedReportType || 
                     !reportTitle || 
                     loading ||
+                    isGenerating ||
                     (Boolean(filters.dateRange.startDate && filters.dateRange.endDate && 
                      new Date(filters.dateRange.startDate) > new Date(filters.dateRange.endDate)))
                   }
                   className="flex-1 px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition disabled:opacity-50"
                 >
-                  {loading ? 'Generating...' : 'Generate'}
+                  {(loading || isGenerating) ? (
+                    <span className="flex items-center gap-2">
+                      <RefreshCw size={16} className="animate-spin" />
+                      Generating...
+                    </span>
+                  ) : (
+                    'Generate'
+                  )}
                 </button>
               </div>
             </div>
@@ -816,41 +860,107 @@ export default function ReportsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="relative group">
-                      <button className="p-2 text-green-300 hover:text-white hover:bg-green-700/20 rounded-lg transition">
-                        <Download size={16} />
+                      <button 
+                        disabled={deletingId === (report._id || report.id!) || exportingId === (report._id || report.id!) || regeneratingId === (report._id || report.id!)}
+                        className={`p-2 rounded-lg transition ${
+                          deletingId === (report._id || report.id!) || exportingId === (report._id || report.id!) || regeneratingId === (report._id || report.id!)
+                            ? 'text-gray-500 bg-gray-700/20 cursor-not-allowed'
+                            : 'text-green-300 hover:text-white hover:bg-green-700/20'
+                        }`}
+                      >
+                        {exportingId === (report._id || report.id!) ? (
+                          <RefreshCw size={16} className="animate-spin" />
+                        ) : (
+                          <Download size={16} />
+                        )}
                       </button>
-                      <div className="absolute right-0 top-full mt-1 bg-black/90 border border-green-700/40 rounded-xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-                        <div className="space-y-1 min-w-[80px]">
-                          <button
-                            onClick={() => handleExportReport(report._id || report.id!, 'json')}
-                            className="block w-full text-left px-3 py-2 text-sm text-green-300 hover:text-white hover:bg-green-700/20 rounded-lg transition"
-                          >
-                            JSON
-                          </button>
-                          <button
-                            onClick={() => handleExportReport(report._id || report.id!, 'csv')}
-                            className="block w-full text-left px-3 py-2 text-sm text-green-300 hover:text-white hover:bg-green-700/20 rounded-lg transition"
-                          >
-                            CSV
-                          </button>
-                          <button
-                            onClick={() => handleExportReport(report._id || report.id!, 'pdf')}
-                            className="block w-full text-left px-3 py-2 text-sm text-green-300 hover:text-white hover:bg-green-700/20 rounded-lg transition"
-                          >
-                            PDF
-                          </button>
-                          <button
-                            onClick={() => handleExportReport(report._id || report.id!, 'xlsx')}
-                            className="block w-full text-left px-3 py-2 text-sm text-green-300 hover:text-white hover:bg-green-700/20 rounded-lg transition"
-                          >
-                            Excel
-                          </button>
+                      {!(deletingId === (report._id || report.id!) || exportingId === (report._id || report.id!) || regeneratingId === (report._id || report.id!)) && (
+                        <div className="absolute right-0 top-full mt-1 bg-black/90 border border-green-700/40 rounded-xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                          <div className="space-y-1 min-w-[80px]">
+                            <button
+                              onClick={() => handleExportReport(report._id || report.id!, 'json')}
+                              disabled={exportingId === (report._id || report.id!) && exportFormat === 'json'}
+                              className={`block w-full text-left px-3 py-2 text-sm rounded-lg transition ${
+                                exportingId === (report._id || report.id!) && exportFormat === 'json'
+                                  ? 'text-gray-500 bg-gray-700/20 cursor-not-allowed'
+                                  : 'text-green-300 hover:text-white hover:bg-green-700/20'
+                              }`}
+                            >
+                              {exportingId === (report._id || report.id!) && exportFormat === 'json' ? (
+                                <span className="flex items-center gap-2">
+                                  <RefreshCw size={12} className="animate-spin" />
+                                  JSON
+                                </span>
+                              ) : (
+                                'JSON'
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleExportReport(report._id || report.id!, 'csv')}
+                              disabled={exportingId === (report._id || report.id!) && exportFormat === 'csv'}
+                              className={`block w-full text-left px-3 py-2 text-sm rounded-lg transition ${
+                                exportingId === (report._id || report.id!) && exportFormat === 'csv'
+                                  ? 'text-gray-500 bg-gray-700/20 cursor-not-allowed'
+                                  : 'text-green-300 hover:text-white hover:bg-green-700/20'
+                              }`}
+                            >
+                              {exportingId === (report._id || report.id!) && exportFormat === 'csv' ? (
+                                <span className="flex items-center gap-2">
+                                  <RefreshCw size={12} className="animate-spin" />
+                                  CSV
+                                </span>
+                              ) : (
+                                'CSV'
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleExportReport(report._id || report.id!, 'pdf')}
+                              disabled={exportingId === (report._id || report.id!) && exportFormat === 'pdf'}
+                              className={`block w-full text-left px-3 py-2 text-sm rounded-lg transition ${
+                                exportingId === (report._id || report.id!) && exportFormat === 'pdf'
+                                  ? 'text-gray-500 bg-gray-700/20 cursor-not-allowed'
+                                  : 'text-green-300 hover:text-white hover:bg-green-700/20'
+                              }`}
+                            >
+                              {exportingId === (report._id || report.id!) && exportFormat === 'pdf' ? (
+                                <span className="flex items-center gap-2">
+                                  <RefreshCw size={12} className="animate-spin" />
+                                  PDF
+                                </span>
+                              ) : (
+                                'PDF'
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleExportReport(report._id || report.id!, 'xlsx')}
+                              disabled={exportingId === (report._id || report.id!) && exportFormat === 'xlsx'}
+                              className={`block w-full text-left px-3 py-2 text-sm rounded-lg transition ${
+                                exportingId === (report._id || report.id!) && exportFormat === 'xlsx'
+                                  ? 'text-gray-500 bg-gray-700/20 cursor-not-allowed'
+                                  : 'text-green-300 hover:text-white hover:bg-green-700/20'
+                              }`}
+                            >
+                              {exportingId === (report._id || report.id!) && exportFormat === 'xlsx' ? (
+                                <span className="flex items-center gap-2">
+                                  <RefreshCw size={12} className="animate-spin" />
+                                  Excel
+                                </span>
+                              ) : (
+                                'Excel'
+                              )}
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                     <button
                       onClick={() => setViewingReport(report._id || report.id!)}
-                      className="p-2 text-blue-300 hover:text-white hover:bg-blue-700/20 rounded-lg transition"
+                      disabled={deletingId === (report._id || report.id!) || exportingId === (report._id || report.id!) || regeneratingId === (report._id || report.id!)}
+                      className={`p-2 rounded-lg transition ${
+                        deletingId === (report._id || report.id!) || exportingId === (report._id || report.id!) || regeneratingId === (report._id || report.id!)
+                          ? 'text-gray-500 bg-gray-700/20 cursor-not-allowed'
+                          : 'text-blue-300 hover:text-white hover:bg-blue-700/20'
+                      }`}
                       title="View Report"
                     >
                       <Eye size={16} />
@@ -858,18 +968,36 @@ export default function ReportsPage() {
                     {report.status === 'completed' && (
                       <button
                         onClick={() => handleRegenerateReport(report._id || report.id!)}
-                        className="p-2 text-yellow-300 hover:text-white hover:bg-yellow-700/20 rounded-lg transition"
+                        disabled={deletingId === (report._id || report.id!) || exportingId === (report._id || report.id!) || regeneratingId === (report._id || report.id!)}
+                        className={`p-2 rounded-lg transition ${
+                          deletingId === (report._id || report.id!) || exportingId === (report._id || report.id!) || regeneratingId === (report._id || report.id!)
+                            ? 'text-gray-500 bg-gray-700/20 cursor-not-allowed'
+                            : 'text-yellow-300 hover:text-white hover:bg-yellow-700/20'
+                        }`}
                         title="Regenerate Report"
                       >
-                        <RefreshCw size={16} />
+                        {regeneratingId === (report._id || report.id!) ? (
+                          <RefreshCw size={16} className="animate-spin" />
+                        ) : (
+                          <RefreshCw size={16} />
+                        )}
                       </button>
                     )}
                     <button
                       onClick={() => setDeleteConfirmId(report._id || report.id!)}
-                      className="p-2 text-red-300 hover:text-white hover:bg-red-700/20 rounded-lg transition"
+                      disabled={deletingId === (report._id || report.id!) || exportingId === (report._id || report.id!) || regeneratingId === (report._id || report.id!)}
+                      className={`p-2 rounded-lg transition ${
+                        deletingId === (report._id || report.id!) || exportingId === (report._id || report.id!) || regeneratingId === (report._id || report.id!)
+                          ? 'text-gray-500 bg-gray-700/20 cursor-not-allowed'
+                          : 'text-red-300 hover:text-white hover:bg-red-700/20'
+                      }`}
                       title="Delete Report"
                     >
-                      <Trash2 size={16} />
+                      {deletingId === (report._id || report.id!) ? (
+                        <RefreshCw size={16} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -1014,31 +1142,67 @@ export default function ReportsPage() {
                   <div className="flex gap-3 pt-6 border-t border-green-700/30 mt-6">
                     <button
                       onClick={() => handleExportReport(report._id || report.id!, 'json')}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600/20 text-green-300 rounded-xl hover:bg-green-600/30 transition"
+                      disabled={exportingId === (report._id || report.id!) && exportFormat === 'json'}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl transition ${
+                        exportingId === (report._id || report.id!) && exportFormat === 'json'
+                          ? 'bg-gray-600/20 text-gray-400 cursor-not-allowed'
+                          : 'bg-green-600/20 text-green-300 hover:bg-green-600/30'
+                      }`}
                     >
-                      <Download size={16} />
-                      Export JSON
+                      {exportingId === (report._id || report.id!) && exportFormat === 'json' ? (
+                        <RefreshCw size={16} className="animate-spin" />
+                      ) : (
+                        <Download size={16} />
+                      )}
+                      {exportingId === (report._id || report.id!) && exportFormat === 'json' ? 'Exporting...' : 'Export JSON'}
                     </button>
                     <button
                       onClick={() => handleExportReport(report._id || report.id!, 'csv')}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 text-blue-300 rounded-xl hover:bg-blue-600/30 transition"
+                      disabled={exportingId === (report._id || report.id!) && exportFormat === 'csv'}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl transition ${
+                        exportingId === (report._id || report.id!) && exportFormat === 'csv'
+                          ? 'bg-gray-600/20 text-gray-400 cursor-not-allowed'
+                          : 'bg-blue-600/20 text-blue-300 hover:bg-blue-600/30'
+                      }`}
                     >
-                      <Download size={16} />
-                      Export CSV
+                      {exportingId === (report._id || report.id!) && exportFormat === 'csv' ? (
+                        <RefreshCw size={16} className="animate-spin" />
+                      ) : (
+                        <Download size={16} />
+                      )}
+                      {exportingId === (report._id || report.id!) && exportFormat === 'csv' ? 'Exporting...' : 'Export CSV'}
                     </button>
                     <button
                       onClick={() => handleExportReport(report._id || report.id!, 'pdf')}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-600/20 text-red-300 rounded-xl hover:bg-red-600/30 transition"
+                      disabled={exportingId === (report._id || report.id!) && exportFormat === 'pdf'}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl transition ${
+                        exportingId === (report._id || report.id!) && exportFormat === 'pdf'
+                          ? 'bg-gray-600/20 text-gray-400 cursor-not-allowed'
+                          : 'bg-red-600/20 text-red-300 hover:bg-red-600/30'
+                      }`}
                     >
-                      <Download size={16} />
-                      Export PDF
+                      {exportingId === (report._id || report.id!) && exportFormat === 'pdf' ? (
+                        <RefreshCw size={16} className="animate-spin" />
+                      ) : (
+                        <Download size={16} />
+                      )}
+                      {exportingId === (report._id || report.id!) && exportFormat === 'pdf' ? 'Exporting...' : 'Export PDF'}
                     </button>
                     <button
                       onClick={() => handleExportReport(report._id || report.id!, 'xlsx')}
-                      className="flex items-center gap-2 px-4 py-2 bg-purple-600/20 text-purple-300 rounded-xl hover:bg-purple-600/30 transition"
+                      disabled={exportingId === (report._id || report.id!) && exportFormat === 'xlsx'}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl transition ${
+                        exportingId === (report._id || report.id!) && exportFormat === 'xlsx'
+                          ? 'bg-gray-600/20 text-gray-400 cursor-not-allowed'
+                          : 'bg-purple-600/20 text-purple-300 hover:bg-purple-600/30'
+                      }`}
                     >
-                      <Download size={16} />
-                      Export Excel
+                      {exportingId === (report._id || report.id!) && exportFormat === 'xlsx' ? (
+                        <RefreshCw size={16} className="animate-spin" />
+                      ) : (
+                        <Download size={16} />
+                      )}
+                      {exportingId === (report._id || report.id!) && exportFormat === 'xlsx' ? 'Exporting...' : 'Export Excel'}
                     </button>
                     {report.status === 'completed' && (
                       <button
@@ -1070,10 +1234,20 @@ export default function ReportsPage() {
       {deleteConfirmId && (
         <ConfirmDialog
           open={!!deleteConfirmId}
+          loading={!!deletingId}
           onCancel={() => setDeleteConfirmId(null)}
           onConfirm={async () => {
-            await deleteReport(deleteConfirmId);
-            setDeleteConfirmId(null);
+            if (deletingId || exportingId) return; // Prevent multiple operations
+            
+            try {
+              setDeletingId(deleteConfirmId);
+              await deleteReport(deleteConfirmId);
+              setDeleteConfirmId(null);
+            } catch (error) {
+              console.error('Delete failed:', error);
+            } finally {
+              setDeletingId(null);
+            }
           }}
           title="Delete Report"
           description="Are you sure you want to delete this report? This action cannot be undone."

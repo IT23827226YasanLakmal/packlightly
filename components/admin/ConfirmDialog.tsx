@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Loader2 } from "lucide-react";
 
 export default function ConfirmDialog({
   open,
@@ -8,12 +9,14 @@ export default function ConfirmDialog({
   description,
   onCancel,
   onConfirm,
+  loading = false,
 }: {
   open: boolean;
   title: string;
   description: string;
   onCancel: () => void;
   onConfirm: () => void;
+  loading?: boolean;
 }) {
   return (
     <AnimatePresence>
@@ -46,15 +49,26 @@ export default function ConfirmDialog({
             <div className="flex justify-end gap-2 mt-4">
               <button
                 onClick={onCancel}
-                className="rounded-xl border border-green-500/40 px-4 py-2 text-white hover:bg-green-700/20 transition"
+                disabled={loading}
+                className={`rounded-xl border border-green-500/40 px-4 py-2 transition ${
+                  loading 
+                    ? 'text-gray-400 bg-gray-700/20 cursor-not-allowed' 
+                    : 'text-white hover:bg-green-700/20'
+                }`}
               >
                 Cancel
               </button>
               <button
                 onClick={onConfirm}
-                className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2 font-semibold text-white hover:from-red-700 hover:to-red-800 transition"
+                disabled={loading}
+                className={`rounded-xl px-4 py-2 font-semibold transition flex items-center gap-2 ${
+                  loading
+                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800'
+                }`}
               >
-                Delete
+                {loading && <Loader2 size={16} className="animate-spin" />}
+                {loading ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </motion.div>
