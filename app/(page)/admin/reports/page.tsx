@@ -35,8 +35,36 @@ import {
   Cell
 } from "recharts";
 
-const COLORS = ["#34D399", "#10B981", "#059669", "#047857", "#065F46"];
-const HOVER_COLORS = ["#6EE7B7", "#34D399", "#2DD4BF", "#22C55E", "#10B981"];
+const COLORS = ["#10B981", "#34D399", "#6EE7B7", "#059669", "#047857"];
+const HOVER_COLORS = ["#34D399", "#6EE7B7", "#A7F3D0", "#10B981", "#059669"];
+
+// Custom tooltip component for better visibility
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    dataKey: string;
+    value: number | string;
+    color: string;
+  }>;
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-black/95 border-2 border-emerald-400 rounded-xl p-4 shadow-2xl backdrop-blur-sm">
+        <p className="text-emerald-400 font-semibold text-sm mb-2">{`${label}`}</p>
+        {payload.map((entry, index: number) => (
+          <p key={index} className="text-white font-medium">
+            <span className="text-emerald-300">{entry.dataKey}:</span>{" "}
+            <span className="text-white font-bold">{entry.value}</span>
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
 interface ChartData {
   name: string;
@@ -297,17 +325,10 @@ export default function ReportsPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [dropdownOpen]);
 
-  const tooltipStyle = {
-    backgroundColor: "#111",
-    borderRadius: "8px",
-    border: "1px solid #34D399",
-    color: "#fff",
-    fontSize: "13px",
-  };
-
   const legendStyle = {
     color: "#34D399",
     fontSize: "14px",
+    fontWeight: "500",
   };
 
   return (
@@ -1383,7 +1404,7 @@ export default function ReportsPage() {
             >
               <XAxis dataKey="name" stroke="#10B981" />
               <YAxis stroke="#10B981" />
-              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#34D399" }} />
+              <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={legendStyle} />
               <Bar
                 dataKey="Users"
@@ -1428,7 +1449,13 @@ export default function ReportsPage() {
                 outerRadius={80}
                 onMouseEnter={(_, index) => setActivePieIndex(index)}
                 onMouseLeave={() => setActivePieIndex(null)}
-                label={{ fill: "#fff" }}
+                label={{
+                  fill: "#ffffff",
+                  fontSize: 12,
+                  fontWeight: "600",
+                  stroke: "#000000",
+                  strokeWidth: 0.5
+                }}
               >
                 {chartData.ecoImpactData.map((entry: ChartData, index: number) => (
                   <Cell
@@ -1437,7 +1464,23 @@ export default function ReportsPage() {
                   />
                 ))}
               </Pie>
-              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#34D399" }} />
+              <Tooltip 
+                contentStyle={{
+                  backgroundColor: "rgba(0, 0, 0, 0.95)",
+                  borderRadius: "12px",
+                  border: "2px solid #34D399",
+                  color: "#ffffff",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  padding: "12px 16px",
+                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
+                }}
+                labelStyle={{ color: "#34D399", fontWeight: "600", fontSize: "16px" }}
+                formatter={(value, name) => [
+                  <span key="value" style={{ color: "#ffffff", fontWeight: "600" }}>{value} eco points</span>,
+                  <span key="name" style={{ color: "#6EE7B7" }}>Category: {name}</span>
+                ]}
+              />
               <Legend wrapperStyle={legendStyle} />
             </PieChart>
           </ResponsiveContainer>
@@ -1467,7 +1510,24 @@ export default function ReportsPage() {
             >
               <XAxis type="number" stroke="#10B981" />
               <YAxis dataKey="name" type="category" stroke="#10B981" />
-              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#34D399" }} />
+              <Tooltip 
+                contentStyle={{
+                  backgroundColor: "rgba(0, 0, 0, 0.95)",
+                  borderRadius: "12px",
+                  border: "2px solid #34D399",
+                  color: "#ffffff",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  padding: "12px 16px",
+                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
+                }}
+                labelStyle={{ color: "#34D399", fontWeight: "600", fontSize: "16px" }}
+                formatter={(value) => [
+                  <span key="value" style={{ color: "#ffffff", fontWeight: "600" }}>{value} instances</span>,
+                  <span key="type" style={{ color: "#6EE7B7" }}>Product frequency</span>
+                ]}
+                labelFormatter={(label) => `Product: ${label}`}
+              />
               <Legend wrapperStyle={legendStyle} />
               <Bar
                 dataKey="value"
