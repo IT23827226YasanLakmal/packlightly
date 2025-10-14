@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { Heart, MessageCircle, User, Calendar, TrendingUp } from 'lucide-react';
 import { usePostStore } from '@/store/postStore';
 import { Post } from '@/types';
@@ -16,10 +17,21 @@ const TrendingPosts: React.FC<TrendingPostsProps> = ({
 }) => {
   const { posts, loading, error, fetchPosts } = usePostStore();
   const [visiblePosts, setVisiblePosts] = useState<Post[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
+
+  // Handle click on individual post
+  const handlePostClick = (postId: string) => {
+    router.push(`/community?postId=${postId}`);
+  };
+
+  // Handle click on "View All" button
+  const handleViewAllClick = () => {
+    router.push('/community');
+  };
 
   useEffect(() => {
     if (posts && posts.length > 0) {
@@ -129,7 +141,10 @@ const TrendingPosts: React.FC<TrendingPostsProps> = ({
               transition={{ duration: 0.3, delay: index * 0.1 }}
               className="group relative"
             >
-              <div className="flex gap-3 p-3 rounded-xl hover:bg-gradient-to-r hover:from-orange-50 hover:to-pink-50 transition-all duration-200 cursor-pointer">
+              <div 
+                onClick={() => handlePostClick(post._id || '')}
+                className="flex gap-3 p-3 rounded-xl hover:bg-gradient-to-r hover:from-orange-50 hover:to-pink-50 transition-all duration-200 cursor-pointer hover:shadow-md transform hover:-translate-y-0.5"
+              >
                 {/* Post Image/Avatar */}
                 <div className="flex-shrink-0">
                   {post.imageUrl ? (
@@ -205,7 +220,10 @@ const TrendingPosts: React.FC<TrendingPostsProps> = ({
 
       {/* View All Button */}
       <div className="mt-6 pt-4 border-t border-gray-100">
-        <button className="w-full text-center text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors py-2 rounded-lg hover:bg-orange-50">
+        <button 
+          onClick={handleViewAllClick}
+          className="w-full text-center text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors py-2 rounded-lg hover:bg-orange-50"
+        >
           View All Community Posts →
         </button>
       </div>

@@ -5,6 +5,8 @@ import Image from "next/image";
 import Header from "../../../components/Header";
 import InstagramPost from "../../../components/community/InstagramPost";
 import CreatePostFAB from "../../../components/community/CreatePostFAB";
+import Pagination from "../../../components/community/Pagination";
+import PostsPerPageSelector from "../../../components/community/PostsPerPageSelector";
 import { usePostStore } from "@/store/postStore";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 
@@ -30,13 +32,38 @@ export default function Page() {
     imageUrl: ''
   });
   
-  const { posts, fetchPosts, loading, error, addComment, createPost, toggleLike } = usePostStore();
+  const { 
+    posts, 
+    fetchPosts, 
+    loading, 
+    error, 
+    addComment, 
+    createPost, 
+    toggleLike,
+    currentPage,
+    totalPages,
+    totalPosts,
+    postsPerPage
+  } = usePostStore();
   const { user: currentUser } = useCurrentUser();
 
   React.useEffect(() => {
     console.log('Community page: Fetching posts...');
-    fetchPosts();
+    fetchPosts(1, 10); // Start with page 1 and 10 posts per page
   }, [fetchPosts]);
+
+  // Handle page change
+  const handlePageChange = async (page: number) => {
+    console.log('Changing to page:', page);
+    await fetchPosts(page, postsPerPage);
+  };
+
+  // Handle posts per page change
+  const handlePostsPerPageChange = async (newPostsPerPage: number) => {
+    console.log('Changing posts per page to:', newPostsPerPage);
+    // Reset to page 1 when changing posts per page
+    await fetchPosts(1, newPostsPerPage);
+  };
 
   // Ensure posts is always an array and filter out invalid posts
   const validPosts = (posts || []).filter(post => 
@@ -152,7 +179,7 @@ export default function Page() {
         comments: [],
         likeCount: 0,
         likedBy: [] // Initialize empty likedBy array
-      });
+      }, () => fetchPosts(1, postsPerPage)); // Refresh to page 1 after creating post
 
       // Reset form
       setNewPost({
@@ -257,7 +284,7 @@ export default function Page() {
                 </div>
                 <p className="text-red-600 font-medium">{error}</p>
                 <button 
-                  onClick={() => fetchPosts()}
+                  onClick={() => fetchPosts(currentPage, postsPerPage)}
                   className="mt-2 bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg text-sm transition-colors"
                 >
                   Try Again
@@ -281,6 +308,17 @@ export default function Page() {
             </div>
           )}
           
+          {/* Posts Per Page Selector */}
+          {!loading && !error && validPosts.length > 0 && (
+            <div className="bg-white border-b border-gray-100">
+              <PostsPerPageSelector 
+                postsPerPage={postsPerPage}
+                onPostsPerPageChange={handlePostsPerPageChange}
+                loading={loading}
+              />
+            </div>
+          )}
+
           {/* Posts */}
           <div className="space-y-0">
             {validPosts.map((post) => (
@@ -295,6 +333,30 @@ export default function Page() {
               />
             ))}
           </div>
+
+          {/* Pagination */}
+          {!loading && !error && validPosts.length > 0 && (
+            <div className="bg-white border-t border-gray-100">
+              <Pagination 
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                loading={loading}
+              />
+            </div>
+          )}
+
+          {/* Posts Summary */}
+          {!loading && !error && validPosts.length > 0 && (
+            <div className="bg-white border-t border-gray-100">
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-600">
+                  Showing {validPosts.length} of {totalPosts} posts
+                  {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Floating Action Button */}

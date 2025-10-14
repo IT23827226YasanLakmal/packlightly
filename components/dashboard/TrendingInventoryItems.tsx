@@ -2,6 +2,7 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { useProductStore } from '@/store/productStore';
 import { Product } from '@/types';
 import { TrendingUp, Star, Leaf, MapPin, Package, Camera, Award } from 'lucide-react';
@@ -28,6 +29,7 @@ const TrendingInventoryItems: React.FC<TrendingInventoryItemsProps> = ({
   showCompact = false 
 }) => {
   const { products, fetchProducts, loading } = useProductStore();
+  const router = useRouter();
 
   // Fetch products on component mount
   useEffect(() => {
@@ -35,6 +37,16 @@ const TrendingInventoryItems: React.FC<TrendingInventoryItemsProps> = ({
       fetchProducts();
     }
   }, [fetchProducts, products.length]);
+
+  // Handle click on individual product
+  const handleProductClick = (productId: string) => {
+    router.push(`/eco-products?productId=${productId}`);
+  };
+
+  // Handle click on "View All" button
+  const handleViewAllClick = () => {
+    router.push('/eco-products');
+  };
 
   const trendingProducts = useMemo((): ProductWithScore[] => {
     if (!products || products.length === 0) return [];
@@ -171,10 +183,12 @@ const TrendingInventoryItems: React.FC<TrendingInventoryItemsProps> = ({
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3, delay: index * 0.1 }}
+            onClick={() => handleProductClick(product.id)}
             className={`
               flex gap-3 p-3 rounded-xl bg-gradient-to-r from-emerald-50 to-green-50 
               hover:from-emerald-100 hover:to-green-100 transition-all duration-200
-              border border-emerald-100 hover:border-emerald-200
+              border border-emerald-100 hover:border-emerald-200 cursor-pointer
+              hover:shadow-md transform hover:-translate-y-0.5
               ${showCompact ? 'pb-2' : ''}
             `}
           >
@@ -249,6 +263,7 @@ const TrendingInventoryItems: React.FC<TrendingInventoryItemsProps> = ({
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
+        onClick={handleViewAllClick}
         className="w-full mt-4 py-2 text-sm text-emerald-700 hover:text-emerald-800 font-medium text-center rounded-xl border border-emerald-200 hover:border-emerald-300 bg-emerald-50 hover:bg-emerald-100 transition-all duration-200"
       >
         View All Trending Items

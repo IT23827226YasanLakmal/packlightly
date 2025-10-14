@@ -8,6 +8,8 @@ import { useTripStore } from "@/store/tripStore";
 import { usePackingListStore } from "@/store/packingListStore";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import TrendingNews from "@/components/dashboard/TrendingNews";
+import Pagination from "@/components/community/Pagination";
+import TripsPerPageSelector from "@/components/dashboard/TripsPerPageSelector";
 
 import { Trip } from '@/types/index';
 
@@ -40,7 +42,18 @@ const calculateDurationDays = (startDate: string, endDate: string) => {
 
 export default function AllTripsTable() {
   const router = useRouter();
-  const { trips, loading, error, fetchTrips, setSelectedTripId, updateTrip } = useTripStore();
+  const { 
+    trips, 
+    loading, 
+    error, 
+    fetchTrips, 
+    setSelectedTripId, 
+    updateTrip,
+    currentPage,
+    totalPages,
+    totalTrips,
+    tripsPerPage
+  } = useTripStore();
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [savingTrip, setSavingTrip] = useState(false);
   const [openDrawer, setOpenDrawer] = useState(false);
@@ -158,8 +171,21 @@ export default function AllTripsTable() {
   });
 
   useEffect(() => {
-    fetchTrips().catch(console.error);
+    fetchTrips(1, 10).catch(console.error); // Start with page 1 and 10 trips per page
   }, [fetchTrips]);
+
+  // Handle page change
+  const handlePageChange = async (page: number) => {
+    console.log('Changing to page:', page);
+    await fetchTrips(page, tripsPerPage);
+  };
+
+  // Handle trips per page change
+  const handleTripsPerPageChange = async (newTripsPerPage: number) => {
+    console.log('Changing trips per page to:', newTripsPerPage);
+    // Reset to page 1 when changing trips per page
+    await fetchTrips(1, newTripsPerPage);
+  };
 
   useEffect(() => {
     fetchPackingLists().catch(console.error);
@@ -298,9 +324,25 @@ export default function AllTripsTable() {
         </button>
       </div>
 
+      {/* Empty State */}
+      {!loading && !error && trips.length === 0 && (
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4">🧳</div>
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">No trips yet</h3>
+          <p className="text-gray-500 mb-6">Create your first trip to start planning your eco-friendly adventure!</p>
+          <button 
+            onClick={() => setOpenCreateModal(true)}
+            className="bg-green-500 text-white px-6 py-2 rounded-xl font-semibold hover:bg-green-600 transition-colors flex items-center gap-2 mx-auto"
+          >
+            <Plus size={16} /> Create your first trip
+          </button>
+        </div>
+      )}
+
       {/* Main Content Layout */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Trips Table - Takes up 2/3 of the space on large screens */}
+        {trips.length > 0 && (
         <div className="xl:col-span-2">
           {/* Trips Table */}
           <div className="overflow-x-auto rounded-xl shadow-md border border-green-200">
@@ -366,7 +408,43 @@ export default function AllTripsTable() {
           </tbody>
         </table>
       </div>
+
+      {/* Trips Per Page Selector */}
+      {!loading && !error && trips.length > 0 && (
+        <div className="mt-4 bg-white rounded-xl shadow-md border border-green-200">
+          <TripsPerPageSelector 
+            tripsPerPage={tripsPerPage}
+            onTripsPerPageChange={handleTripsPerPageChange}
+            loading={loading}
+          />
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!loading && !error && trips.length > 0 && (
+        <div className="mt-4 bg-white rounded-xl shadow-md border border-green-200">
+          <Pagination 
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            loading={loading}
+          />
+        </div>
+      )}
+
+      {/* Trips Summary */}
+      {!loading && !error && trips.length > 0 && (
+        <div className="mt-4 bg-white rounded-xl shadow-md border border-green-200 p-4">
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              Showing {trips.length} of {totalTrips} trips
+              {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
+    )}
 
     {/* Trending News Sidebar - Takes up 1/3 of the space on large screens */}
     <div className="xl:col-span-1">

@@ -161,7 +161,7 @@ export default function PackingListOverviewPage() {
 
   // Function to fetch AI suggestions when smart tab is clicked
   const fetchAISuggestions = useCallback(async () => {
-    if (!currentTrip || !selectedListId || loadingSuggestions || aiSuggestionsFetched) {
+    if (!currentTrip || !selectedListId || loadingSuggestions) {
      
       return;
     }
@@ -177,16 +177,40 @@ export default function PackingListOverviewPage() {
     } finally {
       setLoadingSuggestions(false);
     }
-  }, [currentTrip, selectedListId, getAISuggestions, loadingSuggestions, aiSuggestionsFetched]);
+  }, [currentTrip, selectedListId, getAISuggestions, loadingSuggestions]);
 
-  // Handle tab change with AI suggestions fetch for smart tab
+  // Function to regenerate AI suggestions
+  const regenerateAISuggestions = useCallback(async () => {
+    if (!currentTrip || !selectedListId || loadingSuggestions) {
+      return;
+    }
+    
+    setLoadingSuggestions(true);
+    setAiSuggestionsFetched(false);
+    setSmartCats({});
+    setSmartRemoved([]);
+    
+    try {
+      const aiSuggestions = await getAISuggestions(selectedListId);
+      setSmartCats(aiSuggestions);
+      setSmartRemoved([]);
+      setAiSuggestionsFetched(true);
+    } catch {
+      setSmartCats({});
+      setAiSuggestionsFetched(false);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  }, [currentTrip, selectedListId, getAISuggestions, loadingSuggestions]);
+
+  // Handle tab change with AI suggestions fetch for smart tab (only first time)
   const handleTabChange = useCallback((tabId: typeof activeTab) => {
     setActiveTab(tabId);
     
-    if (tabId === 'smart') {
+    if (tabId === 'smart' && !aiSuggestionsFetched) {
       fetchAISuggestions();
     }
-  }, [fetchAISuggestions]);
+  }, [fetchAISuggestions, aiSuggestionsFetched]);
 
   // Reset AI suggestions when trip or selected list changes
   useEffect(() => {
@@ -544,9 +568,25 @@ export default function PackingListOverviewPage() {
             >
               {/* Header + Progress + Eco */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 md:col-span-2">
-                  Smart Packing Suggestions
-                </h2>
+                <div className="md:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+                      Smart Packing Suggestions
+                    </h2>
+                    {aiSuggestionsFetched && !loadingSuggestions && (
+                      <button
+                        onClick={regenerateAISuggestions}
+                        disabled={loadingSuggestions}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 disabled:opacity-50 text-sm font-medium shadow-lg"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Regenerate
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2 text-sm text-blue-700 font-semibold">
                     <CheckCheck size={20} /> Progress: {packingProgress.progress}%

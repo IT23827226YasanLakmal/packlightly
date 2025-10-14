@@ -8,8 +8,12 @@ interface PostStore {
   loading: boolean;
   error: string | null;
   likingPosts: Set<string>; // Track which posts are currently being liked/unliked
+  currentPage: number;
+  totalPages: number;
+  totalPosts: number;
+  postsPerPage: number;
 
-  fetchPosts: () => Promise<void>;
+  fetchPosts: (page?: number, limit?: number) => Promise<void>;
   fetchMyPosts: () => Promise<void>;
   createPost: (post: Partial<Post>, refreshFn?: () => Promise<void>) => Promise<void>;
   updatePost: (id: string, post: Partial<Post>, refreshFn?: () => Promise<void>) => Promise<void>;
@@ -24,18 +28,39 @@ export const usePostStore = create<PostStore>((set, get) => ({
   loading: false,
   error: null,
   likingPosts: new Set<string>(),
+  currentPage: 1,
+  totalPages: 1,
+  totalPosts: 0,
+  postsPerPage: 10,
 
   isLikingPost: (postId: string) => {
     return get().likingPosts.has(postId);
   },
 
-  fetchPosts: async () => {
+  fetchPosts: async (page = 1, limit = 10) => {
     set({ loading: true, error: null });
     try {
-      const data: Post[] = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/posts`);
+      const response = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/posts?page=${page}&limit=${limit}`);
+      
+      // Handle both paginated and non-paginated responses
+      let posts: Post[] = [];
+      let totalPages = 1;
+      let totalPosts = 0;
+      
+      if (Array.isArray(response)) {
+        // Non-paginated response (fallback)
+        posts = response;
+        totalPosts = posts.length;
+        totalPages = Math.ceil(totalPosts / limit);
+      } else if (response && typeof response === 'object') {
+        // Paginated response
+        posts = response.posts || response.data || [];
+        totalPages = response.totalPages || Math.ceil((response.total || posts.length) / limit);
+        totalPosts = response.total || posts.length;
+      }
       
       // Ensure all posts have the required fields for the like functionality
-      const sanitizedPosts = (data || []).map(post => ({
+      const sanitizedPosts = (posts || []).map(post => ({
         ...post,
         title: post.title || '', // Ensure title is always a string
         description: post.description || '', // Ensure description is always a string
@@ -46,7 +71,16 @@ export const usePostStore = create<PostStore>((set, get) => ({
       })).filter(post => post.title && post.description); // Filter out posts without title/description
       
       console.log('PostStore: Fetched and sanitized posts:', sanitizedPosts);
-      set({ posts: sanitizedPosts, loading: false });
+      console.log('PostStore: Pagination info - Page:', page, 'Total Pages:', totalPages, 'Total Posts:', totalPosts);
+      
+      set({ 
+        posts: sanitizedPosts, 
+        loading: false,
+        currentPage: page,
+        totalPages,
+        totalPosts,
+        postsPerPage: limit
+      });
     } catch (error) {
       console.error('PostStore: Failed to fetch posts:', error);
       set({ error: 'Failed to fetch posts', loading: false });
@@ -71,9 +105,13 @@ export const usePostStore = create<PostStore>((set, get) => ({
         body: JSON.stringify(post),
       });
 
-      // Use the provided refresh function or default to fetchPosts
-      const refresh = refreshFn || get().fetchPosts;
-      await refresh();
+      // Use the provided refresh function or default to fetchPosts with current pagination
+      if (refreshFn) {
+        await refreshFn();
+      } else {
+        const { currentPage, postsPerPage } = get();
+        await get().fetchPosts(currentPage, postsPerPage);
+      }
     } catch (err) {
       console.error('Failed to create post:', err);
       set({ error: 'Failed to create post', loading: false });
@@ -88,9 +126,13 @@ export const usePostStore = create<PostStore>((set, get) => ({
         body: JSON.stringify(post),
       });
 
-      // Use the provided refresh function or default to fetchPosts
-      const refresh = refreshFn || get().fetchPosts;
-      await refresh();
+      // Use the provided refresh function or default to fetchPosts with current pagination
+      if (refreshFn) {
+        await refreshFn();
+      } else {
+        const { currentPage, postsPerPage } = get();
+        await get().fetchPosts(currentPage, postsPerPage);
+      }
     } catch {
       set({ error: 'Failed to update post', loading: false });
     }
@@ -107,11 +149,16 @@ export const usePostStore = create<PostStore>((set, get) => ({
         method: 'DELETE',
       });
       
-      // If a refresh function is provided, use it, otherwise just remove from local state
+      // If a refresh function is provided, use it, otherwise refresh with current pagination
       if (refreshFn) {
         await refreshFn();
       } else {
-        set({ posts: get().posts.filter(p => p._id !== id), loading: false });
+        const { currentPage, postsPerPage } = get();
+        // If we're on a page that might be empty after deletion, go to previous page
+        const updatedPosts = get().posts.filter(p => p._id !== id);
+        const shouldGoToPreviousPage = updatedPosts.length === 0 && currentPage > 1;
+        const targetPage = shouldGoToPreviousPage ? currentPage - 1 : currentPage;
+        await get().fetchPosts(targetPage, postsPerPage);
       }
     } catch {
       set({ error: 'Failed to delete post', loading: false });
@@ -122,11 +169,13 @@ export const usePostStore = create<PostStore>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const comment: Partial<Comment> = { text, user };
-  await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts/${postId}/comments`, {
+      await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/posts/${postId}/comments`, {
         method: 'POST',
         body: JSON.stringify(comment),
       });
-      await get().fetchPosts();
+      // Refresh with current pagination settings
+      const { currentPage, postsPerPage } = get();
+      await get().fetchPosts(currentPage, postsPerPage);
     } catch {
       set({ error: 'Failed to add comment', loading: false });
     }

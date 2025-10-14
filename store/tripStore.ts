@@ -7,7 +7,11 @@ interface TripStore {
   selectedTripId: string;
   loading: boolean;
   error: string | null;
-  fetchTrips: () => Promise<void>;
+  currentPage: number;
+  totalPages: number;
+  totalTrips: number;
+  tripsPerPage: number;
+  fetchTrips: (page?: number, limit?: number) => Promise<void>;
   setSelectedTripId: (id: string) => void;
   createTrip: (trip: Partial<Trip>) => Promise<void>;
   deleteTrip: (tripId: string) => Promise<void>;
@@ -22,9 +26,9 @@ export const useTripStore = create<TripStore>((set, get) => ({
         method: 'PATCH',
         body: JSON.stringify(updates),
       });
-      // Fetch updated trips list
-      const data = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/trips`);
-      set({ trips: data, loading: false });
+      // Refresh with current pagination settings
+      const { currentPage, tripsPerPage } = get();
+      await get().fetchTrips(currentPage, tripsPerPage);
     } catch {
       set({ error: 'Failed to update trip', loading: false });
     }
@@ -35,9 +39,12 @@ export const useTripStore = create<TripStore>((set, get) => ({
       await fetcherWithTokenConfig(`${process.env.NEXT_PUBLIC_API_URL}/trips/${tripId}`, {
         method: 'DELETE',
       });
-      // Fetch updated trips list
-      const data = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/trips`);
-      set({ trips: data, loading: false });
+      // Refresh with current pagination settings, handling edge case of empty page
+      const { currentPage, tripsPerPage, trips } = get();
+      const updatedTrips = trips.filter(trip => trip._id !== tripId);
+      const shouldGoToPreviousPage = updatedTrips.length === 0 && currentPage > 1;
+      const targetPage = shouldGoToPreviousPage ? currentPage - 1 : currentPage;
+      await get().fetchTrips(targetPage, tripsPerPage);
     } catch {
       set({ error: 'Failed to delete trip', loading: false });
     }
@@ -49,9 +56,9 @@ export const useTripStore = create<TripStore>((set, get) => ({
         method: 'POST',
         body: JSON.stringify(trip),
       });
-      // Fetch updated trips list
-      const data = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/trips`);
-      set({ trips: data, loading: false });
+      // Go to page 1 after creating a new trip
+      const { tripsPerPage } = get();
+      await get().fetchTrips(1, tripsPerPage);
     } catch {
       set({ error: 'Failed to create trip', loading: false });
     }
@@ -60,21 +67,44 @@ export const useTripStore = create<TripStore>((set, get) => ({
   selectedTripId: '',
   loading: false,
   error: null,
+  currentPage: 1,
+  totalPages: 1,
+  totalTrips: 0,
+  tripsPerPage: 10,
   
-  fetchTrips: async () => {
-    set((state: TripStore) => {
-      // If trips already loaded, skip fetch
-      if (state.trips && state.trips.length > 0) {
-        return { loading: false };
-      }
-      return { loading: true, error: null };
-    });
-    // Only fetch if not cached
-    const current = useTripStore.getState();
-    if (current.trips && current.trips.length > 0) return;
+  fetchTrips: async (page = 1, limit = 10) => {
+    set({ loading: true, error: null });
     try {
-      const data = await fetcherWithToken('http://localhost:5000/api/trips');
-      set({ trips: data, loading: false });
+      const response = await fetcherWithToken(`${process.env.NEXT_PUBLIC_API_URL}/trips?page=${page}&limit=${limit}`);
+      
+      // Handle both paginated and non-paginated responses
+      let trips: Trip[] = [];
+      let totalPages = 1;
+      let totalTrips = 0;
+      
+      if (Array.isArray(response)) {
+        // Non-paginated response (fallback)
+        trips = response;
+        totalTrips = trips.length;
+        totalPages = Math.ceil(totalTrips / limit);
+      } else if (response && typeof response === 'object') {
+        // Paginated response
+        trips = response.trips || response.data || [];
+        totalPages = response.totalPages || Math.ceil((response.total || trips.length) / limit);
+        totalTrips = response.total || trips.length;
+      }
+      
+      console.log('TripStore: Fetched trips:', trips);
+      console.log('TripStore: Pagination info - Page:', page, 'Total Pages:', totalPages, 'Total Trips:', totalTrips);
+      
+      set({ 
+        trips, 
+        loading: false,
+        currentPage: page,
+        totalPages,
+        totalTrips,
+        tripsPerPage: limit
+      });
     } catch {
       set({ error: 'Failed to fetch trips', loading: false });
     }
