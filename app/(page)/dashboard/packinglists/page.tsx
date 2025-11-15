@@ -7,6 +7,7 @@ import { Trash2, Search, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import { usePackingListStore } from "@/store/packingListStore";
 import { useTripStore } from "@/store/tripStore";
+import TrendingInventoryItems from "@/components/dashboard/TrendingInventoryItems";
 import { PackingList, Trip } from "@/types";
 
 // Helper functions to transform data for UI
@@ -217,93 +218,104 @@ export default function PackingListsPage() {
         </div>
       </motion.div>
 
-      {/* Packing List Cards */}
-      {paginatedLists.length > 0 ? (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <AnimatePresence>
-              {paginatedLists.map((list) => (
-                <motion.div key={getPackingListId(list)} initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -25 }} transition={{ duration: 0.3 }} layout onClick={() => router.push(`/packinglist-overview?id=${getPackingListId(list)}`)} className="flex flex-col justify-between p-6 bg-white/90 backdrop-blur-lg rounded-2xl shadow-md hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1 cursor-pointer">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900">{list.title || 'Untitled List'}</h2>
-                    <p className="text-sm text-gray-600 mt-1">{getPackingListDescription(list)}</p>
-                    {!selectedTrip && <p className="text-sm text-emerald-600 mt-2 font-medium">Trip: {getTripNameById(list.tripId?.toString() || '')}</p>}
-                  </div>
-                  <div className="flex justify-between items-center mt-5">
-                    <span className="text-sm text-emerald-700 font-medium">{getPackingListItemsCount(list)} items</span>
-                    <button onClick={(e) => { e.stopPropagation(); handleDeleteList(getPackingListId(list)); }} className="p-2 rounded-full hover:bg-red-50 text-red-500 hover:text-red-600 transition">
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+      {/* Main Content Layout */}
+      <div className="grid lg:grid-cols-4 gap-6">
+        {/* Trending Sidebar */}
+        <div className="lg:col-span-1 order-2 lg:order-1">
+          <TrendingInventoryItems maxItems={6} showCompact={true} />
+        </div>
 
-          {/* Pagination */}
-          <div className="flex justify-center items-center mt-8 gap-2 flex-wrap">
-            <button
-              onClick={() => goToPage(1)}
-              disabled={currentPage === 1}
-              className="px-3 py-1 rounded-xl border shadow hover:bg-gray-100 disabled:opacity-50"
-            >
-              {"<<"} First
-            </button>
-            <button
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="px-3 py-1 rounded-xl border shadow hover:bg-gray-100 disabled:opacity-50"
-            >
-              {"<"} Prev
-            </button>
+        {/* Packing Lists Content */}
+        <div className="lg:col-span-3 order-1 lg:order-2">
+          {/* Packing List Cards */}
+          {paginatedLists.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <AnimatePresence>
+                  {paginatedLists.map((list) => (
+                    <motion.div key={getPackingListId(list)} initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -25 }} transition={{ duration: 0.3 }} layout onClick={() => router.push(`/packinglist-overview?id=${getPackingListId(list)}`)} className="flex flex-col justify-between p-6 bg-white/90 backdrop-blur-lg rounded-2xl shadow-md hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1 cursor-pointer">
+                      <div>
+                        <h2 className="text-lg font-semibold text-gray-900">{list.title || 'Untitled List'}</h2>
+                        <p className="text-sm text-gray-600 mt-1">{getPackingListDescription(list)}</p>
+                        {!selectedTrip && <p className="text-sm text-emerald-600 mt-2 font-medium">Trip: {getTripNameById(list.tripId?.toString() || '')}</p>}
+                      </div>
+                      <div className="flex justify-between items-center mt-5">
+                        <span className="text-sm text-emerald-700 font-medium">{getPackingListItemsCount(list)} items</span>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteList(getPackingListId(list)); }} className="p-2 rounded-full hover:bg-red-50 text-red-500 hover:text-red-600 transition">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
 
-            {/* Page numbers with ellipsis */}
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter((page) =>
-                page === 1 ||
-                page === totalPages ||
-                Math.abs(page - currentPage) <= 1
-              )
-              .map((page, index, arr) => {
-                const prev = arr[index - 1];
-                return (
-                  <span key={page}>
-                    {prev && page - prev > 1 && <span className="px-2">...</span>}
-                    <button
-                      onClick={() => goToPage(page)}
-                      className={`px-3 py-1 rounded-xl border shadow hover:bg-emerald-50 ${currentPage === page ? "bg-emerald-100 font-medium" : ""
-                        }`}
-                    >
-                      {page}
-                    </button>
-                  </span>
-                );
-              })}
+              {/* Pagination */}
+              <div className="flex justify-center items-center mt-8 gap-2 flex-wrap">
+                <button
+                  onClick={() => goToPage(1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 rounded-xl border shadow hover:bg-gray-100 disabled:opacity-50"
+                >
+                  {"<<"} First
+                </button>
+                <button
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 rounded-xl border shadow hover:bg-gray-100 disabled:opacity-50"
+                >
+                  {"<"} Prev
+                </button>
 
-            <button
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 rounded-xl border shadow hover:bg-gray-100 disabled:opacity-50"
-            >
-              Next {">"}
-            </button>
-            <button
-              onClick={() => goToPage(totalPages)}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 rounded-xl border shadow hover:bg-gray-100 disabled:opacity-50"
-            >
-              Last {">>"}
-            </button>
-          </div>
+                {/* Page numbers with ellipsis */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((page) =>
+                    page === 1 ||
+                    page === totalPages ||
+                    Math.abs(page - currentPage) <= 1
+                  )
+                  .map((page, index, arr) => {
+                    const prev = arr[index - 1];
+                    return (
+                      <span key={page}>
+                        {prev && page - prev > 1 && <span className="px-2">...</span>}
+                        <button
+                          onClick={() => goToPage(page)}
+                          className={`px-3 py-1 rounded-xl border shadow hover:bg-emerald-50 ${currentPage === page ? "bg-emerald-100 font-medium" : ""
+                            }`}
+                        >
+                          {page}
+                        </button>
+                      </span>
+                    );
+                  })}
 
-        </>
-      ) : (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 text-center text-gray-500">
-          <Image src="/empty-state.svg" alt="No lists" width={160} height={120} className="mb-6 opacity-80" />
-          <p className="text-lg font-medium">No packing lists found</p>
-          <p className="text-sm mt-1">Create your first list to start organizing your trip essentials.</p>
-        </motion.div>
-      )}
+                <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 rounded-xl border shadow hover:bg-gray-100 disabled:opacity-50"
+                >
+                  Next {">"}
+                </button>
+                <button
+                  onClick={() => goToPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 rounded-xl border shadow hover:bg-gray-100 disabled:opacity-50"
+                >
+                  Last {">>"}
+                </button>
+              </div>
+
+            </>
+          ) : (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 text-center text-gray-500">
+              <Image src="/empty-state.svg" alt="No lists" width={160} height={120} className="mb-6 opacity-80" />
+              <p className="text-lg font-medium">No packing lists found</p>
+              <p className="text-sm mt-1">Create your first list to start organizing your trip essentials.</p>
+            </motion.div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

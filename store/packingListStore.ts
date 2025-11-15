@@ -85,7 +85,7 @@ export const usePackingListStore = create<PackingListStore>((set) => ({
         loading: false,
       }));
     } catch (error) {
-      console.error('Delete packing list error:', error);
+
       set({ 
         error: error instanceof Error ? error.message : 'Failed to delete packing list', 
         loading: false 

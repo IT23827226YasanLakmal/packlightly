@@ -4,10 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Leaf, Check, CheckCheck } from 'lucide-react';
 import WeatherCard from '@/components/dashboard/weathercard';
 import ChecklistSection from '@/components/dashboard/checklistsection';
+import TrendingPosts from '@/components/community/TrendingPosts';
 import { useChecklistStore } from '@/store/checklistStore';
-import useSWR from 'swr';
-import { fetcherWithToken } from "@/utils/fetcher";
-import { Trip, Item, CategoryItems, PackingList, Category } from '@/types';
+import { useTripStore } from '@/store/tripStore';
+import { usePackingListStore } from '@/store/packingListStore';
+import { Trip, Item, CategoryItems, PackingList } from '@/types';
 
 
 
@@ -28,7 +29,6 @@ const formatDate = (dateString: string) => {
 
 
 export default function PackingListOverviewPage() {
-  console.log('🚀 Smart Packing component rendering');
 
   // Get state and actions from the store
   const {
@@ -42,35 +42,29 @@ export default function PackingListOverviewPage() {
     checkAllCategory,
     uncheckAllCategory,
     getAISuggestions,
+    addItem,
+    saveToServer,
   } = useChecklistStore();
-
-  console.log('📦 Store methods available:', {
-    hasGetAISuggestions: typeof getAISuggestions === 'function',
-    getAISuggestionsType: typeof getAISuggestions
-  });
-
-
-
-  // ... other state and hooks (trips, lists, etc.)
-  function useTrips() {
-    const { data, error } = useSWR('http://localhost:5000/api/trips', fetcherWithToken);
-    return { trips: data, loading: !data && !error, error };
-  }
-
-  function usePackingLists(tripId: string) {
-    const { data, error } = useSWR('http://localhost:5000/api/packinglists', fetcherWithToken);
-    const lists = data ? data.filter((pl: PackingList) => pl.tripId?.toString() === tripId) : [];
-    return { lists, loading: !data && !error, error };
-  }
-
-
-  const { trips } = useTrips();
 
   /** UI State */
   const [activeTab, setActiveTab] = useState<'weather' | 'checklist' | 'smart'>('weather');
-  console.log('📱 Current active tab:', activeTab);
   const [selectedTripId, setSelectedTripId] = useState<string>('');
   const [selectedListId, setSelectedListId] = useState<string>('');
+
+  // Using tripStore & packingListStore
+  const { trips, fetchTrips } = useTripStore();
+  const { packingLists, fetchPackingLists } = usePackingListStore();
+
+  // Filter packing lists by tripId
+  const lists = useMemo(() => {
+    return packingLists.filter((pl: PackingList) => pl.tripId?.toString() === selectedTripId);
+  }, [packingLists, selectedTripId]);
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchTrips();
+    fetchPackingLists();
+  }, [fetchTrips, fetchPackingLists]);
 
   /** Selected Trip */
   const currentTrip = useMemo(() => trips?.find((t: Trip) => t._id?.toString() === selectedTripId), [trips, selectedTripId]);
@@ -85,9 +79,6 @@ export default function PackingListOverviewPage() {
     }
   }, [trips, selectedTripId]);
 
-  /** Packing Lists */
-  const { lists } = usePackingLists(selectedTripId);
-
   /** Initialize selectedListId */
   useEffect(() => {
     if (lists && lists.length > 0 && !selectedListId) {
@@ -99,7 +90,7 @@ export default function PackingListOverviewPage() {
   const currentListSeed = useMemo(() => {
     const list = lists.find((p: PackingList) => p._id?.toString() === selectedListId);
     if (!list?.categories) return {};
-    return list.categories.reduce((acc: CategoryItems, cat: Category) => {
+    return list.categories.reduce((acc: CategoryItems, cat) => {
       acc[cat.name] = cat.items.map((i) => ({
         name: i.name,
         qty: i.qty ?? 1,
@@ -169,51 +160,64 @@ export default function PackingListOverviewPage() {
   const [smartRemoved, setSmartRemoved] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [aiSuggestionsFetched, setAiSuggestionsFetched] = useState(false);
+  const [savingItems, setSavingItems] = useState<Set<string>>(new Set());
 
   // Function to fetch AI suggestions when smart tab is clicked
   const fetchAISuggestions = useCallback(async () => {
-    if (!currentTrip || !selectedListId || loadingSuggestions || aiSuggestionsFetched) {
-      console.log('⏭️ Skipping AI suggestions fetch:', { 
-        hasTrip: !!currentTrip,
-        hasListId: !!selectedListId,
-        loading: loadingSuggestions, 
-        alreadyFetched: aiSuggestionsFetched 
-      });
+    if (!currentTrip || !selectedListId || loadingSuggestions) {
+     
       return;
     }
     
-    console.log('✅ Fetching AI suggestions for packing list:', selectedListId);
     setLoadingSuggestions(true);
     try {
       const aiSuggestions = await getAISuggestions(selectedListId);
-      console.log('✅ Received AI suggestions:', aiSuggestions);
       setSmartCats(aiSuggestions);
       setSmartRemoved([]);
       setAiSuggestionsFetched(true);
-    } catch (error) {
-      console.error('❌ Failed to get AI suggestions:', error);
-      // Don't create hardcoded categories, just leave empty
+    } catch {
       setSmartCats({});
     } finally {
       setLoadingSuggestions(false);
     }
-  }, [currentTrip, selectedListId, getAISuggestions, loadingSuggestions, aiSuggestionsFetched]);
+  }, [currentTrip, selectedListId, getAISuggestions, loadingSuggestions]);
 
-  // Handle tab change with AI suggestions fetch for smart tab
+  // Function to regenerate AI suggestions
+  const regenerateAISuggestions = useCallback(async () => {
+    if (!currentTrip || !selectedListId || loadingSuggestions) {
+      return;
+    }
+    
+    setLoadingSuggestions(true);
+    setAiSuggestionsFetched(false);
+    setSmartCats({});
+    setSmartRemoved([]);
+    
+    try {
+      const aiSuggestions = await getAISuggestions(selectedListId);
+      setSmartCats(aiSuggestions);
+      setSmartRemoved([]);
+      setAiSuggestionsFetched(true);
+    } catch {
+      setSmartCats({});
+      setAiSuggestionsFetched(false);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  }, [currentTrip, selectedListId, getAISuggestions, loadingSuggestions]);
+
+  // Handle tab change with AI suggestions fetch for smart tab (only first time)
   const handleTabChange = useCallback((tabId: typeof activeTab) => {
-    console.log('🔄 Tab change to:', tabId);
     setActiveTab(tabId);
     
-    if (tabId === 'smart') {
-      console.log('🤖 Smart tab clicked, fetching AI suggestions...');
+    if (tabId === 'smart' && !aiSuggestionsFetched) {
       fetchAISuggestions();
     }
-  }, [fetchAISuggestions]);
+  }, [fetchAISuggestions, aiSuggestionsFetched]);
 
   // Reset AI suggestions when trip or selected list changes
   useEffect(() => {
     if (currentTrip || selectedListId) {
-      console.log('🔄 Trip or list changed, resetting AI suggestions state');
       setAiSuggestionsFetched(false);
       setSmartCats({});
       setSmartRemoved([]);
@@ -243,19 +247,50 @@ export default function PackingListOverviewPage() {
     uncheckAllCategory(category);
   }, [uncheckAllCategory]);
 
-  const handleAddSuggestionToChecklist = useCallback((category: string, item: Item) => {
-    setChecklistCats({
-      ...checklistCats,
-      [category]: [
-        ...(checklistCats[category] || []),
-        ...(checklistCats[category]?.find((i: Item) => i.name.toLowerCase() === item.name.toLowerCase()) ? [] : [item])
-      ]
-    });
-  }, [checklistCats, setChecklistCats]);
+  const handleAddSuggestionToChecklist = useCallback(async (category: string, item: Item) => {
+    const itemKey = `${category}-${item.name}`;
+    
+    try {
+      // Add to saving state
+      setSavingItems(prev => new Set(prev).add(itemKey));
+      
+      // Add item to local state using store's addItem function
+      addItem(category, item);
+      
+      // Save to database
+      await saveToServer(selectedListId, category);
+
+      
+    } catch (error) {
+
+      
+      // You could also show a toast notification here
+      alert(`Failed to save item "${item.name}" to database. Please try again.`);
+    } finally {
+      // Remove from saving state
+      setSavingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemKey);
+        return newSet;
+      });
+    }
+  }, [addItem, selectedListId, saveToServer, setSavingItems]);
 
   const handleRemoveSmart = useCallback((label: string) => {
     setSmartRemoved((prev) => (prev.includes(label) ? prev : [...prev, label]));
   }, []);
+
+  /** Helper function to normalize category names and fix common typos */
+  const normalizeCategoryName = (categoryName: string): string => {
+    const normalized = categoryName.toLowerCase().trim();
+    
+    // Fix common typos
+    if (normalized.includes('safetly')) {
+      return categoryName.replace(/safetly/gi, 'safety');
+    }
+    
+    return categoryName;
+  };
 
   /** Category Icons - Dynamic mapping */
   const getCategoryIcon = (categoryName: string): string => {
@@ -267,7 +302,7 @@ export default function PackingListOverviewPage() {
     if (name.includes('documents') || name.includes('document') || name.includes('papers')) return '📄';
     if (name.includes('miscellaneous') || name.includes('misc') || name.includes('other')) return '📦';
     if (name.includes('food') || name.includes('snacks')) return '🍪';
-    if (name.includes('medical') || name.includes('health')) return '💊';
+    if (name.includes('medical') || name.includes('health') || name.includes('safety') || name.includes('safetly')) return '💊';
     if (name.includes('accessories') || name.includes('accessory')) return '👜';
     return '📋'; // Default icon
   };
@@ -294,15 +329,6 @@ export default function PackingListOverviewPage() {
       </div>
     );
   }
-
-  // Debug log for smart categories
-  console.log('Smart packing render state:', { 
-    smartCats, 
-    smartCatsKeys: Object.keys(smartCats),
-    loadingSuggestions,
-    currentTrip: currentTrip?.title,
-    selectedListId 
-  });
 
   return (
     <div className="relative flex min-h-screen flex-col bg-[#f5f8f6] text-gray-800 p-4">
@@ -422,8 +448,20 @@ export default function PackingListOverviewPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
+              className="grid lg:grid-cols-3 gap-6"
             >
-              <WeatherCard weather={currentTrip.weather} />
+              {/* Weather Card - Takes 2 columns */}
+              <div className="lg:col-span-2">
+                <WeatherCard weather={{
+                  ...currentTrip.weather,
+                  condition: currentTrip.weather.condition as "sunny" | "rainy" | "cloudy" | "snowy" | undefined
+                }} />
+              </div>
+              
+              {/* Trending Posts Sidebar - Takes 1 column */}
+              <div className="lg:col-span-1">
+                <TrendingPosts maxPosts={4} showCompact={true} />
+              </div>
             </motion.div>
           )}
 
@@ -484,6 +522,7 @@ export default function PackingListOverviewPage() {
                   const ecoCount = checklistCats[cat].filter((i) => !removedItems.includes(i.name) && i.eco).length;
                   const isActive = cat === activeCategory;
                   const allChecked = total > 0 && checkedCount === total;
+                  const normalizedCatName = normalizeCategoryName(cat);
 
                   return (
                     <button
@@ -495,8 +534,8 @@ export default function PackingListOverviewPage() {
                           : 'bg-gray-100 text-gray-700 hover:bg-green-50 hover:text-green-700'}
                       `}
                     >
-                      <span>{getCategoryIcon(cat)}</span>
-                      <span>{cat}</span>
+                      <span>{getCategoryIcon(normalizedCatName)}</span>
+                      <span>{normalizedCatName}</span>
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${allChecked ? 'bg-green-500 text-white' : 'bg-white/30'
                         }`}>
                         {checkedCount}/{total} ✓
@@ -564,9 +603,25 @@ export default function PackingListOverviewPage() {
             >
               {/* Header + Progress + Eco */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 md:col-span-2">
-                  Smart Packing Suggestions
-                </h2>
+                <div className="md:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+                      Smart Packing Suggestions
+                    </h2>
+                    {aiSuggestionsFetched && !loadingSuggestions && (
+                      <button
+                        onClick={regenerateAISuggestions}
+                        disabled={loadingSuggestions}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 disabled:opacity-50 text-sm font-medium shadow-lg"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Regenerate
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2 text-sm text-blue-700 font-semibold">
                     <CheckCheck size={20} /> Progress: {packingProgress.progress}%
@@ -638,58 +693,83 @@ export default function PackingListOverviewPage() {
                     </div>
                   ) : (
                     Object.keys(smartCats).map((cat) => {
-                      const items = (smartCats[cat] || []).filter((i) => !smartRemoved.includes(i.name));
-                      console.log(`Category ${cat}:`, { totalItems: smartCats[cat]?.length, filteredItems: items.length, items });
+                      // Filter out items that are already in the checklist OR manually removed from suggestions
+                      const checklistItems = checklistCats[cat] || [];
+                      const checklistItemNames = checklistItems.map(item => item.name.toLowerCase());
+                      
+                      const items = (smartCats[cat] || []).filter((i) => 
+                        !smartRemoved.includes(i.name) && 
+                        !checklistItemNames.includes(i.name.toLowerCase())
+                      );
+                      
                       if (!items.length) return null;
+                      
+                      // Normalize the category name to fix typos
+                      const normalizedCatName = normalizeCategoryName(cat);
+                      
                       return (
                         <div key={`smart-${cat}`} className="bg-white rounded-2xl p-4 shadow border border-gray-100">
                           <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                            <span>{getCategoryIcon(cat)}</span>
-                            {titleCase(cat)}
+                            <span>{getCategoryIcon(normalizedCatName)}</span>
+                            {titleCase(normalizedCatName)}
                           </h3>
-                      <ul className="space-y-2">
-                        {items.map((it) => (
-                          <li
-                            key={`sug-${cat}-${it.name}`}
-                            className="flex items-center justify-between gap-3 bg-emerald-50/60 rounded-xl px-3 py-2"
-                          >
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleToggleSmartItem(cat, it.name)}
-                                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all
-                                  ${it.checked
-                                    ? 'bg-green-500 border-green-500 text-white'
-                                    : 'border-gray-300 hover:border-green-400'
-                                  }`}
+                          <ul className="space-y-2">
+                            {items.map((it) => (
+                              <li
+                                key={`sug-${cat}-${it.name}`}
+                                className="flex items-center justify-between gap-3 bg-emerald-50/60 rounded-xl px-3 py-2"
                               >
-                                {it.checked && <Check size={14} />}
-                              </button>
-                              <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-gray-800">{it.name}</span>
-                                {it.eco && <span className="text-xs text-emerald-700">Eco-friendly</span>}
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleRemoveSmart(it.name)}
-                                className="text-red-500 hover:text-red-600 text-xs"
-                                title="Hide suggestion"
-                              >
-                                Remove
-                              </button>
-                              <button
-                                onClick={() => handleAddSuggestionToChecklist(cat, it)}
-                                className="px-2 py-1 rounded-lg bg-emerald-500 text-white text-xs hover:bg-emerald-600"
-                                title="Add to Checklist"
-                              >
-                                Add
-                              </button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  );
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleToggleSmartItem(cat, it.name)}
+                                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all
+                                      ${it.checked
+                                        ? 'bg-green-500 border-green-500 text-white'
+                                        : 'border-gray-300 hover:border-green-400'
+                                      }`}
+                                  >
+                                    {it.checked && <Check size={14} />}
+                                  </button>
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-semibold text-gray-800">{it.name}</span>
+                                    {it.eco && <span className="text-xs text-emerald-700">Eco-friendly</span>}
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleRemoveSmart(it.name)}
+                                    className="text-red-500 hover:text-red-600 text-xs"
+                                    title="Hide suggestion"
+                                  >
+                                    Remove
+                                  </button>
+                                  <button
+                                    onClick={() => handleAddSuggestionToChecklist(cat, it)}
+                                    disabled={savingItems.has(`${cat}-${it.name}`)}
+                                    className={`px-2 py-1 rounded-lg text-white text-xs transition-all duration-200 flex items-center gap-1 ${
+                                      savingItems.has(`${cat}-${it.name}`)
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-emerald-500 hover:bg-emerald-600'
+                                    }`}
+                                    title="Add to Checklist"
+                                  >
+                                    {savingItems.has(`${cat}-${it.name}`) ? (
+                                      <>
+                                        <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        Saving...
+                                      </>
+                                    ) : (
+                                      'Add'
+                                    )}
+                                  </button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
                     })
                   )}
                 </div>

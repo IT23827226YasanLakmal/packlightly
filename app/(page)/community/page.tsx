@@ -1,10 +1,14 @@
 "use client";
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import Header from "../../../components/Header";
-import TrendingCard from "../../../components/community/TrendingCard";
-import PostListItem from "../../../components/community/PostListItem";
+import InstagramPost from "../../../components/community/InstagramPost";
+import CreatePostFAB from "../../../components/community/CreatePostFAB";
+import Pagination from "../../../components/community/Pagination";
+import PostsPerPageSelector from "../../../components/community/PostsPerPageSelector";
 import { usePostStore } from "@/store/postStore";
+import { useCurrentUser } from "@/lib/useCurrentUser";
 
 // Define a type for trending/reading posts
 interface CommunityPostSection {
@@ -20,158 +24,472 @@ interface CommunityPost {
 
 export default function Page() {
   const [readingPost, setReadingPost] = useState<CommunityPost | null>(null);
-  const { posts, fetchPosts, loading, error } = usePostStore();
+  const [showCreatePost, setShowCreatePost] = useState(false);
+  const [newPost, setNewPost] = useState({
+    title: '',
+    description: '',
+    tags: '',
+    imageUrl: ''
+  });
+  
+  const { 
+    posts, 
+    fetchPosts, 
+    loading, 
+    error, 
+    addComment, 
+    createPost, 
+    toggleLike,
+    currentPage,
+    totalPages,
+    totalPosts,
+    postsPerPage
+  } = usePostStore();
+  const { user: currentUser } = useCurrentUser();
 
   React.useEffect(() => {
-    fetchPosts();
+
+    fetchPosts(1, 10); // Start with page 1 and 10 posts per page
   }, [fetchPosts]);
 
-  // Trending posts: top 2 by likeCount (fallback to 0 if undefined)
-  const trendingPosts = [...posts]
-    .sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0))
-    .slice(0, 2);
+  // Handle page change
+  const handlePageChange = async (page: number) => {
+
+    await fetchPosts(page, postsPerPage);
+  };
+
+  // Handle posts per page change
+  const handlePostsPerPageChange = async (newPostsPerPage: number) => {
+
+    // Reset to page 1 when changing posts per page
+    await fetchPosts(1, newPostsPerPage);
+  };
+
+  // Ensure posts is always an array and filter out invalid posts
+  const validPosts = (posts || []).filter(post => 
+    post && 
+    typeof post === 'object' && 
+    post.title && 
+    post.description
+  );
+
+  // Log posts when they change
+  React.useEffect(() => {
+
+
+    if (currentUser) {
+
+    }
+  }, [posts, validPosts, currentUser]);
+
+  const handleLike = async (postId: string) => {
+    if (!currentUser) {
+      alert('Please login to like posts');
+      return;
+    }
+    
+    if (!postId) {
+
+      alert('Error: Invalid post. Please refresh the page.');
+      return;
+    }
+
+
+    
+    try {
+      await toggleLike(postId, currentUser.uid);
+    } catch (error) {
+
+      alert('Failed to like post. Please try again.');
+    }
+  };
+
+  const handleComment = async (postId: string, comment: string) => {
+    if (!currentUser) {
+      alert('Please login to comment');
+      return;
+    }
+    
+    try {
+      await addComment(postId, comment, currentUser.displayName || currentUser.email || 'Anonymous');
+    } catch (error) {
+
+      alert('Failed to add comment. Please try again.');
+    }
+  };
+
+  const handleShare = async (postId: string) => {
+    const post = validPosts.find(p => p._id === postId);
+    if (!post) return;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: post.title,
+          text: post.description,
+          url: `${window.location.origin}/community/post/${postId}`
+        });
+      } catch (error) {
+
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(`${window.location.origin}/community/post/${postId}`);
+        alert('Link copied to clipboard!');
+      } catch (error) {
+
+      }
+    }
+  };
+
+  const handleSave = (postId: string) => {
+    // Save to localStorage for now
+    const savedPosts = JSON.parse(localStorage.getItem('savedPosts') || '[]');
+    if (!savedPosts.includes(postId)) {
+      savedPosts.push(postId);
+      localStorage.setItem('savedPosts', JSON.stringify(savedPosts));
+      alert('Post saved!');
+    } else {
+      alert('Post already saved!');
+    }
+  };
+
+  const handleCreatePost = async () => {
+    if (!currentUser) {
+      alert('Please login to create a post');
+      return;
+    }
+
+    if (!newPost.title.trim() || !newPost.description.trim()) {
+      alert('Please fill in the title and description');
+      return;
+    }
+
+    try {
+      const tagsArray = newPost.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+      
+      await createPost({
+        title: newPost.title,
+        description: newPost.description,
+        tags: tagsArray,
+        imageUrl: newPost.imageUrl,
+        status: 'Published',
+        date: new Date().toISOString(),
+        comments: [],
+        likeCount: 0,
+        likedBy: [] // Initialize empty likedBy array
+      }, () => fetchPosts(1, postsPerPage)); // Refresh to page 1 after creating post
+
+      // Reset form
+      setNewPost({
+        title: '',
+        description: '',
+        tags: '',
+        imageUrl: ''
+      });
+      setShowCreatePost(false);
+      
+      alert('Post created successfully!');
+    } catch (error) {
+
+      alert('Failed to create post. Please try again.');
+    }
+  };
 
   return (
     <>
       <Header />
-      <div className="px-6 md:px-12 flex flex-1 justify-center py-10 bg-gradient-to-b from-white to-green-50">
-        <div className="flex w-full max-w-[1200px] gap-8">
-          {/* Main Content */}
-          <div className="flex-1 flex flex-col">
-            {/* Hero Section */}
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="flex flex-wrap justify-between gap-3 p-8 bg-gradient-to-r from-green-400 via-green-500 to-green-600 rounded-3xl shadow-lg text-white relative overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.2),transparent)]" />
-              <div className="flex flex-col gap-4 relative z-10">
-                <p className="text-3xl md:text-[40px] font-extrabold leading-tight drop-shadow">
-                  🌿 Eco Community Forum
-                </p>
-                <p className="text-base font-light leading-relaxed max-w-lg opacity-90">
-                  Ask questions, share tips, and connect with fellow eco-conscious travelers.
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Trending Posts */}
-            <h3 className="text-black text-xl md:text-2xl font-bold px-4 pt-10 pb-4 border-b border-gray-200">
-              🔥 Trending Posts
-            </h3>
-
-            {loading && <p className="text-green-500 px-4 py-2">Loading posts...</p>}
-            {error && <p className="text-red-500 px-4 py-2">{error}</p>}
-
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="grid md:grid-cols-2 gap-6 p-4"
-            >
-              {trendingPosts.length === 0 && !loading && (
-                <p className="text-gray-500 col-span-2">No trending posts yet.</p>
-              )}
-              {trendingPosts.map((post, i) => (
-                <div key={post._id || i} onClick={() => setReadingPost({
-                  title: post.title,
-                  description: post.description,
-                  imageUrl: post.imageUrl || '',
-                  content: [
-                    { section: 'Description', body: post.description },
-                    // You can add more sections if you want
-                  ],
-                })} className="cursor-pointer">
-                  <TrendingCard
-                    title={post.title}
-                    description={post.description}
-                    imageUrl={post.imageUrl}
-                  />
-                  <div className="text-xs text-green-700 font-semibold mt-2">👍 {post.likeCount ?? 0} likes</div>
-                </div>
-              ))}
-            </motion.div>
-
-            {/* Recent Posts */}
-            <h3 className="text-black text-xl md:text-2xl font-bold px-4 pt-10 pb-4 border-b border-gray-200">
-              🆕 Recent Posts
-            </h3>
-
-            {loading && <p className="text-green-500 px-4 py-2">Loading posts...</p>}
-            {error && <p className="text-red-500 px-4 py-2">{error}</p>}
-
+      
+      {/* Instagram-style Layout */}
+      <div className="min-h-screen bg-gray-50">
+        {/* Community Hero Section */}
+        <section className="relative bg-gradient-to-br from-emerald-50 to-green-100 py-16">
+          <div className="max-w-4xl mx-auto px-4 text-center">
+            {/* Floating eco elements */}
+            <div className="absolute top-4 left-4 opacity-20">
+              <svg className="w-16 h-16 text-green-500 animate-bounce" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="absolute top-8 right-8 opacity-15">
+              <svg className="w-20 h-20 text-emerald-400 animate-spin-slow" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            </div>
+            
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="divide-y divide-gray-100"
+              transition={{ duration: 0.8 }}
             >
-              {posts.map((post, i) => (
-                <div
-                  key={post._id || i}
-                  className="flex gap-4 px-4 py-4 hover:bg-green-100/60 rounded-xl transition cursor-pointer"
-                >
-                  <PostListItem
-                    title={post.title}
-                    time={new Date(post.date).toLocaleDateString()}
-                    author={post.ownerId || "Unknown"}
-                  />
+              <h1 className="text-4xl md:text-5xl font-bold text-emerald-900 mb-4">
+                🌿 Green Travel Community
+              </h1>
+              <p className="text-lg md:text-xl text-emerald-700 mb-6 max-w-2xl mx-auto">
+                Connect with eco-conscious travelers, share sustainable adventures, and discover green destinations together
+              </p>
+              
+              <div className="flex flex-wrap justify-center gap-4">
+                <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 border border-emerald-200">
+                  <span className="text-sm text-emerald-700">🌱 Sustainable Travel</span>
                 </div>
-              ))}
+                <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 border border-emerald-200">
+                  <span className="text-sm text-emerald-700">🤝 Community</span>
+                </div>
+                <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 border border-emerald-200">
+                  <span className="text-sm text-emerald-700">📸 Share Stories</span>
+                </div>
+              </div>
             </motion.div>
           </div>
+        </section>
+        
+        {/* Main Feed */}
+        <div className="max-w-md mx-auto bg-gray-50 pb-20">
+          {/* User Status Check */}
+          {!currentUser && (
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mx-4 my-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-blue-700">
+                    Please login to like, comment, and create posts.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
-          {/* Sidebar */}
-          <aside className="hidden lg:flex w-[320px] flex-col gap-8">
-            {/* Top Contributors */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.5 }}
-              className="p-6 bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-green-100"
-            >
-              <h4 className="text-lg font-bold text-black mb-4">🏆 Top Contributors</h4>
-              <ul className="space-y-3 text-sm text-gray-700">
-                <li className="flex items-center justify-between">
-                  <span>@EcoGuru</span>
-                  <span className="text-green-600 font-semibold">152 pts</span>
-                </li>
-                <li className="flex items-center justify-between">
-                  <span>@GreenAdventurer</span>
-                  <span className="text-green-600 font-semibold">120 pts</span>
-                </li>
-                <li className="flex items-center justify-between">
-                  <span>@EarthLover88</span>
-                  <span className="text-green-600 font-semibold">98 pts</span>
-                </li>
-              </ul>
-            </motion.div>
+          {/* Loading State */}
+          {loading && (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+              <span className="ml-2 text-gray-600">Loading posts...</span>
+            </div>
+          )}
+          
+          {/* Error State */}
+          {error && (
+            <div className="text-center py-8 mx-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center justify-center mb-2">
+                  <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-red-600 font-medium">{error}</p>
+                <button 
+                  onClick={() => fetchPosts(currentPage, postsPerPage)}
+                  className="mt-2 bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg text-sm transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Posts Feed */}
+          {!loading && !error && validPosts.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">📱</div>
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">No posts yet</h3>
+              <p className="text-gray-500 mb-6">Be the first to share something with the community!</p>
+              <button 
+                onClick={() => setShowCreatePost(true)}
+                className="bg-green-500 text-white px-6 py-2 rounded-full font-semibold hover:bg-green-600 transition-colors"
+              >
+                Create your first post
+              </button>
+            </div>
+          )}
+          
+          {/* Posts Per Page Selector */}
+          {!loading && !error && validPosts.length > 0 && (
+            <div className="bg-white border-b border-gray-100">
+              <PostsPerPageSelector 
+                postsPerPage={postsPerPage}
+                onPostsPerPageChange={handlePostsPerPageChange}
+                loading={loading}
+              />
+            </div>
+          )}
 
-            {/* Popular Tags */}
+          {/* Posts */}
+          <div className="space-y-0">
+            {validPosts.map((post) => (
+              <InstagramPost
+                key={post._id || `post-${Math.random()}`}
+                post={post}
+                currentUser={currentUser}
+                onLike={handleLike}
+                onComment={handleComment}
+                onShare={handleShare}
+                onSave={handleSave}
+              />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {!loading && !error && validPosts.length > 0 && (
+            <div className="bg-white border-t border-gray-100">
+              <Pagination 
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                loading={loading}
+              />
+            </div>
+          )}
+
+          {/* Posts Summary */}
+          {!loading && !error && validPosts.length > 0 && (
+            <div className="bg-white border-t border-gray-100">
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-600">
+                  Showing {validPosts.length} of {totalPosts} posts
+                  {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Floating Action Button */}
+        <CreatePostFAB onCreatePost={() => setShowCreatePost(true)} />
+      </div>
+
+      {/* Create Post Modal */}
+      <AnimatePresence>
+        {showCreatePost && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur"
+            onClick={() => setShowCreatePost(false)}
+          >
             <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.6 }}
-              className="p-6 bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-green-100"
+              initial={{ y: 50, opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 50, opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl w-[90%] max-w-md max-h-[80vh] overflow-hidden"
             >
-              <h4 className="text-lg font-bold text-black mb-4">#️⃣ Popular Tags</h4>
-              <div className="flex flex-wrap gap-2">
-                {["eco-travel", "packing", "carbon-neutral", "hiking", "destinations"].map(
-                  (tag) => (
-                    <span
-                      key={tag}
-                      className="px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-green-200 to-green-300 text-green-900 hover:scale-105 hover:shadow transition"
-                    >
-                      #{tag}
-                    </span>
-                  )
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <button 
+                  onClick={() => setShowCreatePost(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                <h2 className="text-lg font-semibold">Create Post</h2>
+                <button 
+                  onClick={handleCreatePost}
+                  disabled={loading || !newPost.title.trim() || !newPost.description.trim()}
+                  className="bg-green-500 text-white px-4 py-1 rounded-full text-sm font-semibold hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Sharing...' : 'Share'}
+                </button>
+              </div>
+              
+              {/* Modal Content */}
+              <div className="p-4 space-y-4">
+                {/* User Info */}
+                <div className="flex items-center space-x-3">
+                  <Image
+                    src={currentUser?.photoURL || "https://ui-avatars.com/api/?name=You&background=22c55e&color=fff&size=40"}
+                    alt="Your avatar"
+                    width={40}
+                    height={40}
+                    unoptimized
+                    className="w-10 h-10 rounded-full"
+                  />
+                  <span className="font-semibold">{currentUser?.displayName || currentUser?.email || 'You'}</span>
+                </div>
+                
+                {/* Title Input */}
+                <input
+                  type="text"
+                  placeholder="Post title..."
+                  value={newPost.title}
+                  onChange={(e) => setNewPost(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:border-green-400 transition-colors text-lg font-semibold"
+                />
+                
+                {/* Caption Input */}
+                <textarea
+                  placeholder="What's on your mind about eco-friendly travel?"
+                  value={newPost.description}
+                  onChange={(e) => setNewPost(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full h-32 resize-none border border-gray-200 rounded-lg p-3 outline-none focus:border-green-400 transition-colors"
+                />
+                
+                {/* Image URL Input */}
+                <input
+                  type="url"
+                  placeholder="Image URL (optional)"
+                  value={newPost.imageUrl}
+                  onChange={(e) => setNewPost(prev => ({ ...prev, imageUrl: e.target.value }))}
+                  className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:border-green-400 transition-colors"
+                />
+                
+                {/* Image Preview */}
+                {newPost.imageUrl && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <Image
+                      src={newPost.imageUrl}
+                      alt="Preview"
+                      width={500}
+                      height={192}
+                      unoptimized
+                      className="w-full h-48 object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+                
+                {/* Tags Input */}
+                <input
+                  type="text"
+                  placeholder="Add tags separated by commas (e.g., ecotravel, sustainability, green)"
+                  value={newPost.tags}
+                  onChange={(e) => setNewPost(prev => ({ ...prev, tags: e.target.value }))}
+                  className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:border-green-400 transition-colors"
+                />
+                
+                {/* Tag Preview */}
+                {newPost.tags && (
+                  <div className="flex flex-wrap gap-2">
+                    {newPost.tags.split(',').map((tag, index) => {
+                      const trimmedTag = tag.trim();
+                      if (!trimmedTag) return null;
+                      return (
+                        <span 
+                          key={index} 
+                          className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm"
+                        >
+                          #{trimmedTag}
+                        </span>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </motion.div>
-          </aside>
-        </div>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Reading Mode Modal */}
       <AnimatePresence>
@@ -193,7 +511,14 @@ export default function Page() {
             >
               <h2 className="text-2xl font-bold mb-4">{readingPost.title}</h2>
               <p className="text-gray-600 mb-6">{readingPost.description}</p>
-              <img src={readingPost.imageUrl} alt="" className="rounded-xl mb-6" /> {/* TODO: Replace with <Image> for Next.js best practices */}
+              <Image 
+                src={readingPost.imageUrl} 
+                alt={readingPost.title || ""} 
+                width={600}
+                height={400}
+                unoptimized
+                className="rounded-xl mb-6 w-full" 
+              />
               <div className="space-y-4">
                 {readingPost.content.map((section, i) => (
                   <details

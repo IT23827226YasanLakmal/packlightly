@@ -36,7 +36,7 @@ export default function EcoFormDrawer({
       }
       onClose();
     } catch (err) {
-      console.error("Failed to save product:", err);
+
     }
   }
 

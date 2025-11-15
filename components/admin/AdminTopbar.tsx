@@ -1,8 +1,11 @@
 "use client";
 import React from "react";
 import { Bell, Search } from "lucide-react";
+import { useCurrentUser } from "@/lib/useCurrentUser";
+import Image from "next/image";
 
 export default function AdminTopbar({ right }: { right?: React.ReactNode }) {
+  const user = useCurrentUser();
   return (
     <header
       className="sticky top-0 z-40 
@@ -39,10 +42,27 @@ export default function AdminTopbar({ right }: { right?: React.ReactNode }) {
           {right}
 
           {/* Profile Avatar */}
-          <div
-            className="h-9 w-9 rounded-full bg-gradient-to-tr from-green-500 to-emerald-700 
-            shadow-md shadow-green-600/40 ring-2 ring-green-600/40"
-          />
+          <div className="relative">
+            {user?.photoURL ? (
+              <Image
+                src={user.photoURL}
+                alt={user.displayName || "Admin"}
+                width={36}
+                height={36}
+                className="h-9 w-9 rounded-full object-cover
+                  shadow-md shadow-green-600/40 ring-2 ring-green-600/40"
+              />
+            ) : (
+              <div
+                className="h-9 w-9 rounded-full bg-gradient-to-tr from-green-500 to-emerald-700 
+                shadow-md shadow-green-600/40 ring-2 ring-green-600/40
+                flex items-center justify-center text-white font-semibold text-sm"
+              >
+                {user?.displayName?.charAt(0)?.toUpperCase() || 
+                 user?.email?.charAt(0)?.toUpperCase() || 'A'}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

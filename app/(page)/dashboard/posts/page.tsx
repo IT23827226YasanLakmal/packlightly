@@ -2,15 +2,16 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Edit2, Heart, MessageCircle, X, Bold, Italic, Underline, Heading2, List, Quote, Image, Eye } from "lucide-react";
+import { Plus, Trash2, Edit2, Heart, MessageCircle, X, Bold, Italic, Underline, Heading2, List, Quote, Eye } from "lucide-react";
 import { usePostStore } from "@/store/postStore"; // import your post store
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { Post, Comment } from "@/types";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import SafeImage from "@/components/SafeImage";
 
 export default function MyPostsPage() {
-  const { posts, fetchPosts, createPost, updatePost, deletePost, addComment, loading, error } = usePostStore();
-  const user = useCurrentUser();
+  const { posts, fetchMyPosts, createPost, updatePost, deletePost, addComment, loading, error } = usePostStore();
+  const { user } = useCurrentUser();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const [currentPage, setCurrentPage] = useState(1);
@@ -21,15 +22,15 @@ export default function MyPostsPage() {
 
   // Comments state
   const [expandedPosts, setExpandedPosts] = useState<string[]>([]);
-  const [commentsData, setCommentsData] = useState<Record<string, Comment[]>>({});
+  const [commentsData] = useState<Record<string, Comment[]>>({});
 
   // Confirmation dialog state
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    fetchMyPosts();
+  }, [fetchMyPosts]);
 
   const handleDeletePost = (postId: string) => {
     setPostToDelete(postId);
@@ -38,7 +39,7 @@ export default function MyPostsPage() {
 
   const handleConfirmDelete = async () => {
     if (postToDelete) {
-      await deletePost(postToDelete);
+      await deletePost(postToDelete, fetchMyPosts);
       setExpandedPosts(prev => prev.filter(pid => pid !== postToDelete));
       setPostToDelete(null);
     }
@@ -52,11 +53,11 @@ export default function MyPostsPage() {
 
   //filter post
   const filteredPosts = posts
-    .filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()))
+    .filter(p => p && p.title && p.title.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) =>
       sortBy === "newest"
-        ? new Date(b.date).getTime() - new Date(a.date).getTime()
-        : new Date(a.date).getTime() - new Date(b.date).getTime()
+        ? new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
+        : new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime()
     );
   //pagination
   const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
@@ -83,15 +84,15 @@ export default function MyPostsPage() {
     setModalOpen(true);
   };
 
-  const savePost = async (post: Post, imageFile?: File) => {
+  const savePost = async (post: Post) => {
     if (post._id) {
-      await updatePost(post._id, post, imageFile);
+      await updatePost(post._id, post, fetchMyPosts);
     } else {
       if (!user) {
         // User not logged in - silently return
         return;
       }
-      await createPost({ ...post, ownerId: user.uid }, imageFile);
+      await createPost({ ...post, ownerId: user.uid }, fetchMyPosts);
     }
     setModalOpen(false);
   };
@@ -153,12 +154,21 @@ export default function MyPostsPage() {
             <AnimatePresence>
               {paginatedPosts.map(post => (
                 <motion.div key={post._id} initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -25 }} layout className="flex flex-col justify-between backdrop-blur-xl rounded-3xl border border-green-700/40 shadow-xl hover:shadow-emerald-800/50 transition">
-                  {post.imageUrl && <img src={post.imageUrl} alt={post.title} className="rounded-t-3xl h-40 w-full object-cover" />}
+                  {post.imageUrl && (
+                    <SafeImage 
+                      src={post.imageUrl} 
+                      alt={post.title || 'Post image'} 
+                      width={400}
+                      height={160}
+                      className="rounded-t-3xl h-40 w-full object-cover" 
+                      fallbackType="post"
+                    />
+                  )}
                   <div className="p-5 flex flex-col flex-1">
-                    <h2 className="text-lg font-semibold text-black">{post.title}</h2>
-                    <p className="text-sm text-black mt-1 line-clamp-3">{post.description}</p>
+                    <h2 className="text-lg font-semibold text-black">{post.title || 'Untitled'}</h2>
+                    <p className="text-sm text-black mt-1 line-clamp-3">{post.description || 'No description'}</p>
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {post.tags.map(tag => <span key={tag} className="text-xs bg-green-700/30 px-2 py-1 rounded">{tag}</span>)}
+                      {(post.tags || []).map(tag => <span key={tag} className="text-xs bg-green-700/30 px-2 py-1 rounded">{tag}</span>)}
                     </div>
                     <div className="flex justify-between items-center mt-5">
                       <div className="flex gap-2">
@@ -166,7 +176,7 @@ export default function MyPostsPage() {
                         <button onClick={() => handleDeletePost(post._id!)} className="p-2 rounded-full hover:bg-red-900/30 text-red-400 transition"><Trash2 size={18} /></button>
                       </div>
                       <div className="flex gap-4 items-center">
-                        <div className="flex items-center gap-1 text-emerald-400 font-medium"><Heart size={16} /> {post.comments.length}</div>
+                        <div className="flex items-center gap-1 text-emerald-400 font-medium"><Heart size={16} /> {(post.comments || []).length}</div>
                         <div onClick={() => toggleComments(post._id!)} className="flex items-center gap-1 text-emerald-400 font-medium cursor-pointer">
                           <MessageCircle size={16} /> {post.comments.length}
                         </div>
@@ -252,50 +262,157 @@ export default function MyPostsPage() {
 // Modal Component
 // ========================
 // Inside MyPostsPage.tsx (replace the old PostModal)
-function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post | null; onClose: () => void; onSave: (post: Post, imageFile?: File) => void }) {
+function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post | null; onClose: () => void; onSave: (post: Post) => void }) {
   const [title, setTitle] = useState(post?.title || "");
   const [content, setContent] = useState(post?.description || "");
   const [tags, setTags] = useState(post?.tags.join(", ") || "");
   const [preview, setPreview] = useState(false);
   const [status, setStatus] = useState<"Draft" | "Published">(post?.status || "Draft");
-
-  const [image, setImage] = useState<string | null>(post?.imageUrl || null); // For preview
-  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null); // For upload
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [imageUrl, setImageUrl] = useState(post?.imageUrl || "");
+  const [imageError, setImageError] = useState("");
+  const [validatingImage, setValidatingImage] = useState(false);
+  const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setTitle(post?.title || "");
     setContent(post?.description || "");
     setTags(post?.tags.join(", ") || "");
     setStatus(post?.status || "Draft");
-    setImage(post?.imageUrl || null);
-    setSelectedImageFile(null);
+    setImageUrl(post?.imageUrl || "");
+    setImageError("");
+    
+    // Clear validation timeout when post changes
+    return () => {
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+        validationTimeoutRef.current = null;
+      }
+    };
   }, [post]);
 
-  const applyFormat = (format: string) => setContent(prev => prev + format);
+  // Cleanup timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+      }
+    };
+  }, []);
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setImage(reader.result as string);
-      reader.readAsDataURL(file);
+  // Image validation function
+  const validateImageUrl = async (url: string) => {
+    if (!url.trim()) {
+      setImageError("");
+      return;
+    }
+
+    setValidatingImage(true);
+    setImageError("");
+
+    try {
+      // Check if URL is valid using a safer approach
+      if (!isValidUrl(url)) {
+        setImageError("Please enter a valid URL starting with http:// or https://");
+        return;
+      }
+
+      // Handle special cases for known image hosting services
+      if (isUnsplashUrl(url)) {
+        setImageError(""); // Unsplash URLs are generally valid
+        return;
+      }
+      
+      // Check if URL points to an image
+      const response = await fetch(url, { method: 'HEAD' });
+      const contentType = response.headers.get('content-type');
+      
+      if (!contentType || !contentType.startsWith('image/')) {
+        setImageError("URL does not point to a valid image");
+      }
+    } catch (error) {
+
+      setImageError("Unable to validate image URL - please check the URL is correct");
+    } finally {
+      setValidatingImage(false);
     }
   };
 
+  // Check if URL is from Unsplash
+  const isUnsplashUrl = (url: string) => {
+    return url.includes('unsplash.com') || url.includes('images.unsplash.com');
+  };
+
+  // Safe URL validation helper
+  const isValidUrl = (string: string) => {
+    try {
+      // Check if string is empty or just whitespace
+      if (!string || string.trim().length === 0) {
+        return false;
+      }
+      
+      // Trim the string to remove any leading/trailing whitespace
+      const trimmedString = string.trim();
+      
+      // Check if it starts with http or https
+      if (!trimmedString.startsWith('http://') && !trimmedString.startsWith('https://')) {
+        return false;
+      }
+      
+      new URL(trimmedString);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // Handle image URL change with debounced validation
+  const handleImageUrlChange = (url: string) => {
+    setImageUrl(url);
+    
+    // Clear existing timeout
+    if (validationTimeoutRef.current) {
+      clearTimeout(validationTimeoutRef.current);
+      validationTimeoutRef.current = null;
+    }
+    
+    // Clear any existing errors immediately for empty input
+    if (!url.trim()) {
+      setImageError("");
+      setValidatingImage(false);
+      return;
+    }
+    
+    // Basic format check before validation
+    if (url.trim() && !url.trim().startsWith('http')) {
+      setImageError("URL must start with http:// or https://");
+      setValidatingImage(false);
+      return;
+    }
+    
+    if (url.trim()) {
+      // Debounce validation by 500ms
+      validationTimeoutRef.current = setTimeout(() => {
+        validateImageUrl(url);
+      }, 500);
+    }
+  };
+
+  const applyFormat = (format: string) => setContent(prev => prev + format);
+
   const handleSubmit = () => {
     if (!post) return;
-    onSave(
-      {
-        ...post,
-        title,
-        description: content,
-        tags: tags.split(",").map(t => t.trim()),
-        status,
-      },
-      selectedImageFile || undefined
-    );
+    if (imageError) {
+      alert("Please fix the image URL error before saving.");
+      return;
+    }
+    onSave({
+      ...post,
+      title,
+      description: content,
+      tags: tags.split(",").map(t => t.trim()),
+      status,
+      imageUrl: imageUrl.trim(),
+    });
     onClose();
   };
 
@@ -316,10 +433,28 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
             {/* Title */}
             <input type="text" placeholder="Post Title..." value={title} onChange={e => setTitle(e.target.value)} className="px-5 py-3 text-lg font-semibold text-white placeholder-green-300 border-b border-green-700/30 focus:ring-2 focus:ring-emerald-500 outline-none transition" />
 
+            {/* Image URL Input */}
+            <div className="px-5 py-3 border-b border-green-700/30">
+              <input 
+                type="url" 
+                placeholder="Image URL (e.g., https://images.unsplash.com/your-image-url)" 
+                value={imageUrl} 
+                onChange={e => handleImageUrlChange(e.target.value)} 
+                className="w-full text-white placeholder-green-300 focus:ring-2 focus:ring-emerald-500 outline-none transition bg-transparent" 
+              />
+              <p className="text-xs text-green-400 mt-1">💡 Paste a direct image URL starting with https://</p>
+              {validatingImage && (
+                <p className="text-xs text-yellow-400 mt-1">⏳ Validating image...</p>
+              )}
+              {imageError && (
+                <p className="text-xs text-red-400 mt-1">❌ {imageError}</p>
+              )}
+            </div>
+
             {/* Toolbar */}
             {!preview && (
               <motion.div className="flex flex-wrap gap-3 px-5 py-3 border-b border-green-700/30 rounded-b-xl shadow-inner" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-                {[Bold, Italic, Underline, Heading2, List, Quote, Image, Eye].map((Icon, i) => {
+                {[Bold, Italic, Underline, Heading2, List, Quote, Eye].map((Icon, i) => {
                   const actions = [
                     () => applyFormat("**bold**"),
                     () => applyFormat("*italic*"),
@@ -327,7 +462,6 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
                     () => applyFormat("\n## Subheading\n"),
                     () => applyFormat("\n- List item\n"),
                     () => applyFormat("\n> Quote\n"),
-                    () => fileInputRef.current?.click(),
                     () => setPreview(!preview),
                   ];
                   return (
@@ -336,7 +470,6 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
                     </motion.button>
                   );
                 })}
-                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" />
               </motion.div>
             )}
 
@@ -345,13 +478,33 @@ function PostModal({ open, post, onClose, onSave }: { open: boolean; post: Post 
               {preview ? (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} className="prose max-w-none text-white">
                   <h2>{title}</h2>
-                  {image && <img src={image} alt="uploaded" className="rounded-xl my-4 shadow-lg" />}
+                  {imageUrl && (
+                    <SafeImage 
+                      src={imageUrl} 
+                      alt="uploaded" 
+                      width={600}
+                      height={300}
+                      className="rounded-xl my-4 shadow-lg max-h-60" 
+                      fallbackType="post"
+                    />
+                  )}
                   <p>{content}</p>
                 </motion.div>
               ) : (
                 <textarea value={content} onChange={e => setContent(e.target.value)} className="w-full h-[300px] resize-none p-4 text-white rounded-xl border border-green-700/30 focus:ring-2 focus:ring-emerald-500 outline-none shadow-inner transition placeholder-green-300" placeholder="Write your post..." />
               )}
-              {image && !preview && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4"><img src={image} alt="preview" className="rounded-xl max-h-60 shadow-lg" /></motion.div>}
+              {imageUrl && !preview && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4">
+                  <SafeImage 
+                    src={imageUrl} 
+                    alt="preview" 
+                    width={600}
+                    height={240}
+                    className="rounded-xl max-h-60 shadow-lg" 
+                    fallbackType="post"
+                  />
+                </motion.div>
+              )}
             </div>
 
             {/* Footer */}

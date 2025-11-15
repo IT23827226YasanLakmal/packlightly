@@ -5,6 +5,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { auth, db } from "@/lib/firebaseClient"; // 👈 db must be exported in firebaseClient
 import {
@@ -15,13 +16,77 @@ import {
 } from "firebase/firestore";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+import AuthGuard from "@/components/AuthGuard";
 
 export default function LoginPage() {
+  return (
+    <AuthGuard requireAuth={false}>
+      <LoginForm />
+    </AuthGuard>
+  );
+}
+
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const router = useRouter();
+
+  // 🔹 Helper: Validate form inputs
+  const validateForm = (): boolean => {
+    if (!email) {
+      setErrorMsg("Email is required");
+      return false;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setErrorMsg("Please enter a valid email address");
+      return false;
+    }
+    
+    if (!password) {
+      setErrorMsg("Password is required");
+      return false;
+    }
+    
+    if (password.length < 6) {
+      setErrorMsg("Password must be at least 6 characters long");
+      return false;
+    }
+    
+    return true;
+  };
+
+  // 🔹 Helper: Get user-friendly error message
+  const getErrorMessage = (error: unknown): string => {
+    if (!(error instanceof Error)) return "An unknown error occurred";
+    
+    const firebaseError = error as { code?: string; message: string };
+    if (!firebaseError.code) return firebaseError.message;
+    
+    switch (firebaseError.code) {
+      case "auth/user-not-found":
+        return "No account found with this email address";
+      case "auth/wrong-password":
+        return "Incorrect password";
+      case "auth/invalid-email":
+        return "Please enter a valid email address";
+      case "auth/user-disabled":
+        return "This account has been disabled";
+      case "auth/too-many-requests":
+        return "Too many failed attempts. Please try again later";
+      case "auth/network-request-failed":
+        return "Network error. Please check your connection";
+      case "auth/invalid-credential":
+        return "Invalid email or password";
+      default:
+        return firebaseError.message || "Login failed";
+    }
+  };
 
   // 🔹 Helper: fetch role or create new user in Firestore
   const fetchOrCreateUserRole = async (uid: string, email: string) => {
@@ -42,14 +107,32 @@ export default function LoginPage() {
 
   // 🔹 Helper: redirect by role
   const redirectByRole = (role: string) => {
-    if (role === "admin") router.push("/admin");
-    else router.push("/dashboard/trips");
+    // Clear any existing error messages
+    setErrorMsg(null);
+    
+    // Show success message
+    const message = role === "admin" ? "Welcome Admin! Redirecting..." : "Login successful! Redirecting...";
+    setSuccessMsg(message);
+    
+    // Delay redirect to show success feedback
+    setTimeout(() => {
+      if (role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard/trips");
+      }
+    }, 1000);
   };
 
   // 🔹 Email/password login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(
@@ -59,16 +142,21 @@ export default function LoginPage() {
       );
       const idToken = await userCredential.user.getIdToken();
       
-      // optional: sync with backend
-      await axios.post(
-        "https://localhost:5000/api/auth/profile",
-        { email },
-        {
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
-        }
-      );
+      // optional: sync with backend (comment out if backend is not running)
+      try {
+        await axios.post(
+          "https://localhost:5000/api/auth/profile",
+          { email },
+          {
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+            },
+          }
+        );
+      } catch (backendError) {
+        // Continue even if backend sync fails
+
+      }
 
       // Get role and redirect
       const role = await fetchOrCreateUserRole(
@@ -77,8 +165,7 @@ export default function LoginPage() {
       );
       redirectByRole(role);
     } catch (error: unknown) {
-      if (error instanceof Error) setErrorMsg(error.message);
-      else setErrorMsg("Login failed");
+      setErrorMsg(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -92,7 +179,7 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
       const idToken = await userCredential.user.getIdToken();
-      console.log("Google ID Token:", idToken);
+
 
       // Get role and redirect
       const role = await fetchOrCreateUserRole(
@@ -101,8 +188,26 @@ export default function LoginPage() {
       );
       redirectByRole(role);
     } catch (error: unknown) {
-      if (error instanceof Error) setErrorMsg(error.message);
-      else setErrorMsg("Google sign-in failed");
+      setErrorMsg(getErrorMessage(error));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔹 Forgot password
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setErrorMsg("Please enter your email address first");
+      return;
+    }
+    setErrorMsg(null);
+    setLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetEmailSent(true);
+      setErrorMsg(null);
+    } catch (error: unknown) {
+      setErrorMsg(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -112,11 +217,21 @@ export default function LoginPage() {
   const onEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
     if (errorMsg) setErrorMsg(null);
+    if (successMsg) setSuccessMsg(null);
+    // Real-time email validation
+    if (e.target.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.target.value)) {
+      setErrorMsg("Please enter a valid email address");
+    }
   };
 
   const onPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
     if (errorMsg) setErrorMsg(null);
+    if (successMsg) setSuccessMsg(null);
+    // Real-time password validation
+    if (e.target.value && e.target.value.length < 6) {
+      setErrorMsg("Password must be at least 6 characters long");
+    }
   };
 
   return (
@@ -157,7 +272,22 @@ export default function LoginPage() {
           >
             {loading ? "Logging in..." : "Login"}
           </button>
+
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={loading}
+            className="text-green-600 text-sm font-medium hover:text-green-700 transition-colors text-center"
+          >
+            Forgot Password?
+          </button>
         </form>
+
+        {resetEmailSent && (
+          <div className="text-green-700 font-semibold text-sm text-center bg-green-100 p-3 rounded-xl">
+            Password reset email sent! Check your inbox.
+          </div>
+        )}
 
         <Divider />
 
@@ -199,6 +329,15 @@ export default function LoginPage() {
           </svg>
           Sign in with Google
         </button>
+
+        {successMsg && (
+          <div
+            role="alert"
+            className="text-green-700 font-semibold text-sm text-center bg-green-100 p-3 rounded-xl mt-3 select-none"
+          >
+            {successMsg}
+          </div>
+        )}
 
         {errorMsg && (
           <div
